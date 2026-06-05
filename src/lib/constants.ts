@@ -31,6 +31,20 @@ export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
   "Venue","Food & Beverage","Audio/Visual","Marketing","Speaker Travel","Staff","Software","Insurance","Other",
 ];
 
+export const FEE_TYPES = [
+  { value: "split_only", label: "Split only (no fee)", description: "Entity gets share of net by percentage. No additional fee." },
+  { value: "per_company", label: "Per company sign-up", description: "Fee × number of companies (per fee basis). Plus split share of net." },
+  { value: "per_investor", label: "Per investor sign-up", description: "Fee × number of investors (per fee basis). Plus split share of net." },
+  { value: "per_lead", label: "Per lead (any)", description: "Fee × total leads (companies + investors). Plus split share of net." },
+  { value: "flat", label: "Flat fee", description: "Single fixed amount. Plus split share of net." },
+] as const;
+
+export const FEE_BASES = [
+  { value: "signed_up", label: "All leads in pipeline", description: "Any lead not in Declined stage" },
+  { value: "registered", label: "Registered only", description: "Leads with stage = Registered" },
+  { value: "paid", label: "Paid only", description: "Leads with Payment Status = Paid" },
+] as const;
+
 export const CONFERENCE_ROLES: { value: ConferenceRole; label: string; description: string }[] = [
   { value: "conference_admin", label: "Conference Admin", description: "Full access to this conference, including team and budget" },
   { value: "finance", label: "Finance", description: "Budget + payment data; read-only on leads" },

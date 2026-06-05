@@ -40,11 +40,54 @@ export interface Conference {
   created_at: string;
 }
 
+export type FeeType = "split_only" | "per_company" | "per_investor" | "per_lead" | "flat";
+export type FeeBasis = "signed_up" | "registered" | "paid";
+
 export interface ConferenceEntity {
   id: string;
   conference_id: string;
   entity_id: string;
   split_percentage: number;
+  fee_label: string | null;
+  fee_type: FeeType;
+  fee_amount: number;
+  fee_basis: FeeBasis;
+  fee_min: number | null;
+  fee_max: number | null;
+}
+
+export interface LeadNote {
+  id: string;
+  conference_id: string;
+  lead_type: LeadType;
+  lead_id: string;
+  user_id: string | null;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompType {
+  id: string;
+  conference_id: string;
+  name: string;
+  default_cost: number;
+  expense_category: ExpenseCategory;
+  created_at: string;
+}
+
+export interface LeadComp {
+  id: string;
+  conference_id: string;
+  lead_type: LeadType;
+  lead_id: string;
+  comp_type_id: string | null;
+  name: string;
+  cost: number;
+  expense_category: ExpenseCategory;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
 }
 
 export interface ConferenceMembership {

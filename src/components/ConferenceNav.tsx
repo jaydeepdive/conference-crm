@@ -19,6 +19,7 @@ export function ConferenceNav({ profile, conference, role }: {
     { href: `${base}/activity`, label: "Activity", show: true },
     { href: `${base}/budget`, label: "Budget", show: canSeePayments(role) },
     { href: `${base}/team`, label: "Team", show: canManageTeam(role) },
+    { href: `${base}/settings`, label: "Settings", show: canSeePayments(role) },
   ].filter(n => n.show);
 
   return (
