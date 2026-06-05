@@ -1,4 +1,4 @@
-import type { Stage, Confirmed, PaymentStatus } from "./types";
+import type { Stage, Confirmed, PaymentStatus, ConferenceRole, ExpenseCategory } from "./types";
 
 export const STAGES: { value: Stage; label: string; color: string }[] = [
   { value: "not_contacted", label: "Not Contacted", color: "bg-gray-200 text-gray-800" },
@@ -23,25 +23,20 @@ export const PAYMENT_STATUSES: { value: PaymentStatus; label: string; color: str
   { value: "waived", label: "Waived", color: "bg-emerald-50 text-emerald-700" },
 ];
 
-export const INDUSTRIES = [
-  "SaaS / Software", "Fintech", "Healthtech", "Cleantech / Energy",
-  "Consumer", "Hardware", "AI / ML", "Biotech", "Marketplace", "Other",
+export const INDUSTRIES = ["SaaS / Software","Fintech","Healthtech","Cleantech / Energy","Consumer","Hardware","AI / ML","Biotech","Marketplace","Mining","Energy","Other"];
+export const INVESTOR_TYPES = ["Venture Capital","Angel","Private Equity","Family Office","Corporate VC","Strategic","Accelerator","Other"];
+export const ACTIVITY_ACTIONS = ["Claimed","Email Sent","Call","Meeting","Follow-up","Invoice Sent","Payment Received","Registered","Declined","Other"];
+
+export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  "Venue","Food & Beverage","Audio/Visual","Marketing","Speaker Travel","Staff","Software","Insurance","Other",
 ];
 
-export const INVESTOR_TYPES = [
-  "Venture Capital", "Angel", "Private Equity", "Family Office",
-  "Corporate VC", "Strategic", "Accelerator", "Other",
+export const CONFERENCE_ROLES: { value: ConferenceRole; label: string; description: string }[] = [
+  { value: "conference_admin", label: "Conference Admin", description: "Full access to this conference, including team and budget" },
+  { value: "finance", label: "Finance", description: "Budget + payment data; read-only on leads" },
+  { value: "recruiter", label: "Recruiter", description: "Leads + activity; payments + budget hidden" },
+  { value: "viewer", label: "Viewer", description: "Read-only access to leads" },
 ];
-
-export const ACTIVITY_ACTIONS = [
-  "Claimed", "Email Sent", "Call", "Meeting", "Follow-up",
-  "Invoice Sent", "Payment Received", "Registered", "Declined", "Other",
-];
-
-export const TARGETS = {
-  companies: { min: 20, max: 30 },
-  investors: { min: 30, max: 50 },
-};
 
 export function stageMeta(s: Stage) { return STAGES.find(x => x.value === s)!; }
 export function confirmedMeta(c: Confirmed) { return CONFIRMED.find(x => x.value === c)!; }

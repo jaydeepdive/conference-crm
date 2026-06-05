@@ -21,8 +21,8 @@ interface Row {
   next_action: string | null;
 }
 
-export function LeadTable({ rows, profiles, basePath }: {
-  rows: Row[]; profiles: Profile[]; basePath: "/companies" | "/investors";
+export function LeadTable({ rows, profiles, basePath, showPayments = true }: {
+  rows: Row[]; profiles: Profile[]; basePath: string; showPayments?: boolean;
 }) {
   const [stageFilter, setStageFilter] = useState<Stage | "all">("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
@@ -48,11 +48,9 @@ export function LeadTable({ rows, profiles, basePath }: {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="text" value={query} onChange={e => setQuery(e.target.value)}
+        <input type="text" value={query} onChange={e => setQuery(e.target.value)}
           placeholder="Search name, contact, email…"
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm"
-        />
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm" />
         <select value={stageFilter} onChange={e => setStageFilter(e.target.value as Stage | "all")}
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm">
           <option value="all">All stages</option>
@@ -62,8 +60,7 @@ export function LeadTable({ rows, profiles, basePath }: {
           className="rounded-md border border-gray-300 px-3 py-1.5 text-sm">
           <option value="all">All owners</option>
           <option value="unclaimed">Unclaimed</option>
-          {profiles.filter(p => p.role === "team" || p.role === "admin").map(p =>
-            <option key={p.id} value={p.id}>{p.full_name || p.email}</option>)}
+          {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name || p.email}</option>)}
         </select>
         <div className="ml-auto text-xs text-gray-500">{filtered.length} of {rows.length}</div>
       </div>
@@ -77,8 +74,8 @@ export function LeadTable({ rows, profiles, basePath }: {
               <th className="px-3 py-2">Owner</th>
               <th className="px-3 py-2">Stage</th>
               <th className="px-3 py-2">Confirmed</th>
-              <th className="px-3 py-2">Payment</th>
-              <th className="px-3 py-2 text-right">Balance</th>
+              {showPayments && <th className="px-3 py-2">Payment</th>}
+              {showPayments && <th className="px-3 py-2 text-right">Balance</th>}
               <th className="px-3 py-2">Next action</th>
             </tr>
           </thead>
@@ -96,8 +93,8 @@ export function LeadTable({ rows, profiles, basePath }: {
                 <td className="px-3 py-2 text-xs">{ownerName(r.owner_id)}</td>
                 <td className="px-3 py-2"><StageBadge stage={r.stage} /></td>
                 <td className="px-3 py-2"><ConfirmedBadge value={r.confirmed} /></td>
-                <td className="px-3 py-2"><PaymentBadge value={r.payment_status} /></td>
-                <td className="px-3 py-2 text-right tabular-nums">${(r.amount_due - r.amount_paid).toLocaleString()}</td>
+                {showPayments && <td className="px-3 py-2"><PaymentBadge value={r.payment_status} /></td>}
+                {showPayments && <td className="px-3 py-2 text-right tabular-nums">${(r.amount_due - r.amount_paid).toLocaleString()}</td>}
                 <td className="px-3 py-2 text-xs">
                   {r.next_action_date && (
                     <div className={isOverdue(r.next_action_date, r.stage) ? "text-rose-600 font-medium" : "text-gray-500"}>
@@ -109,7 +106,7 @@ export function LeadTable({ rows, profiles, basePath }: {
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="px-3 py-8 text-center text-sm text-gray-500">No leads match your filters.</td></tr>
+              <tr><td colSpan={showPayments ? 8 : 6} className="px-3 py-8 text-center text-sm text-gray-500">No leads match your filters.</td></tr>
             )}
           </tbody>
         </table>

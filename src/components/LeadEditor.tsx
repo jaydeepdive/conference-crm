@@ -3,14 +3,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { STAGES, CONFIRMED, PAYMENT_STATUSES, INDUSTRIES, INVESTOR_TYPES, ACTIVITY_ACTIONS } from "@/lib/constants";
-import type { Profile, Stage, Confirmed, PaymentStatus } from "@/lib/types";
+import { canSeePayments, canEditLeads, canEditExpenses, type Profile, type Stage, type Confirmed, type PaymentStatus, type ConferenceRole } from "@/lib/types";
 
 type Kind = "company" | "investor";
+type Role = ConferenceRole | "super_admin";
 
 interface Initial {
   id?: string;
-  name: string;          // company.name or investor.firm_name
-  category: string | null; // company.industry or investor.investor_type
+  name: string;
+  category: string | null;
   contact_name: string | null;
   contact_title: string | null;
   email: string | null;
@@ -30,8 +31,9 @@ interface Initial {
   sector_focus?: string | null;
 }
 
-export function LeadEditor({ kind, initial, profiles, currentUserId }: {
-  kind: Kind; initial: Initial; profiles: Profile[]; currentUserId: string;
+export function LeadEditor({ kind, conferenceSlug, conferenceId, role, initial, profiles, currentUserId }: {
+  kind: Kind; conferenceSlug: string; conferenceId: string; role: Role;
+  initial: Initial; profiles: Profile[]; currentUserId: string;
 }) {
   const router = useRouter();
   const [form, setForm] = useState(initial);
@@ -43,6 +45,11 @@ export function LeadEditor({ kind, initial, profiles, currentUserId }: {
   const categoryOptions = kind === "company" ? INDUSTRIES : INVESTOR_TYPES;
   const tableName = kind === "company" ? "companies" : "investors";
 
+  const showMoney = canSeePayments(role);
+  const canEdit = canEditLeads(role);
+  // Finance can edit payment fields but not other lead fields; recruiters/admins/conference_admin can edit all
+  const canEditMoney = canEditExpenses(role);
+
   const update = <K extends keyof Initial>(k: K, v: Initial[K]) => setForm(f => ({ ...f, [k]: v }));
 
   async function save() {
@@ -53,15 +60,20 @@ export function LeadEditor({ kind, initial, profiles, currentUserId }: {
       [categoryField]: form.category,
       contact_name: form.contact_name, contact_title: form.contact_title,
       email: form.email, phone: form.phone, owner_id: form.owner_id,
-      stage: form.stage, confirmed: form.confirmed, payment_status: form.payment_status,
-      amount_due: form.amount_due, amount_paid: form.amount_paid,
+      stage: form.stage, confirmed: form.confirmed,
       last_contact: form.last_contact || null,
       next_action: form.next_action, next_action_date: form.next_action_date || null,
       source: form.source, notes: form.notes,
     };
+    if (showMoney) {
+      payload.payment_status = form.payment_status;
+      payload.amount_due = form.amount_due;
+      payload.amount_paid = form.amount_paid;
+    }
     if (kind === "investor") {
       payload.check_size = form.check_size; payload.sector_focus = form.sector_focus;
     }
+    if (!form.id) payload.conference_id = conferenceId;
 
     let result;
     if (form.id) {
@@ -71,8 +83,7 @@ export function LeadEditor({ kind, initial, profiles, currentUserId }: {
     }
 
     if (result.error) { setError(result.error.message); setSaving(false); return; }
-
-    router.push(kind === "company" ? "/companies" : "/investors");
+    router.push(`/conferences/${conferenceSlug}/${kind === "company" ? "companies" : "investors"}`);
     router.refresh();
   }
 
@@ -91,22 +102,22 @@ export function LeadEditor({ kind, initial, profiles, currentUserId }: {
     const supabase = createClient();
     await supabase.from("activity_log").insert({
       user_id: currentUserId, lead_type: kind, lead_id: form.id,
-      lead_name: form.name, action, notes,
+      lead_name: form.name, action, notes, conference_id: conferenceId,
     });
   }
 
   async function deleteLead() {
     if (!form.id) return;
-    if (!confirm("Delete this lead? This cannot be undone. (Tip: set Stage to 'Declined' instead.)")) return;
+    if (!confirm("Delete this lead? Tip: set Stage to 'Declined' instead.")) return;
     const supabase = createClient();
     await supabase.from(tableName).delete().eq("id", form.id);
-    router.push(kind === "company" ? "/companies" : "/investors");
+    router.push(`/conferences/${conferenceSlug}/${kind === "company" ? "companies" : "investors"}`);
     router.refresh();
   }
 
   const input = "w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-brand focus:outline-none";
+  const inputDisabled = `${input} bg-gray-50 text-gray-500`;
   const label = "block text-xs font-medium uppercase tracking-wide text-gray-500";
-  const team = profiles.filter(p => p.role === "team" || p.role === "admin");
 
   return (
     <div className="space-y-6">
@@ -115,11 +126,13 @@ export function LeadEditor({ kind, initial, profiles, currentUserId }: {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label className={label}>{kind === "company" ? "Company name" : "Firm / investor name"}</label>
-          <input className={input} value={form.name} onChange={e => update("name", e.target.value)} />
+          <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            value={form.name} onChange={e => update("name", e.target.value)} />
         </div>
         <div>
           <label className={label}>{kind === "company" ? "Industry" : "Type"}</label>
-          <select className={input} value={form.category ?? ""} onChange={e => update("category", e.target.value || null)}>
+          <select className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            value={form.category ?? ""} onChange={e => update("category", e.target.value || null)}>
             <option value="">—</option>
             {categoryOptions.map(o => <option key={o}>{o}</option>)}
           </select>
@@ -127,11 +140,12 @@ export function LeadEditor({ kind, initial, profiles, currentUserId }: {
         <div>
           <label className={label}>Owner</label>
           <div className="flex gap-2">
-            <select className={input} value={form.owner_id ?? ""} onChange={e => update("owner_id", e.target.value || null)}>
+            <select className={canEdit ? input : inputDisabled} disabled={!canEdit}
+              value={form.owner_id ?? ""} onChange={e => update("owner_id", e.target.value || null)}>
               <option value="">Unclaimed</option>
-              {team.map(p => <option key={p.id} value={p.id}>{p.full_name || p.email}</option>)}
+              {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name || p.email}</option>)}
             </select>
-            {form.owner_id !== currentUserId && (
+            {canEdit && form.owner_id !== currentUserId && (
               <button type="button" onClick={claimForMe}
                 className="whitespace-nowrap rounded-md border border-brand bg-brand-light px-3 py-1.5 text-xs font-medium text-brand">Claim</button>
             )}
@@ -139,85 +153,107 @@ export function LeadEditor({ kind, initial, profiles, currentUserId }: {
         </div>
 
         <div><label className={label}>Contact name</label>
-          <input className={input} value={form.contact_name ?? ""} onChange={e => update("contact_name", e.target.value)} /></div>
+          <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            value={form.contact_name ?? ""} onChange={e => update("contact_name", e.target.value)} /></div>
         <div><label className={label}>Contact title</label>
-          <input className={input} value={form.contact_title ?? ""} onChange={e => update("contact_title", e.target.value)} /></div>
+          <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            value={form.contact_title ?? ""} onChange={e => update("contact_title", e.target.value)} /></div>
         <div><label className={label}>Email</label>
-          <input className={input} type="email" value={form.email ?? ""} onChange={e => update("email", e.target.value)} /></div>
+          <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            type="email" value={form.email ?? ""} onChange={e => update("email", e.target.value)} /></div>
         <div><label className={label}>Phone</label>
-          <input className={input} value={form.phone ?? ""} onChange={e => update("phone", e.target.value)} /></div>
+          <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            value={form.phone ?? ""} onChange={e => update("phone", e.target.value)} /></div>
 
         {kind === "investor" && <>
           <div><label className={label}>Check size</label>
-            <input className={input} value={form.check_size ?? ""} onChange={e => update("check_size", e.target.value)} placeholder="e.g. $1-5M Series A" /></div>
+            <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
+              value={form.check_size ?? ""} onChange={e => update("check_size", e.target.value)} placeholder="e.g. $1-5M Series A" /></div>
           <div><label className={label}>Sector focus</label>
-            <input className={input} value={form.sector_focus ?? ""} onChange={e => update("sector_focus", e.target.value)} /></div>
+            <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
+              value={form.sector_focus ?? ""} onChange={e => update("sector_focus", e.target.value)} /></div>
         </>}
 
         <div>
           <label className={label}>Stage</label>
-          <select className={input} value={form.stage} onChange={e => update("stage", e.target.value as Stage)}>
+          <select className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            value={form.stage} onChange={e => update("stage", e.target.value as Stage)}>
             {STAGES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
         <div>
           <label className={label}>Confirmed</label>
-          <select className={input} value={form.confirmed} onChange={e => update("confirmed", e.target.value as Confirmed)}>
+          <select className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            value={form.confirmed} onChange={e => update("confirmed", e.target.value as Confirmed)}>
             {CONFIRMED.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
-        <div>
-          <label className={label}>Payment status</label>
-          <select className={input} value={form.payment_status} onChange={e => update("payment_status", e.target.value as PaymentStatus)}>
-            {PAYMENT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className={label}>Amount due ($)</label>
-          <input className={input} type="number" value={form.amount_due} onChange={e => update("amount_due", Number(e.target.value))} />
-        </div>
-        <div>
-          <label className={label}>Amount paid ($)</label>
-          <input className={input} type="number" value={form.amount_paid} onChange={e => update("amount_paid", Number(e.target.value))} />
-        </div>
+
+        {showMoney && <>
+          <div>
+            <label className={label}>Payment status</label>
+            <select className={canEditMoney ? input : inputDisabled} disabled={!canEditMoney}
+              value={form.payment_status} onChange={e => update("payment_status", e.target.value as PaymentStatus)}>
+              {PAYMENT_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className={label}>Amount due ($)</label>
+            <input className={canEditMoney ? input : inputDisabled} disabled={!canEditMoney}
+              type="number" value={form.amount_due} onChange={e => update("amount_due", Number(e.target.value))} />
+          </div>
+          <div>
+            <label className={label}>Amount paid ($)</label>
+            <input className={canEditMoney ? input : inputDisabled} disabled={!canEditMoney}
+              type="number" value={form.amount_paid} onChange={e => update("amount_paid", Number(e.target.value))} />
+          </div>
+        </>}
+
         <div>
           <label className={label}>Last contact</label>
-          <input className={input} type="date" value={form.last_contact ?? ""} onChange={e => update("last_contact", e.target.value)} />
+          <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            type="date" value={form.last_contact ?? ""} onChange={e => update("last_contact", e.target.value)} />
         </div>
         <div>
           <label className={label}>Next action date</label>
-          <input className={input} type="date" value={form.next_action_date ?? ""} onChange={e => update("next_action_date", e.target.value)} />
+          <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            type="date" value={form.next_action_date ?? ""} onChange={e => update("next_action_date", e.target.value)} />
         </div>
         <div className="sm:col-span-2">
           <label className={label}>Next action</label>
-          <input className={input} value={form.next_action ?? ""} onChange={e => update("next_action", e.target.value)} placeholder="Send sponsor deck" />
+          <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            value={form.next_action ?? ""} onChange={e => update("next_action", e.target.value)} placeholder="Send sponsor deck" />
         </div>
         <div>
           <label className={label}>Source</label>
-          <input className={input} value={form.source ?? ""} onChange={e => update("source", e.target.value)} />
+          <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
+            value={form.source ?? ""} onChange={e => update("source", e.target.value)} />
         </div>
         <div className="sm:col-span-2">
           <label className={label}>Notes</label>
-          <textarea className={`${input} min-h-[100px]`} value={form.notes ?? ""} onChange={e => update("notes", e.target.value)} />
+          <textarea className={`${canEdit ? input : inputDisabled} min-h-[100px]`} disabled={!canEdit}
+            value={form.notes ?? ""} onChange={e => update("notes", e.target.value)} />
         </div>
       </div>
 
       <div className="flex items-center justify-between border-t border-gray-200 pt-4">
         <div>
-          {form.id && (
+          {form.id && canEdit && (
             <button onClick={deleteLead} className="text-sm text-rose-600 hover:underline">Delete</button>
           )}
         </div>
         <div className="flex gap-3">
           <button onClick={() => router.back()} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700">Cancel</button>
-          <button onClick={save} disabled={saving || !form.name}
-            className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90 disabled:opacity-50">
-            {saving ? "Saving…" : (form.id ? "Save changes" : "Create")}
-          </button>
+          {(canEdit || canEditMoney) && (
+            <button onClick={save} disabled={saving || !form.name}
+              className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90 disabled:opacity-50">
+              {saving ? "Saving…" : (form.id ? "Save changes" : "Create")}
+            </button>
+          )}
         </div>
       </div>
 
-      {form.id && <QuickLogActivity onLog={async (action, notes) => {
+      {form.id && canEdit && <QuickLogActivity onLog={async (action, notes) => {
         await logActivity(action, notes);
         router.refresh();
       }} />}
