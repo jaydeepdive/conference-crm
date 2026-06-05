@@ -17,7 +17,7 @@ export function Nav({ profile }: { profile: Profile }) {
     <nav className="border-b border-gray-200 bg-white">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
         <div className="flex items-center gap-8">
-          <Link href="/dashboard" className="text-lg font-bold text-brand">Conference CRM</Link>
+          <Link href="/dashboard" className="text-lg font-bold text-brand">Mining Summit CRM</Link>
           <div className="flex items-center gap-1">
             {NAV.map(item => {
               const active = path === item.href || path.startsWith(item.href + "/");

@@ -23,7 +23,7 @@ function LoginForm() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand to-slate-900 p-6">
       <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
-        <h1 className="text-2xl font-bold text-brand">Conference CRM</h1>
+        <h1 className="text-2xl font-bold text-brand">Mining Summit CRM</h1>
         <p className="mt-2 text-sm text-gray-600">Sign in with your work Google account.</p>
 
         {error && (
