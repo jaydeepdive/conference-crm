@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireConferenceAccess } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { LeadTable } from "@/components/LeadTable";
+import { AutoTddSync } from "@/components/AutoTddSync";
 import { canSeePayments, canEditLeads } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +12,11 @@ export default async function CompaniesPage({ params }: { params: Promise<{ slug
   const ctx = await requireConferenceAccess(slug);
   const supabase = await createClient();
 
-  const [{ data: companies }, { data: profiles }] = await Promise.all([
+  const [{ data: companies }, { data: profiles }, { count: uncheckedCount }] = await Promise.all([
     supabase.from("companies").select("*").eq("conference_id", ctx.conference.id).order("updated_at", { ascending: false }),
     supabase.from("profiles").select("*"),
+    supabase.from("companies").select("*", { count: "exact", head: true })
+      .eq("conference_id", ctx.conference.id).is("tdd_last_checked_at", null),
   ]);
 
   const rows = (companies ?? []).map(c => ({
@@ -29,11 +32,14 @@ export default async function CompaniesPage({ params }: { params: Promise<{ slug
     <div className="space-y-6">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Companies</h1>
-          <p className="text-sm text-gray-500">{rows.length} leads</p>
+          <h1 className="font-display text-[32px] font-bold leading-none text-ink">Companies</h1>
+          <p className="mt-2 text-sm text-muted">{rows.length} leads</p>
+          <div className="mt-2"><AutoTddSync conferenceId={ctx.conference.id} uncheckedCount={uncheckedCount ?? 0} /></div>
         </div>
         {canEditLeads(ctx.effectiveRole) && (
-          <Link href={`/conferences/${slug}/companies/new`} className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90">+ New company</Link>
+          <Link href={`/conferences/${slug}/companies/new`}
+            style={{ backgroundColor: "#C8102E", color: "#FFFFFF" }}
+            className="px-4 py-2 text-xs font-semibold uppercase tracking-widest2 hover:opacity-90">+ New company</Link>
         )}
       </div>
       <LeadTable rows={rows} profiles={profiles ?? []} basePath={`/conferences/${slug}/companies`} showPayments={canSeePayments(ctx.effectiveRole)} />

@@ -110,7 +110,7 @@ export default async function ConferenceDashboardPage({ params }: { params: Prom
 
         <section>
           <div className="section-rule flex items-end justify-between">
-            <h2 className="font-display text-[26px] font-bold leading-none text-ink">Needs attention</h2>
+            <h2 className="font-display text-[26px] font-bold leading-none text-ink">To Do</h2>
             <div className="flex items-center gap-3">
               <span className="text-[11px] font-medium uppercase tracking-widest2 text-muted">
                 {openTasks.length} OPEN

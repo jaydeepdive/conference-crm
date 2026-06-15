@@ -117,11 +117,13 @@ export function TasksClient({ slug, initialTasks, hasProject }: {
             value={newTask.notes} onChange={e => setNewTask({ ...newTask, notes: e.target.value })} />
           <div className="sm:col-span-12 flex items-center gap-3">
             <button onClick={createTask} disabled={creating || !newTask.title.trim()}
-              className="bg-ink px-4 py-1.5 text-xs uppercase tracking-widest2 text-cream disabled:opacity-50">
+              style={{ backgroundColor: "#C8102E", color: "#FFFFFF" }}
+              className="px-4 py-1.5 text-xs font-semibold uppercase tracking-widest2 hover:opacity-90 disabled:opacity-50">
               {creating ? "Adding…" : "+ Add task"}
             </button>
             <button onClick={() => setShowAi(true)}
-              className="border border-ink/20 px-4 py-1.5 text-xs uppercase tracking-widest2 hover:bg-cream">
+              style={{ borderColor: "#E5E5E5", color: "#0E0E0E" }}
+              className="border bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-widest2 hover:border-[#C8102E]">
               ✨ AI suggest tasks
             </button>
             <div className="ml-auto flex items-center gap-3">
@@ -225,7 +227,7 @@ function SuggestionsModal({ slug, onClose, onCreated }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto border border-ink bg-cream p-6" onClick={e => e.stopPropagation()}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto border border-ink bg-white p-6" onClick={e => e.stopPropagation()}>
         <h3 className="font-serif text-xl font-bold text-ink">AI suggest tasks</h3>
         {error && <div className="mt-3 rounded-md bg-rose-50 p-3 text-sm text-rose-800">{error}</div>}
 
@@ -238,7 +240,8 @@ function SuggestionsModal({ slug, onClose, onCreated }: {
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={onClose} className="border border-ink/20 px-3 py-1.5 text-xs uppercase tracking-widest2">Cancel</button>
               <button onClick={fetchSuggestions} disabled={!instruction.trim()}
-                className="bg-ink px-4 py-1.5 text-xs uppercase tracking-widest2 text-cream disabled:opacity-50">
+                style={{ backgroundColor: "#0E0E0E", color: "#FFFFFF" }}
+                className="px-4 py-1.5 text-xs font-semibold uppercase tracking-widest2 hover:opacity-90 disabled:opacity-50">
                 Generate
               </button>
             </div>
@@ -274,7 +277,8 @@ function SuggestionsModal({ slug, onClose, onCreated }: {
             <div className="mt-4 flex justify-end gap-2">
               <button onClick={() => setPhase("input")} className="border border-ink/20 px-3 py-1.5 text-xs uppercase tracking-widest2">Back</button>
               <button onClick={createApproved}
-                className="bg-brand-accent px-4 py-1.5 text-xs uppercase tracking-widest2 text-cream">
+                style={{ backgroundColor: "#C8102E", color: "#FFFFFF" }}
+                className="px-4 py-1.5 text-xs font-semibold uppercase tracking-widest2 hover:opacity-90">
                 Create {editing.filter(e => e.keep).length} task{editing.filter(e => e.keep).length === 1 ? "" : "s"}
               </button>
             </div>
