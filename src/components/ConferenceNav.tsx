@@ -1,7 +1,7 @@
 "use client";
 import { usePathname } from "next/navigation";
 import { Masthead } from "./Masthead";
-import { canSeePayments, canManageTeam, type Profile, type Conference, type ConferenceRole } from "@/lib/types";
+import { canSeePayments, canManageTeam, canSendInvoices, canSendGeneralEmail, type Profile, type Conference, type ConferenceRole } from "@/lib/types";
 
 type Role = ConferenceRole | "super_admin";
 
@@ -16,7 +16,10 @@ export function ConferenceNav({ profile, conference, role }: {
     { href: `${base}/companies`, label: "Companies", show: true },
     { href: `${base}/investors`, label: "Investors", show: true },
     { href: `${base}/activity`, label: "Activity", show: true },
+    { href: `${base}/invoices`, label: "Invoices", show: canSendInvoices(role) },
+    { href: `${base}/emails`, label: "Emails", show: canSendGeneralEmail(role) },
     { href: `${base}/budget`, label: "Budget", show: canSeePayments(role) },
+    { href: `${base}/tasks`, label: "Tasks", show: true },
     { href: `${base}/team`, label: "Team", show: canManageTeam(role) },
     { href: `${base}/settings`, label: "Settings", show: canSeePayments(role) },
   ].filter(n => n.show).map(item => {

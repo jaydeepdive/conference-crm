@@ -1,0 +1,190 @@
+import { renderToBuffer, Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import React from "react";
+
+const styles = StyleSheet.create({
+  page: { padding: 48, fontSize: 10, fontFamily: "Helvetica", color: "#0E0E0E" },
+  header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 32 },
+  brand: { fontSize: 22, fontFamily: "Helvetica-Bold", letterSpacing: 1 },
+  brandSub: { fontSize: 9, color: "#666", marginTop: 4 },
+  invoiceMeta: { textAlign: "right", fontSize: 10 },
+  invoiceNumber: { fontSize: 18, fontFamily: "Helvetica-Bold" },
+  section: { marginBottom: 18 },
+  sectionLabel: { fontSize: 8, color: "#666", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 },
+  to: { fontSize: 11, fontFamily: "Helvetica-Bold" },
+  toLine: { marginTop: 2 },
+  table: { borderTop: "1pt solid #0E0E0E", borderBottom: "1pt solid #0E0E0E", marginTop: 12 },
+  tableHeader: { flexDirection: "row", paddingVertical: 6, borderBottom: "0.5pt solid #999", fontSize: 8, color: "#666", textTransform: "uppercase", letterSpacing: 1 },
+  tableRow: { flexDirection: "row", paddingVertical: 6, borderBottom: "0.5pt solid #ddd" },
+  colDesc: { flex: 4 },
+  colQty: { flex: 1, textAlign: "right" },
+  colPrice: { flex: 1.5, textAlign: "right" },
+  colAmount: { flex: 1.5, textAlign: "right" },
+  totals: { flexDirection: "row", justifyContent: "flex-end", marginTop: 14 },
+  totalsTable: { width: 220 },
+  totalRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
+  totalLabel: { fontSize: 10 },
+  totalValue: { fontSize: 10, textAlign: "right" },
+  grandRow: { borderTop: "1pt solid #0E0E0E", paddingTop: 6, marginTop: 6 },
+  grandLabel: { fontSize: 12, fontFamily: "Helvetica-Bold" },
+  grandValue: { fontSize: 12, fontFamily: "Helvetica-Bold", textAlign: "right" },
+  footer: { marginTop: 32, paddingTop: 16, borderTop: "0.5pt solid #ddd", fontSize: 8, color: "#666" },
+});
+
+export interface InvoicePdfArgs {
+  brand: { conferenceName: string; senderName: string; senderEmail: string };
+  invoice: {
+    number: number;
+    issued_date: string;
+    due_date: string | null;
+    currency: string;
+    line_items: { description: string; quantity: number; unit_price: number }[];
+    subtotal: number;
+    tax_rate: number;
+    tax_amount: number;
+    total: number;
+    notes: string | null;
+    payment_terms: string | null;
+  };
+  recipient: { name: string | null; email: string | null; organization: string };
+}
+
+export async function renderInvoicePdf(args: InvoicePdfArgs): Promise<Buffer> {
+  const { brand, invoice, recipient } = args;
+
+  const doc = React.createElement(Document, {},
+    React.createElement(Page, { size: "LETTER", style: styles.page },
+      // Header
+      React.createElement(View, { style: styles.header },
+        React.createElement(View, {},
+          React.createElement(Text, { style: styles.brand }, "MINING SUMMIT CRM"),
+          React.createElement(Text, { style: styles.brandSub }, brand.conferenceName),
+        ),
+        React.createElement(View, { style: styles.invoiceMeta },
+          React.createElement(Text, { style: styles.invoiceNumber }, `Invoice #${invoice.number}`),
+          React.createElement(Text, {}, `Issued: ${invoice.issued_date}`),
+          invoice.due_date && React.createElement(Text, {}, `Due: ${invoice.due_date}`),
+        ),
+      ),
+      // Bill to
+      React.createElement(View, { style: styles.section },
+        React.createElement(Text, { style: styles.sectionLabel }, "Bill to"),
+        React.createElement(Text, { style: styles.to }, recipient.organization),
+        recipient.name && React.createElement(Text, { style: styles.toLine }, recipient.name),
+        recipient.email && React.createElement(Text, { style: styles.toLine }, recipient.email),
+      ),
+      // Line items
+      React.createElement(View, { style: styles.table },
+        React.createElement(View, { style: styles.tableHeader },
+          React.createElement(Text, { style: styles.colDesc }, "Description"),
+          React.createElement(Text, { style: styles.colQty }, "Qty"),
+          React.createElement(Text, { style: styles.colPrice }, "Unit Price"),
+          React.createElement(Text, { style: styles.colAmount }, "Amount"),
+        ),
+        ...invoice.line_items.map((li, i) =>
+          React.createElement(View, { key: i, style: styles.tableRow },
+            React.createElement(Text, { style: styles.colDesc }, li.description),
+            React.createElement(Text, { style: styles.colQty }, String(li.quantity)),
+            React.createElement(Text, { style: styles.colPrice }, fmt(li.unit_price, invoice.currency)),
+            React.createElement(Text, { style: styles.colAmount }, fmt(li.quantity * li.unit_price, invoice.currency)),
+          )
+        ),
+      ),
+      // Totals
+      React.createElement(View, { style: styles.totals },
+        React.createElement(View, { style: styles.totalsTable },
+          React.createElement(View, { style: styles.totalRow },
+            React.createElement(Text, { style: styles.totalLabel }, "Subtotal"),
+            React.createElement(Text, { style: styles.totalValue }, fmt(invoice.subtotal, invoice.currency)),
+          ),
+          invoice.tax_rate > 0 && React.createElement(View, { style: styles.totalRow },
+            React.createElement(Text, { style: styles.totalLabel }, `Tax (${invoice.tax_rate.toFixed(1)}%)`),
+            React.createElement(Text, { style: styles.totalValue }, fmt(invoice.tax_amount, invoice.currency)),
+          ),
+          React.createElement(View, { style: [styles.totalRow, styles.grandRow] },
+            React.createElement(Text, { style: styles.grandLabel }, "Total Due"),
+            React.createElement(Text, { style: styles.grandValue }, fmt(invoice.total, invoice.currency)),
+          ),
+        ),
+      ),
+      // Notes + terms
+      (invoice.notes || invoice.payment_terms) && React.createElement(View, { style: styles.footer },
+        invoice.payment_terms && React.createElement(View, { style: { marginBottom: 6 } },
+          React.createElement(Text, { style: styles.sectionLabel }, "Payment terms"),
+          React.createElement(Text, {}, invoice.payment_terms),
+        ),
+        invoice.notes && React.createElement(View, {},
+          React.createElement(Text, { style: styles.sectionLabel }, "Notes"),
+          React.createElement(Text, {}, invoice.notes),
+        ),
+      ),
+      // Sender footer
+      React.createElement(View, { style: styles.footer },
+        React.createElement(Text, {}, `Issued by ${brand.senderName} · ${brand.senderEmail}`),
+      ),
+    )
+  );
+
+  return await renderToBuffer(doc);
+}
+
+function fmt(n: number, currency: string): string {
+  return `${currency} ${n.toFixed(2)}`;
+}
+
+/** HTML invoice for the email body (renders inline in Gmail/Outlook). */
+export function renderInvoiceHtml(args: InvoicePdfArgs): string {
+  const { brand, invoice, recipient } = args;
+  const items = invoice.line_items.map(li => `
+    <tr>
+      <td style="padding:8px;border-bottom:1px solid #eee">${esc(li.description)}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${li.quantity}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmt(li.unit_price, invoice.currency)}</td>
+      <td style="padding:8px;border-bottom:1px solid #eee;text-align:right">${fmt(li.quantity * li.unit_price, invoice.currency)}</td>
+    </tr>`).join("");
+
+  return `<!doctype html>
+<html><body style="font-family:Helvetica,Arial,sans-serif;color:#0E0E0E;max-width:640px;margin:0 auto;padding:24px">
+  <div style="display:flex;justify-content:space-between;border-bottom:2px solid #0E0E0E;padding-bottom:16px">
+    <div>
+      <div style="font-weight:bold;font-size:22px;letter-spacing:1px">MINING SUMMIT CRM</div>
+      <div style="color:#666;font-size:12px">${esc(brand.conferenceName)}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-weight:bold;font-size:18px">Invoice #${invoice.number}</div>
+      <div style="font-size:12px">Issued: ${esc(invoice.issued_date)}</div>
+      ${invoice.due_date ? `<div style="font-size:12px">Due: ${esc(invoice.due_date)}</div>` : ""}
+    </div>
+  </div>
+  <div style="margin:24px 0">
+    <div style="font-size:11px;color:#666;text-transform:uppercase;letter-spacing:1px">Bill to</div>
+    <div style="font-weight:bold;margin-top:4px">${esc(recipient.organization)}</div>
+    ${recipient.name ? `<div>${esc(recipient.name)}</div>` : ""}
+    ${recipient.email ? `<div style="color:#666">${esc(recipient.email)}</div>` : ""}
+  </div>
+  <table style="width:100%;border-collapse:collapse;border-top:1px solid #0E0E0E;border-bottom:1px solid #0E0E0E">
+    <thead>
+      <tr style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px">
+        <th style="text-align:left;padding:8px">Description</th>
+        <th style="text-align:right;padding:8px">Qty</th>
+        <th style="text-align:right;padding:8px">Unit Price</th>
+        <th style="text-align:right;padding:8px">Amount</th>
+      </tr>
+    </thead>
+    <tbody>${items}</tbody>
+  </table>
+  <table style="width:280px;margin-left:auto;margin-top:12px">
+    <tr><td style="padding:4px">Subtotal</td><td style="padding:4px;text-align:right">${fmt(invoice.subtotal, invoice.currency)}</td></tr>
+    ${invoice.tax_rate > 0 ? `<tr><td style="padding:4px">Tax (${invoice.tax_rate.toFixed(1)}%)</td><td style="padding:4px;text-align:right">${fmt(invoice.tax_amount, invoice.currency)}</td></tr>` : ""}
+    <tr style="border-top:1px solid #0E0E0E"><td style="padding:8px;font-weight:bold;font-size:14px">Total Due</td><td style="padding:8px;text-align:right;font-weight:bold;font-size:14px">${fmt(invoice.total, invoice.currency)}</td></tr>
+  </table>
+  ${invoice.payment_terms ? `<div style="margin-top:24px;font-size:11px;color:#666"><b>Payment terms:</b> ${esc(invoice.payment_terms)}</div>` : ""}
+  ${invoice.notes ? `<div style="margin-top:8px;font-size:11px;color:#666">${esc(invoice.notes)}</div>` : ""}
+  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #ddd;font-size:10px;color:#666">
+    Issued by ${esc(brand.senderName)} · ${esc(brand.senderEmail)}
+  </div>
+</body></html>`;
+}
+
+function esc(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}

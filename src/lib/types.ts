@@ -9,6 +9,8 @@ export type ConfStatus = "planning" | "active" | "past" | "archived";
 export type ExpenseCategory =
   | "Venue" | "Food & Beverage" | "Audio/Visual" | "Marketing"
   | "Speaker Travel" | "Staff" | "Software" | "Insurance" | "Other";
+export type EmailKind = "invoice" | "reminder" | "welcome" | "marketing" | "registration" | "general" | "other";
+export type InvoiceStatus = "draft" | "sent" | "viewed" | "paid" | "overdue" | "void";
 
 export interface Profile {
   id: string;
@@ -56,40 +58,6 @@ export interface ConferenceEntity {
   fee_max: number | null;
 }
 
-export interface LeadNote {
-  id: string;
-  conference_id: string;
-  lead_type: LeadType;
-  lead_id: string;
-  user_id: string | null;
-  body: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CompType {
-  id: string;
-  conference_id: string;
-  name: string;
-  default_cost: number;
-  expense_category: ExpenseCategory;
-  created_at: string;
-}
-
-export interface LeadComp {
-  id: string;
-  conference_id: string;
-  lead_type: LeadType;
-  lead_id: string;
-  comp_type_id: string | null;
-  name: string;
-  cost: number;
-  expense_category: ExpenseCategory;
-  notes: string | null;
-  created_by: string | null;
-  created_at: string;
-}
-
 export interface ConferenceMembership {
   id: string;
   profile_id: string;
@@ -120,43 +88,107 @@ export interface LeadBase {
   updated_at: string;
 }
 
-export interface Company extends LeadBase {
-  name: string;
-  industry: string | null;
-}
-
+export interface Company extends LeadBase { name: string; industry: string | null; }
 export interface Investor extends LeadBase {
-  firm_name: string;
-  investor_type: string | null;
-  check_size: string | null;
-  sector_focus: string | null;
+  firm_name: string; investor_type: string | null;
+  check_size: string | null; sector_focus: string | null;
 }
 
 export interface ActivityEntry {
-  id: string;
-  conference_id: string;
+  id: string; conference_id: string;
   user_id: string | null;
-  lead_type: LeadType;
-  lead_id: string;
-  lead_name: string;
-  action: string;
-  notes: string | null;
-  created_at: string;
+  lead_type: LeadType; lead_id: string; lead_name: string;
+  action: string; notes: string | null; created_at: string;
 }
 
 export interface Expense {
+  id: string; conference_id: string;
+  category: ExpenseCategory; description: string;
+  amount: number; date: string; vendor: string | null;
+  receipt_url: string | null; receipt_path: string | null;
+  created_by: string | null; created_at: string; updated_at: string;
+}
+
+export interface LeadNote {
+  id: string; conference_id: string;
+  lead_type: LeadType; lead_id: string;
+  user_id: string | null; body: string;
+  created_at: string; updated_at: string;
+}
+
+export interface CompType {
+  id: string; conference_id: string; name: string;
+  default_cost: number; expense_category: ExpenseCategory; created_at: string;
+}
+
+export interface LeadComp {
+  id: string; conference_id: string;
+  lead_type: LeadType; lead_id: string;
+  comp_type_id: string | null; name: string;
+  cost: number; expense_category: ExpenseCategory;
+  notes: string | null; created_by: string | null; created_at: string;
+}
+
+export interface InvoiceLineItem {
+  description: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface Invoice {
   id: string;
   conference_id: string;
-  category: ExpenseCategory;
-  description: string;
-  amount: number;
-  date: string;
-  vendor: string | null;
-  receipt_url: string | null;
-  receipt_path: string | null;
+  lead_type: LeadType;
+  lead_id: string;
+  invoice_number: number;
+  line_items: InvoiceLineItem[];
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total: number;
+  currency: string;
+  status: InvoiceStatus;
+  due_date: string | null;
+  issued_date: string | null;
+  recipient_email: string | null;
+  recipient_name: string | null;
+  notes: string | null;
+  payment_terms: string | null;
+  sent_at: string | null;
+  sent_by: string | null;
+  paid_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface EmailTemplate {
+  id: string;
+  conference_id: string;
+  name: string;
+  kind: EmailKind;
+  subject: string;
+  body: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SentEmail {
+  id: string;
+  conference_id: string;
+  sender_user_id: string | null;
+  kind: EmailKind;
+  recipients: { email: string; name?: string; lead_type?: LeadType; lead_id?: string }[];
+  cc: { email: string; name?: string }[];
+  bcc: { email: string; name?: string }[];
+  subject: string;
+  body_snapshot: string;
+  invoice_id: string | null;
+  template_id: string | null;
+  has_pdf_attachment: boolean;
+  gmail_message_id: string | null;
+  sent_at: string;
 }
 
 // Helpers
@@ -171,4 +203,10 @@ export function canEditExpenses(role: ConferenceRole | "super_admin"): boolean {
 }
 export function canManageTeam(role: ConferenceRole | "super_admin"): boolean {
   return role === "super_admin" || role === "conference_admin";
+}
+export function canSendInvoices(role: ConferenceRole | "super_admin"): boolean {
+  return role === "super_admin" || role === "conference_admin" || role === "finance";
+}
+export function canSendGeneralEmail(role: ConferenceRole | "super_admin"): boolean {
+  return role !== "viewer"; // anyone with conference access except viewer
 }
