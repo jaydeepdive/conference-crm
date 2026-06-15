@@ -1,6 +1,19 @@
-/** Red pill, white text — same red as the thedeepdive.ca logo accent (#C8102E).
- *  Uses inline styles to guarantee colors render correctly regardless of Tailwind purge. */
-export function TddBadge({ size = "sm" }: { size?: "sm" | "md" }) {
+/** TDD Client indicator. Three sizes, in order of subtlety:
+ *  - "dot"  → tiny red dot, hover tooltip. Used in list rows where the badge would be noise.
+ *  - "sm"   → small pill. Used in compact contexts (e.g. lead detail header).
+ *  - "md"   → larger pill. Used where the discount eligibility decision needs to be obvious
+ *             (invoice builder recipient picker). */
+export function TddBadge({ size = "sm" }: { size?: "dot" | "sm" | "md" }) {
+  if (size === "dot") {
+    return (
+      <span
+        title="TDD Client"
+        aria-label="TDD Client"
+        style={{ backgroundColor: "#C8102E" }}
+        className="inline-block h-1.5 w-1.5 rounded-full align-middle"
+      />
+    );
+  }
   const isSmall = size === "sm";
   return (
     <span

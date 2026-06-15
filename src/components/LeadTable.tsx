@@ -151,11 +151,14 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true }: {
             {sorted.map(r => (
               <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
                 <td className="px-3 py-2 font-medium">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
+                    {/* Fixed-width gutter so the name always aligns whether or not there's a dot */}
+                    <span className="inline-flex h-1.5 w-1.5 flex-shrink-0 items-center justify-center">
+                      {r.is_tdd_client && <TddBadge size="dot" />}
+                    </span>
                     <Link href={`${basePath}/${r.id}`} className="hover:underline">{r.name}</Link>
-                    {r.is_tdd_client && <TddBadge />}
                   </div>
-                  {r.industry_or_type && <div className="text-xs text-gray-500">{r.industry_or_type}</div>}
+                  {r.industry_or_type && <div className="ml-[14px] text-xs text-gray-500">{r.industry_or_type}</div>}
                 </td>
                 <td className="px-3 py-2">
                   {r.contact_name && <div>{r.contact_name}</div>}
