@@ -1,12 +1,16 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { SignOutButton } from "./SignOutButton";
 import type { Profile } from "@/lib/types";
 
-/** Editorial-style masthead: centered logo over horizontal nav, with profile in the corner.
- *  Models the thedeepdive.ca front-page layout. */
+const TDD_LOGO = "https://thedeepdive.ca/wp-content/uploads/2025/04/thedeepdive_full.png";
+const TDD_LOGO_SMALL = "https://thedeepdive.ca/wp-content/uploads/2025/04/thedeepdive_full-300x47.png";
+
+/** Editorial-style masthead modeled on hub.thedeepdive.ca: top "internal" strip,
+ *  centered logo + product name, horizontal nav, profile in the corner. */
 export function Masthead({
-  profile, title, subtitle, navItems, rightSlot, showAdminLink = false,
+  profile, title, subtitle, navItems, showAdminLink = false,
 }: {
   profile: Profile;
   title: string;
@@ -17,40 +21,50 @@ export function Masthead({
 }) {
   return (
     <header className="border-b border-ink bg-cream">
-      {/* Top bar: small utility links left, profile right */}
-      <div className="border-b border-ink/20">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2 text-xs uppercase tracking-widest2 text-ink/60">
-          <Link href="/conferences" className="hover:text-ink">All conferences</Link>
+      {/* Top utility strip: "internal" tag left, profile + signout right */}
+      <div className="border-b border-ink/15">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2 text-[10px] uppercase tracking-widest2">
+          <span className="flex items-center gap-2 text-ink/70">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-brand-accent"></span>
+            Mining Summit CRM · internal
+          </span>
           <div className="flex items-center gap-4">
             {showAdminLink && profile.is_super_admin && (
               <Link href="/admin" className="text-brand-accent hover:underline">Admin</Link>
             )}
-            <span className="text-ink/70 normal-case tracking-normal">{profile.full_name || profile.email}</span>
+            <span className="normal-case tracking-normal text-ink/70">{profile.full_name || profile.email}</span>
             <SignOutButton />
           </div>
         </div>
       </div>
 
-      {/* Centered logo + subtitle */}
-      <div className="mx-auto max-w-7xl px-6 pt-10 pb-6 text-center">
-        <Link href="/conferences" className="inline-block">
-          <h1 className="text-4xl font-serif font-black uppercase tracking-tight text-ink sm:text-5xl">
-            {title}
-          </h1>
+      {/* Centered logo (the TDD wordmark) */}
+      <div className="mx-auto max-w-7xl px-6 pt-8 pb-4 text-center">
+        <Link href="/conferences" className="inline-block" aria-label="Home">
+          <Image
+            src={TDD_LOGO}
+            alt="The Deep Dive"
+            width={420} height={66}
+            priority unoptimized
+            className="mx-auto h-12 w-auto sm:h-14"
+          />
         </Link>
+        <h1 className="mt-3 font-serif text-2xl font-black uppercase tracking-tight text-ink sm:text-3xl">
+          {title}
+        </h1>
         {subtitle && (
-          <p className="mt-2 text-xs uppercase tracking-widest2 text-ink/60">{subtitle}</p>
+          <p className="mt-1 text-xs uppercase tracking-widest2 text-ink/60">{subtitle}</p>
         )}
       </div>
 
-      {/* Decorative double-rule */}
+      {/* Masthead double-rule */}
       <div className="mx-auto max-w-7xl px-6">
         <div className="masthead-rule" />
       </div>
 
-      {/* Horizontal navigation across the width */}
+      {/* Horizontal navigation */}
       <nav className="mx-auto max-w-7xl px-6 pb-3">
-        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-xs font-medium uppercase tracking-widest2">
+        <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-1 text-xs font-medium uppercase tracking-widest2">
           {navItems.map(item => (
             <Link key={item.href} href={item.href}
               className={`relative py-1 transition-colors ${item.active ? "text-brand-accent" : "text-ink hover:text-brand-accent"}`}>
@@ -59,8 +73,9 @@ export function Masthead({
             </Link>
           ))}
         </div>
-        {rightSlot && <div className="mt-2 flex justify-end">{rightSlot}</div>}
       </nav>
     </header>
   );
 }
+
+export { TDD_LOGO, TDD_LOGO_SMALL };
