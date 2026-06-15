@@ -7,14 +7,16 @@ const config: Config = {
       colors: {
         brand: {
           DEFAULT: "#0E0E0E",
-          light: "#F4F1EA",
           accent: "#C8102E",
         },
         ink: "#0E0E0E",
-        cream: "#F4F1EA",
+        muted: "#6B6B6B",
+        line: "#E5E5E5",
+        utility: "#F5F5F5",
       },
       fontFamily: {
         serif: ['"Playfair Display"', "Georgia", "serif"],
+        display: ['"Playfair Display"', "Georgia", "serif"],
         sans: ['"Inter"', "system-ui", "sans-serif"],
       },
       letterSpacing: {

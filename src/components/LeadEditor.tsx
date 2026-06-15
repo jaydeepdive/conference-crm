@@ -156,6 +156,24 @@ export function LeadEditor({ kind, conferenceSlug, conferenceId, role, initial, 
       })));
     }
 
+    // ---- Auto TDD lookup: fire-and-forget after save ----
+    const tddRelevantChanged = !form.id
+      || initial.name !== form.name
+      || initial.ticker !== form.ticker
+      || initial.website !== form.website;
+    if (tddRelevantChanged && form.name) {
+      // No await — runs in background, refresh below picks up the updated row
+      fetch("/api/adsplatform/lookup", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conference_id: conferenceId,
+          lead_type: kind, lead_id: savedLeadId,
+          company_name: form.name, ticker: form.ticker, website_url: form.website,
+          persist: true,
+        }),
+      }).catch(() => { /* silent — TDD might be down; lead still saved */ });
+    }
+
     router.push(`/conferences/${conferenceSlug}/${kind === "company" ? "companies" : "investors"}`);
     router.refresh();
   }

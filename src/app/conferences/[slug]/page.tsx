@@ -1,8 +1,8 @@
 import { requireConferenceAccess } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { KpiCard } from "@/components/KpiCard";
 import { STAGES } from "@/lib/constants";
 import { canSeePayments } from "@/lib/types";
+import { PageTitle, SectionHeader } from "@/components/SectionHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -24,87 +24,103 @@ export default async function ConferenceDashboardPage({ params }: { params: Prom
   const usd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
   const showMoney = canSeePayments(ctx.effectiveRole);
 
+  const dateLabel = ctx.conference.date_start
+    ? `${ctx.conference.date_start}${ctx.conference.date_end && ctx.conference.date_end !== ctx.conference.date_start ? ` — ${ctx.conference.date_end}` : ""}`
+    : "";
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">{ctx.conference.name}</h1>
-        <p className="text-sm text-gray-500">
-          {ctx.conference.date_start ? `${ctx.conference.date_start}` : ""}
-          {ctx.conference.date_end && ctx.conference.date_end !== ctx.conference.date_start ? ` → ${ctx.conference.date_end}` : ""}
-          {" · "}<span className="capitalize">{ctx.conference.status}</span>
-        </p>
+    <div className="space-y-10">
+      <PageTitle title={ctx.conference.name} sub={`${dateLabel}${dateLabel ? " · " : ""}${ctx.conference.status}`} />
+
+      <div className="grid gap-10 lg:grid-cols-2">
+        <section>
+          <SectionHeader title="Companies" meta={`${co.length} TOTAL`} />
+          <div className={`mt-6 grid gap-4 ${showMoney ? "grid-cols-3" : "grid-cols-2"}`}>
+            <Kpi label="Registered" value={count(co, r => r.stage === "registered")} />
+            <Kpi label="In pipeline" value={count(co, r => r.stage !== "registered" && r.stage !== "declined")} />
+            {showMoney && <Kpi label="Paid" value={count(co, r => r.payment_status === "paid")} />}
+          </div>
+        </section>
+
+        <section>
+          <SectionHeader title="Investors" meta={`${iv.length} TOTAL`} />
+          <div className={`mt-6 grid gap-4 ${showMoney ? "grid-cols-3" : "grid-cols-2"}`}>
+            <Kpi label="Registered" value={count(iv, r => r.stage === "registered")} />
+            <Kpi label="In pipeline" value={count(iv, r => r.stage !== "registered" && r.stage !== "declined")} />
+            {showMoney && <Kpi label="Paid" value={count(iv, r => r.payment_status === "paid")} />}
+          </div>
+        </section>
       </div>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Companies</h2>
-        <div className={`grid gap-4 ${showMoney ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-          <KpiCard label="Registered" value={count(co, r => r.stage === "registered")} />
-          <KpiCard label="In pipeline" value={count(co, r => r.stage !== "registered" && r.stage !== "declined")} />
-          {showMoney && <KpiCard label="Paid" value={count(co, r => r.payment_status === "paid")} />}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Investors</h2>
-        <div className={`grid gap-4 ${showMoney ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-          <KpiCard label="Registered" value={count(iv, r => r.stage === "registered")} />
-          <KpiCard label="In pipeline" value={count(iv, r => r.stage !== "registered" && r.stage !== "declined")} />
-          {showMoney && <KpiCard label="Paid" value={count(iv, r => r.payment_status === "paid")} />}
-        </div>
-      </section>
-
-      <section className={showMoney ? "grid gap-6 lg:grid-cols-2" : ""}>
-        <div className="rounded-xl border border-gray-200 bg-white p-5">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Pipeline by stage</h3>
-          <table className="mt-3 w-full text-sm">
-            <thead><tr className="text-left text-gray-500">
-              <th className="py-1">Stage</th><th className="py-1 text-right">Companies</th><th className="py-1 text-right">Investors</th><th className="py-1 text-right">Total</th>
+        <SectionHeader title="Pipeline by stage" meta="ACROSS BOTH" />
+        <div className="mt-4 border border-line bg-white">
+          <table className="w-full text-sm">
+            <thead><tr className="border-b border-line text-left text-[10px] uppercase tracking-widest2 text-muted">
+              <th className="px-4 py-2">Stage</th>
+              <th className="px-4 py-2 text-right">Companies</th>
+              <th className="px-4 py-2 text-right">Investors</th>
+              <th className="px-4 py-2 text-right">Total</th>
             </tr></thead>
             <tbody>
               {STAGES.map(s => {
                 const c = count(co, r => r.stage === s.value);
                 const i = count(iv, r => r.stage === s.value);
                 return (
-                  <tr key={s.value} className="border-t border-gray-100">
-                    <td className="py-1.5">{s.label}</td>
-                    <td className="py-1.5 text-right tabular-nums">{c}</td>
-                    <td className="py-1.5 text-right tabular-nums">{i}</td>
-                    <td className="py-1.5 text-right font-semibold tabular-nums">{c + i}</td>
+                  <tr key={s.value} className="border-t border-line">
+                    <td className="px-4 py-2">{s.label}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{c}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{i}</td>
+                    <td className="px-4 py-2 text-right font-semibold tabular-nums">{c + i}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+      </section>
 
-        {showMoney && (
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Payments</h3>
-            <table className="mt-3 w-full text-sm">
-              <thead><tr className="text-left text-gray-500">
-                <th className="py-1"></th><th className="py-1 text-right">Companies</th><th className="py-1 text-right">Investors</th><th className="py-1 text-right">Total</th>
+      {showMoney && (
+        <section>
+          <SectionHeader title="Payments" meta="ALL LEADS" />
+          <div className="mt-4 border border-line bg-white">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-line text-left text-[10px] uppercase tracking-widest2 text-muted">
+                <th className="px-4 py-2"></th>
+                <th className="px-4 py-2 text-right">Companies</th>
+                <th className="px-4 py-2 text-right">Investors</th>
+                <th className="px-4 py-2 text-right">Total</th>
               </tr></thead>
               <tbody>
-                <tr className="border-t border-gray-100"><td className="py-1.5">Billed</td>
-                  <td className="py-1.5 text-right tabular-nums">{usd(sum(co, "amount_due"))}</td>
-                  <td className="py-1.5 text-right tabular-nums">{usd(sum(iv, "amount_due"))}</td>
-                  <td className="py-1.5 text-right font-semibold tabular-nums">{usd(sum(co, "amount_due") + sum(iv, "amount_due"))}</td>
+                <tr className="border-t border-line"><td className="px-4 py-2">Billed</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{usd(sum(co, "amount_due"))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{usd(sum(iv, "amount_due"))}</td>
+                  <td className="px-4 py-2 text-right font-semibold tabular-nums">{usd(sum(co, "amount_due") + sum(iv, "amount_due"))}</td>
                 </tr>
-                <tr className="border-t border-gray-100"><td className="py-1.5">Collected</td>
-                  <td className="py-1.5 text-right tabular-nums">{usd(sum(co, "amount_paid"))}</td>
-                  <td className="py-1.5 text-right tabular-nums">{usd(sum(iv, "amount_paid"))}</td>
-                  <td className="py-1.5 text-right font-semibold tabular-nums">{usd(sum(co, "amount_paid") + sum(iv, "amount_paid"))}</td>
+                <tr className="border-t border-line"><td className="px-4 py-2">Collected</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{usd(sum(co, "amount_paid"))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{usd(sum(iv, "amount_paid"))}</td>
+                  <td className="px-4 py-2 text-right font-semibold tabular-nums">{usd(sum(co, "amount_paid") + sum(iv, "amount_paid"))}</td>
                 </tr>
-                <tr className="border-t border-gray-100"><td className="py-1.5">Outstanding</td>
-                  <td className="py-1.5 text-right tabular-nums">{usd(sum(co, "amount_due") - sum(co, "amount_paid"))}</td>
-                  <td className="py-1.5 text-right tabular-nums">{usd(sum(iv, "amount_due") - sum(iv, "amount_paid"))}</td>
-                  <td className="py-1.5 text-right font-semibold tabular-nums">{usd((sum(co, "amount_due") + sum(iv, "amount_due")) - (sum(co, "amount_paid") + sum(iv, "amount_paid")))}</td>
+                <tr className="border-t border-line"><td className="px-4 py-2">Outstanding</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{usd(sum(co, "amount_due") - sum(co, "amount_paid"))}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{usd(sum(iv, "amount_due") - sum(iv, "amount_paid"))}</td>
+                  <td className="px-4 py-2 text-right font-semibold tabular-nums">{usd((sum(co, "amount_due") + sum(iv, "amount_due")) - (sum(co, "amount_paid") + sum(iv, "amount_paid")))}</td>
                 </tr>
               </tbody>
             </table>
           </div>
-        )}
-      </section>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function Kpi({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="border border-line bg-white p-4">
+      <div className="text-[10px] font-medium uppercase tracking-widest2 text-muted">{label}</div>
+      <div className="mt-2 font-display text-[34px] font-bold leading-none text-ink tabular-nums">{value}</div>
     </div>
   );
 }
