@@ -46,6 +46,11 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
               last_contact: company.last_contact, next_action: company.next_action,
               next_action_date: company.next_action_date,
               source: company.source, notes: company.notes,
+              ticker: company.ticker, website: company.website,
+              is_tdd_client: company.is_tdd_client,
+              tdd_match_type: company.tdd_match_type,
+              tdd_last_checked_at: company.tdd_last_checked_at,
+              tdd_company_ticker: company.tdd_company_data?.ticker ?? null,
             }}
           />
           <LeadNotes notes={notes ?? []} profiles={profiles ?? []}

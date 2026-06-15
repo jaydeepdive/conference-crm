@@ -47,6 +47,11 @@ export default async function InvestorDetailPage({ params }: { params: Promise<{
               next_action_date: inv.next_action_date,
               source: inv.source, notes: inv.notes,
               check_size: inv.check_size, sector_focus: inv.sector_focus,
+              ticker: inv.ticker, website: inv.website,
+              is_tdd_client: inv.is_tdd_client,
+              tdd_match_type: inv.tdd_match_type,
+              tdd_last_checked_at: inv.tdd_last_checked_at,
+              tdd_company_ticker: inv.tdd_company_data?.ticker ?? null,
             }}
           />
           <LeadNotes notes={notes ?? []} profiles={profiles ?? []}

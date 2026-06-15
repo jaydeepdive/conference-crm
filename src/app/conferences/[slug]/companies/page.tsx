@@ -22,6 +22,7 @@ export default async function CompaniesPage({ params }: { params: Promise<{ slug
     stage: c.stage, confirmed: c.confirmed, payment_status: c.payment_status,
     amount_due: Number(c.amount_due), amount_paid: Number(c.amount_paid),
     next_action_date: c.next_action_date, next_action: c.next_action,
+    is_tdd_client: c.is_tdd_client, tdd_ticker: c.tdd_company_data?.ticker ?? null,
   }));
 
   return (

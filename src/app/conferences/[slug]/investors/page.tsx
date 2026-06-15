@@ -22,6 +22,7 @@ export default async function InvestorsPage({ params }: { params: Promise<{ slug
     stage: i.stage, confirmed: i.confirmed, payment_status: i.payment_status,
     amount_due: Number(i.amount_due), amount_paid: Number(i.amount_paid),
     next_action_date: i.next_action_date, next_action: i.next_action,
+    is_tdd_client: i.is_tdd_client, tdd_ticker: i.tdd_company_data?.ticker ?? null,
   }));
 
   return (

@@ -37,6 +37,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       currency: invoice.currency,
       line_items: invoice.line_items,
       subtotal: Number(invoice.subtotal),
+      discount_label: invoice.discount_label ?? null,
+      discount_amount: Number(invoice.discount_amount ?? 0),
       tax_rate: Number(invoice.tax_rate),
       tax_amount: Number(invoice.tax_amount),
       total: Number(invoice.total),

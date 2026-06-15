@@ -31,6 +31,8 @@ export interface Entity {
   created_at: string;
 }
 
+export type DiscountType = "percent" | "fixed";
+
 export interface Conference {
   id: string;
   slug: string;
@@ -40,6 +42,9 @@ export interface Conference {
   status: ConfStatus;
   notes: string | null;
   created_at: string;
+  client_discount_type: DiscountType;
+  client_discount_value: number;
+  client_discount_label: string;
 }
 
 export type FeeType = "split_only" | "per_company" | "per_investor" | "per_lead" | "flat";
@@ -84,6 +89,12 @@ export interface LeadBase {
   next_action_date: string | null;
   source: string | null;
   notes: string | null;
+  ticker: string | null;
+  website: string | null;
+  is_tdd_client: boolean;
+  tdd_match_type: string | null;
+  tdd_company_data: { id: number; name: string; ticker: string; exchange: string; website: string; status: string; slug: string } | null;
+  tdd_last_checked_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -160,6 +171,8 @@ export interface Invoice {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  discount_label: string | null;
+  discount_amount: number;
 }
 
 export interface EmailTemplate {

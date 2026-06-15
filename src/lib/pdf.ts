@@ -39,6 +39,8 @@ export interface InvoicePdfArgs {
     currency: string;
     line_items: { description: string; quantity: number; unit_price: number }[];
     subtotal: number;
+    discount_label: string | null;
+    discount_amount: number;
     tax_rate: number;
     tax_amount: number;
     total: number;
@@ -95,6 +97,10 @@ export async function renderInvoicePdf(args: InvoicePdfArgs): Promise<Buffer> {
           React.createElement(View, { style: styles.totalRow },
             React.createElement(Text, { style: styles.totalLabel }, "Subtotal"),
             React.createElement(Text, { style: styles.totalValue }, fmt(invoice.subtotal, invoice.currency)),
+          ),
+          invoice.discount_amount > 0 && React.createElement(View, { style: styles.totalRow },
+            React.createElement(Text, { style: styles.totalLabel }, `− ${invoice.discount_label ?? "Discount"}`),
+            React.createElement(Text, { style: styles.totalValue }, `−${fmt(invoice.discount_amount, invoice.currency)}`),
           ),
           invoice.tax_rate > 0 && React.createElement(View, { style: styles.totalRow },
             React.createElement(Text, { style: styles.totalLabel }, `Tax (${invoice.tax_rate.toFixed(1)}%)`),
@@ -174,6 +180,7 @@ export function renderInvoiceHtml(args: InvoicePdfArgs): string {
   </table>
   <table style="width:280px;margin-left:auto;margin-top:12px">
     <tr><td style="padding:4px">Subtotal</td><td style="padding:4px;text-align:right">${fmt(invoice.subtotal, invoice.currency)}</td></tr>
+    ${invoice.discount_amount > 0 ? `<tr style="color:#C8102E"><td style="padding:4px">− ${esc(invoice.discount_label ?? "Discount")}</td><td style="padding:4px;text-align:right">−${fmt(invoice.discount_amount, invoice.currency)}</td></tr>` : ""}
     ${invoice.tax_rate > 0 ? `<tr><td style="padding:4px">Tax (${invoice.tax_rate.toFixed(1)}%)</td><td style="padding:4px;text-align:right">${fmt(invoice.tax_amount, invoice.currency)}</td></tr>` : ""}
     <tr style="border-top:1px solid #0E0E0E"><td style="padding:8px;font-weight:bold;font-size:14px">Total Due</td><td style="padding:8px;text-align:right;font-weight:bold;font-size:14px">${fmt(invoice.total, invoice.currency)}</td></tr>
   </table>

@@ -62,6 +62,9 @@ function ConferenceCard({ conference, entities, links }: {
     name: conference.name, slug: conference.slug,
     date_start: conference.date_start ?? "", date_end: conference.date_end ?? "",
     status: conference.status, notes: conference.notes ?? "",
+    client_discount_type: conference.client_discount_type as DiscountType,
+    client_discount_value: conference.client_discount_value,
+    client_discount_label: conference.client_discount_label,
   });
 
   async function saveConference() {
@@ -70,6 +73,9 @@ function ConferenceCard({ conference, entities, links }: {
       name: form.name, slug: form.slug,
       date_start: form.date_start || null, date_end: form.date_end || null,
       status: form.status, notes: form.notes || null,
+      client_discount_type: form.client_discount_type,
+      client_discount_value: Number(form.client_discount_value),
+      client_discount_label: form.client_discount_label || "Client discount",
     }).eq("id", conference.id);
     if (error) { alert(error.message); return; }
     setEditing(false);
@@ -103,6 +109,23 @@ function ConferenceCard({ conference, entities, links }: {
           </select>
           <textarea className={`${input} sm:col-span-3 min-h-[60px]`} placeholder="Notes (optional)"
             value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+
+          <div className="sm:col-span-3 border-t border-gray-200 pt-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Client discount (auto-applied to TDD clients on invoice)</div>
+          </div>
+          <div className="sm:col-span-2"><label className="block text-xs text-gray-500">Label on invoice</label>
+            <input className={input} placeholder="e.g. TDD Client Discount"
+              value={form.client_discount_label} onChange={e => setForm({ ...form, client_discount_label: e.target.value })} /></div>
+          <div><label className="block text-xs text-gray-500">Type</label>
+            <select className={input} value={form.client_discount_type}
+              onChange={e => setForm({ ...form, client_discount_type: e.target.value as DiscountType })}>
+              <option value="percent">Percent (%)</option>
+              <option value="fixed">Fixed ($)</option>
+            </select></div>
+          <div><label className="block text-xs text-gray-500">Value</label>
+            <input className={input} type="number" step="0.01"
+              value={form.client_discount_value} onChange={e => setForm({ ...form, client_discount_value: Number(e.target.value) })} /></div>
+
           <div className="sm:col-span-3 flex justify-end gap-2">
             <button onClick={() => setEditing(false)} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm">Cancel</button>
             <button onClick={saveConference} className="rounded-md bg-brand px-4 py-1.5 text-sm font-medium text-white">Save</button>
@@ -118,6 +141,11 @@ function ConferenceCard({ conference, entities, links }: {
               {" · "}{conference.status}
             </p>
             {conference.notes && <p className="mt-1 text-sm text-gray-600">{conference.notes}</p>}
+            <p className="mt-1 text-xs text-gray-500">
+              Client discount: {conference.client_discount_value > 0
+                ? `${conference.client_discount_type === "percent" ? `${conference.client_discount_value}%` : `$${conference.client_discount_value}`} · "${conference.client_discount_label}"`
+                : "none"}
+            </p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => setEditing(true)} className="text-sm text-brand hover:underline">Edit</button>

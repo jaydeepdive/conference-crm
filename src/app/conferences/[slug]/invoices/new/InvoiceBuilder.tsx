@@ -2,15 +2,21 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { LeadType, InvoiceLineItem } from "@/lib/types";
+import { computeClientDiscount } from "@/lib/adsplatform";
+import { TddBadge } from "@/components/TddBadge";
+import type { LeadType, InvoiceLineItem, DiscountType } from "@/lib/types";
 
 interface Lead {
   type: LeadType; id: string; name: string;
   contact_name: string | null; email: string | null; balance: number;
+  is_tdd_client: boolean; tdd_ticker: string | null;
 }
 
-export function InvoiceBuilder({ slug, conferenceId, leads }: {
+interface DiscountConfig { type: DiscountType; value: number; label: string }
+
+export function InvoiceBuilder({ slug, conferenceId, leads, discountConfig }: {
   slug: string; conferenceId: string; leads: Lead[];
+  discountConfig: DiscountConfig;
 }) {
   const router = useRouter();
   const [leadId, setLeadId] = useState<string>("");
@@ -23,6 +29,9 @@ export function InvoiceBuilder({ slug, conferenceId, leads }: {
   const [notes, setNotes] = useState("");
   const [paymentTerms, setPaymentTerms] = useState("Net 30 — wire transfer details on request");
   const [currency, setCurrency] = useState("USD");
+  const [discountLabel, setDiscountLabel] = useState(discountConfig.label);
+  const [discountAmount, setDiscountAmount] = useState("0");
+  const [discountAutoFilled, setDiscountAutoFilled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,8 +40,33 @@ export function InvoiceBuilder({ slug, conferenceId, leads }: {
   const subtotal = useMemo(() =>
     items.reduce((a, li) => a + (Number(li.quantity) * Number(li.unit_price)), 0)
   , [items]);
-  const taxAmt = useMemo(() => (subtotal * Number(taxRate)) / 100, [subtotal, taxRate]);
-  const total = subtotal + taxAmt;
+  const taxableBase = Math.max(0, subtotal - Number(discountAmount));
+  const taxAmt = useMemo(() => (taxableBase * Number(taxRate)) / 100, [taxableBase, taxRate]);
+  const total = taxableBase + taxAmt;
+
+  function pickLead(newLeadId: string) {
+    setLeadId(newLeadId);
+    const lead = leads.find(l => `${l.type}:${l.id}` === newLeadId);
+    if (lead?.is_tdd_client && !discountAutoFilled) {
+      const auto = computeClientDiscount(subtotal, {
+        client_discount_type: discountConfig.type,
+        client_discount_value: discountConfig.value,
+      });
+      setDiscountAmount(String(auto));
+      setDiscountLabel(discountConfig.label);
+      setDiscountAutoFilled(true);
+    }
+  }
+
+  function recomputeAutoDiscount() {
+    if (!selected?.is_tdd_client) return;
+    const auto = computeClientDiscount(subtotal, {
+      client_discount_type: discountConfig.type,
+      client_discount_value: discountConfig.value,
+    });
+    setDiscountAmount(String(auto));
+    setDiscountAutoFilled(true);
+  }
 
   function updateItem(i: number, k: keyof InvoiceLineItem, v: string | number) {
     setItems(items.map((it, idx) => idx === i ? { ...it, [k]: k === "description" ? v : Number(v) } : it));
@@ -46,11 +80,15 @@ export function InvoiceBuilder({ slug, conferenceId, leads }: {
     setSaving(true); setError(null);
     const supabase = createClient();
 
+    const dAmount = Number(discountAmount) || 0;
+
     const { data, error: err } = await supabase.from("invoices").insert({
       conference_id: conferenceId,
       lead_type: selected.type, lead_id: selected.id,
       line_items: items,
       subtotal, tax_rate: Number(taxRate), tax_amount: taxAmt, total,
+      discount_label: dAmount > 0 ? (discountLabel || "Discount") : null,
+      discount_amount: dAmount,
       currency, status: "draft",
       issued_date: issuedDate, due_date: dueDate || null,
       recipient_email: selected.email, recipient_name: selected.contact_name,
@@ -71,27 +109,28 @@ export function InvoiceBuilder({ slug, conferenceId, leads }: {
 
       <section className="border border-ink/20 bg-white p-5">
         <h3 className="text-xs font-semibold uppercase tracking-widest2 text-ink/60">Recipient</h3>
-        <select className={`${input} mt-3`} value={leadId} onChange={e => setLeadId(e.target.value)}>
+        <select className={`${input} mt-3`} value={leadId} onChange={e => pickLead(e.target.value)}>
           <option value="">— pick a lead —</option>
           <optgroup label="Companies">
             {leads.filter(l => l.type === "company").map(l => (
               <option key={`${l.type}:${l.id}`} value={`${l.type}:${l.id}`}>
-                {l.name} {l.balance > 0 ? `(balance ${usd(l.balance)})` : ""}
+                {l.is_tdd_client ? "★ " : ""}{l.name}{l.balance > 0 ? ` (balance ${usd(l.balance)})` : ""}
               </option>
             ))}
           </optgroup>
           <optgroup label="Investors">
             {leads.filter(l => l.type === "investor").map(l => (
               <option key={`${l.type}:${l.id}`} value={`${l.type}:${l.id}`}>
-                {l.name} {l.balance > 0 ? `(balance ${usd(l.balance)})` : ""}
+                {l.is_tdd_client ? "★ " : ""}{l.name}{l.balance > 0 ? ` (balance ${usd(l.balance)})` : ""}
               </option>
             ))}
           </optgroup>
         </select>
         {selected && (
-          <p className="mt-2 text-xs text-ink/60">
-            Will be sent to {selected.contact_name ?? "—"} &lt;{selected.email ?? "no email on file"}&gt;
-          </p>
+          <div className="mt-2 flex items-center gap-3 text-xs text-ink/60">
+            <span>To: {selected.contact_name ?? "—"} &lt;{selected.email ?? "no email on file"}&gt;</span>
+            {selected.is_tdd_client && <TddBadge ticker={selected.tdd_ticker} />}
+          </div>
         )}
       </section>
 
@@ -122,17 +161,47 @@ export function InvoiceBuilder({ slug, conferenceId, leads }: {
             ))}
           </tbody>
         </table>
-        <div className="mt-4 flex justify-end">
-          <div className="w-72 space-y-1 text-sm">
-            <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{usd(subtotal)}</span></div>
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className={`rounded border p-3 ${selected?.is_tdd_client ? "border-brand-accent bg-brand-accent/5" : "border-ink/10 bg-cream/30"}`}>
             <div className="flex items-center justify-between">
-              <span>Tax %</span>
-              <input className={`${input} w-20 text-right`} type="number" step="0.1" value={taxRate}
-                onChange={e => setTaxRate(e.target.value)} />
+              <label className={label}>Discount</label>
+              {selected?.is_tdd_client && (
+                <button onClick={recomputeAutoDiscount}
+                  className="text-xs text-brand-accent hover:underline">↻ Auto-apply {discountConfig.value}{discountConfig.type === "percent" ? "%" : ` ${currency}`}</button>
+              )}
             </div>
-            <div className="flex justify-between"><span>Tax</span><span className="tabular-nums">{usd(taxAmt)}</span></div>
-            <div className="mt-2 flex justify-between border-t border-ink pt-2 font-semibold">
-              <span>Total</span><span className="tabular-nums">{usd(total)}</span>
+            <input className={`${input} mt-2`} value={discountLabel}
+              onChange={e => setDiscountLabel(e.target.value)} placeholder="Discount label" />
+            <input className={`${input} mt-2`} type="number" step="0.01" value={discountAmount}
+              onChange={e => { setDiscountAmount(e.target.value); setDiscountAutoFilled(true); }}
+              placeholder="0.00" />
+            {selected?.is_tdd_client && Number(discountAmount) === 0 && (
+              <p className="mt-2 text-xs text-amber-700">This lead is a TDD client. Click &ldquo;Auto-apply&rdquo; or enter a custom amount.</p>
+            )}
+            {!selected?.is_tdd_client && Number(discountAmount) > 0 && (
+              <p className="mt-2 text-xs text-ink/60">Manual discount applied (lead is not a TDD client).</p>
+            )}
+          </div>
+
+          <div className="rounded border border-ink/10 bg-cream/30 p-3">
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between"><span>Subtotal</span><span className="tabular-nums">{usd(subtotal)}</span></div>
+              {Number(discountAmount) > 0 && (
+                <div className="flex justify-between text-brand-accent">
+                  <span>− {discountLabel || "Discount"}</span>
+                  <span className="tabular-nums">−{usd(Number(discountAmount))}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span>Tax %</span>
+                <input className={`${input} w-20 text-right`} type="number" step="0.1" value={taxRate}
+                  onChange={e => setTaxRate(e.target.value)} />
+              </div>
+              <div className="flex justify-between"><span>Tax</span><span className="tabular-nums">{usd(taxAmt)}</span></div>
+              <div className="mt-2 flex justify-between border-t border-ink pt-2 font-semibold">
+                <span>Total</span><span className="tabular-nums">{usd(total)}</span>
+              </div>
             </div>
           </div>
         </div>

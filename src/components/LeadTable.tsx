@@ -2,6 +2,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { StageBadge, ConfirmedBadge, PaymentBadge } from "./StageBadge";
+import { TddBadge } from "./TddBadge";
 import { STAGES } from "@/lib/constants";
 import type { Profile, Stage } from "@/lib/types";
 
@@ -19,6 +20,8 @@ interface Row {
   amount_paid: number;
   next_action_date: string | null;
   next_action: string | null;
+  is_tdd_client?: boolean;
+  tdd_ticker?: string | null;
 }
 
 type SortKey =
@@ -149,7 +152,10 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true }: {
             {sorted.map(r => (
               <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
                 <td className="px-3 py-2 font-medium">
-                  <Link href={`${basePath}/${r.id}`} className="hover:underline">{r.name}</Link>
+                  <div className="flex items-center gap-1.5">
+                    <Link href={`${basePath}/${r.id}`} className="hover:underline">{r.name}</Link>
+                    {r.is_tdd_client && <TddBadge ticker={r.tdd_ticker} />}
+                  </div>
                   {r.industry_or_type && <div className="text-xs text-gray-500">{r.industry_or_type}</div>}
                 </td>
                 <td className="px-3 py-2">

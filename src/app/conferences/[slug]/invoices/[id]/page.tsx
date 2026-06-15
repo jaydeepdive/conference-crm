@@ -34,7 +34,14 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         <div>
           <Link href={`/conferences/${slug}/invoices`} className="text-xs uppercase tracking-widest2 text-ink/60 hover:text-ink">← Invoices</Link>
           <h1 className="mt-1 font-serif text-2xl font-bold text-ink">Invoice #{invoice.invoice_number}</h1>
-          <p className="text-sm text-ink/60">{orgName} · {invoice.currency} {Number(invoice.total).toFixed(2)} · {invoice.status}</p>
+          <p className="text-sm text-ink/60">
+            {orgName} · {invoice.currency} {Number(invoice.total).toFixed(2)} · {invoice.status}
+            {Number(invoice.discount_amount) > 0 && (
+              <span className="ml-2 text-brand-accent">
+                ({invoice.discount_label}: −{invoice.currency} {Number(invoice.discount_amount).toFixed(2)})
+              </span>
+            )}
+          </p>
         </div>
         <a href={`/api/invoices/${id}/pdf`} target="_blank" rel="noopener"
           className="border border-ink/20 px-4 py-2 text-xs uppercase tracking-widest2 hover:bg-cream">
