@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { STAGES, CONFIRMED, PAYMENT_STATUSES, INDUSTRIES, INVESTOR_TYPES, ACTIVITY_ACTIONS } from "@/lib/constants";
+import { STAGES, CONFIRMED, PAYMENT_STATUSES, INDUSTRIES, INVESTOR_TYPES, ACTIVITY_ACTIONS, stageMeta, confirmedMeta, paymentMeta } from "@/lib/constants";
 import { canSeePayments, canEditLeads, canEditExpenses, type Profile, type Stage, type Confirmed, type PaymentStatus, type ConferenceRole } from "@/lib/types";
 
 type Kind = "company" | "investor";
@@ -83,6 +83,71 @@ export function LeadEditor({ kind, conferenceSlug, conferenceId, role, initial, 
     }
 
     if (result.error) { setError(result.error.message); setSaving(false); return; }
+
+    // ---- Auto-log significant changes to activity_log ----
+    const savedLeadId = (result.data?.id ?? form.id) as string;
+    const ownerName = (id: string | null) => profiles.find(p => p.id === id)?.full_name || profiles.find(p => p.id === id)?.email || "—";
+    const usd = (n: number) => `$${Math.round(n).toLocaleString()}`;
+    const logs: { action: string; notes: string | null }[] = [];
+
+    if (!form.id) {
+      logs.push({ action: "Created", notes: `New ${kind}: ${form.name}` });
+      if (form.owner_id === currentUserId) {
+        logs.push({ action: "Claimed", notes: null });
+      }
+    } else {
+      if (initial.stage !== form.stage) {
+        const label = form.stage === "registered" ? "Marked Registered"
+                    : form.stage === "declined" ? "Marked Declined"
+                    : "Stage changed";
+        logs.push({ action: label, notes: `${stageMeta(initial.stage).label} → ${stageMeta(form.stage).label}` });
+      }
+      if (initial.confirmed !== form.confirmed) {
+        logs.push({ action: form.confirmed === "yes" ? "Confirmed attendance" : "Confirmation changed",
+          notes: `${confirmedMeta(initial.confirmed).label} → ${confirmedMeta(form.confirmed).label}` });
+      }
+      if (showMoney && initial.payment_status !== form.payment_status) {
+        const label = form.payment_status === "paid" ? "Marked Paid"
+                    : form.payment_status === "invoiced" ? "Invoice sent (status)"
+                    : "Payment status changed";
+        logs.push({ action: label, notes: `${paymentMeta(initial.payment_status).label} → ${paymentMeta(form.payment_status).label}` });
+      }
+      if (initial.owner_id !== form.owner_id) {
+        if (form.owner_id === currentUserId && initial.owner_id == null) {
+          logs.push({ action: "Claimed", notes: null });
+        } else if (form.owner_id == null) {
+          logs.push({ action: "Released", notes: `Was ${ownerName(initial.owner_id)}` });
+        } else {
+          logs.push({ action: "Reassigned", notes: `${ownerName(initial.owner_id)} → ${ownerName(form.owner_id)}` });
+        }
+      }
+      if (showMoney && Number(initial.amount_due) !== Number(form.amount_due)) {
+        logs.push({ action: "Amount due updated", notes: `${usd(Number(initial.amount_due))} → ${usd(form.amount_due)}` });
+      }
+      if (showMoney && Number(initial.amount_paid) !== Number(form.amount_paid)) {
+        logs.push({ action: "Payment recorded", notes: `${usd(Number(initial.amount_paid))} → ${usd(form.amount_paid)}` });
+      }
+      // Fallback: log generic update if any other significant field changed
+      const otherChanges =
+        initial.contact_name !== form.contact_name ||
+        initial.email !== form.email ||
+        initial.phone !== form.phone ||
+        initial.next_action !== form.next_action ||
+        initial.next_action_date !== form.next_action_date ||
+        initial.notes !== form.notes;
+      if (logs.length === 0 && otherChanges) {
+        logs.push({ action: "Details updated", notes: null });
+      }
+    }
+
+    if (logs.length > 0) {
+      await supabase.from("activity_log").insert(logs.map(l => ({
+        user_id: currentUserId, lead_type: kind, lead_id: savedLeadId,
+        lead_name: form.name, action: l.action, notes: l.notes,
+        conference_id: conferenceId,
+      })));
+    }
+
     router.push(`/conferences/${conferenceSlug}/${kind === "company" ? "companies" : "investors"}`);
     router.refresh();
   }
