@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { STAGES, CONFIRMED, PAYMENT_STATUSES, INDUSTRIES, INVESTOR_TYPES, ACTIVITY_ACTIONS, stageMeta, confirmedMeta, paymentMeta } from "@/lib/constants";
 import { canSeePayments, canEditLeads, canEditExpenses, type Profile, type Stage, type Confirmed, type PaymentStatus, type ConferenceRole } from "@/lib/types";
-import { TddCheckButton } from "./TddCheckButton";
+import { TddBadge } from "./TddBadge";
 
 type Kind = "company" | "investor";
 type Role = ConferenceRole | "super_admin";
@@ -30,12 +30,7 @@ interface Initial {
   notes: string | null;
   check_size?: string | null;
   sector_focus?: string | null;
-  ticker?: string | null;
-  website?: string | null;
   is_tdd_client?: boolean;
-  tdd_match_type?: string | null;
-  tdd_last_checked_at?: string | null;
-  tdd_company_ticker?: string | null;
 }
 
 export function LeadEditor({ kind, conferenceSlug, conferenceId, role, initial, profiles, currentUserId }: {
@@ -71,7 +66,6 @@ export function LeadEditor({ kind, conferenceSlug, conferenceId, role, initial, 
       last_contact: form.last_contact || null,
       next_action: form.next_action, next_action_date: form.next_action_date || null,
       source: form.source, notes: form.notes,
-      ticker: form.ticker || null, website: form.website || null,
     };
     if (showMoney) {
       payload.payment_status = form.payment_status;
@@ -157,10 +151,7 @@ export function LeadEditor({ kind, conferenceSlug, conferenceId, role, initial, 
     }
 
     // ---- Auto TDD lookup: fire-and-forget after save ----
-    const tddRelevantChanged = !form.id
-      || initial.name !== form.name
-      || initial.ticker !== form.ticker
-      || initial.website !== form.website;
+    const tddRelevantChanged = !form.id || initial.name !== form.name;
     if (tddRelevantChanged && form.name) {
       // No await — runs in background, refresh below picks up the updated row
       fetch("/api/adsplatform/lookup", {
@@ -168,8 +159,7 @@ export function LeadEditor({ kind, conferenceSlug, conferenceId, role, initial, 
         body: JSON.stringify({
           conference_id: conferenceId,
           lead_type: kind, lead_id: savedLeadId,
-          company_name: form.name, ticker: form.ticker, website_url: form.website,
-          persist: true,
+          company_name: form.name, persist: true,
         }),
       }).catch(() => { /* silent — TDD might be down; lead still saved */ });
     }
@@ -265,24 +255,12 @@ export function LeadEditor({ kind, conferenceSlug, conferenceId, role, initial, 
               value={form.sector_focus ?? ""} onChange={e => update("sector_focus", e.target.value)} /></div>
         </>}
 
-        <div><label className={label}>Ticker (optional)</label>
-          <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
-            value={form.ticker ?? ""} onChange={e => update("ticker", e.target.value)}
-            placeholder="e.g. EMO.V" /></div>
-        <div><label className={label}>Website (optional)</label>
-          <input className={canEdit ? input : inputDisabled} disabled={!canEdit}
-            value={form.website ?? ""} onChange={e => update("website", e.target.value)}
-            placeholder="https://example.com" /></div>
-
-        <div className="sm:col-span-2 rounded border border-ink/10 bg-cream/40 p-3">
-          <div className="text-xs font-medium uppercase tracking-widest2 text-ink/60">The Deep Dive client status</div>
-          <div className="mt-2">
-            <TddCheckButton conferenceId={conferenceId} leadType={kind} leadId={form.id}
-              name={form.name} ticker={form.ticker} website={form.website}
-              isClient={form.is_tdd_client} matchType={form.tdd_match_type}
-              lastCheckedAt={form.tdd_last_checked_at} tickerFromData={form.tdd_company_ticker} />
+        {form.is_tdd_client && (
+          <div className="sm:col-span-2 flex items-center gap-2 border border-line bg-white px-3 py-2">
+            <TddBadge />
+            <span className="text-xs text-muted">Auto-detected. Eligible for the conference&apos;s client discount on invoices.</span>
           </div>
-        </div>
+        )}
 
         <div>
           <label className={label}>Stage</label>

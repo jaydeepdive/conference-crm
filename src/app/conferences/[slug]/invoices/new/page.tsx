@@ -12,10 +12,10 @@ export default async function NewInvoicePage({ params }: { params: Promise<{ slu
 
   const [{ data: companies }, { data: investors }] = await Promise.all([
     supabase.from("companies")
-      .select("id,name,contact_name,email,amount_due,amount_paid,is_tdd_client,tdd_company_data")
+      .select("id,name,contact_name,email,amount_due,amount_paid,is_tdd_client")
       .eq("conference_id", ctx.conference.id).order("name"),
     supabase.from("investors")
-      .select("id,firm_name,contact_name,email,amount_due,amount_paid,is_tdd_client,tdd_company_data")
+      .select("id,firm_name,contact_name,email,amount_due,amount_paid,is_tdd_client")
       .eq("conference_id", ctx.conference.id).order("firm_name"),
   ]);
 
@@ -25,14 +25,12 @@ export default async function NewInvoicePage({ params }: { params: Promise<{ slu
       contact_name: c.contact_name, email: c.email,
       balance: Number(c.amount_due) - Number(c.amount_paid),
       is_tdd_client: !!c.is_tdd_client,
-      tdd_ticker: c.tdd_company_data?.ticker ?? null,
     })),
     ...(investors ?? []).map(i => ({
       type: "investor" as const, id: i.id, name: i.firm_name,
       contact_name: i.contact_name, email: i.email,
       balance: Number(i.amount_due) - Number(i.amount_paid),
       is_tdd_client: !!i.is_tdd_client,
-      tdd_ticker: i.tdd_company_data?.ticker ?? null,
     })),
   ];
 

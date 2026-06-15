@@ -9,7 +9,7 @@ import type { LeadType, InvoiceLineItem, DiscountType } from "@/lib/types";
 interface Lead {
   type: LeadType; id: string; name: string;
   contact_name: string | null; email: string | null; balance: number;
-  is_tdd_client: boolean; tdd_ticker: string | null;
+  is_tdd_client: boolean;
 }
 
 interface DiscountConfig { type: DiscountType; value: number; label: string }
@@ -129,7 +129,7 @@ export function InvoiceBuilder({ slug, conferenceId, leads, discountConfig }: {
         {selected && (
           <div className="mt-2 flex items-center gap-3 text-xs text-ink/60">
             <span>To: {selected.contact_name ?? "—"} &lt;{selected.email ?? "no email on file"}&gt;</span>
-            {selected.is_tdd_client && <TddBadge ticker={selected.tdd_ticker} />}
+            {selected.is_tdd_client && <TddBadge />}
           </div>
         )}
       </section>

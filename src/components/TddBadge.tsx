@@ -1,11 +1,16 @@
-export function TddBadge({ matchType, ticker, size = "sm" }: {
-  matchType?: string | null; ticker?: string | null;
-  size?: "sm" | "md";
-}) {
-  const label = ticker ? `TDD · ${ticker}` : "TDD Client";
-  const tooltip = matchType ? `Matched on ${matchType.replace("_", " ")}` : "Active client of The Deep Dive";
-  const cls = size === "md"
-    ? "inline-flex items-center gap-1 rounded-full bg-brand-accent px-2 py-0.5 text-xs font-medium uppercase tracking-widest2 text-cream"
-    : "inline-flex items-center gap-1 rounded-full bg-brand-accent px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-widest2 text-cream";
-  return <span title={tooltip} className={cls}>{label}</span>;
+/** Red pill, white text — same red as the thedeepdive.ca logo accent (#C8102E).
+ *  Uses inline styles to guarantee colors render correctly regardless of Tailwind purge. */
+export function TddBadge({ size = "sm" }: { size?: "sm" | "md" }) {
+  const isSmall = size === "sm";
+  return (
+    <span
+      style={{ backgroundColor: "#C8102E", color: "#FFFFFF" }}
+      className={`inline-block rounded-full font-semibold uppercase tracking-widest2 ${
+        isSmall ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-0.5 text-[11px]"
+      }`}
+      title="Active client of The Deep Dive"
+    >
+      TDD Client
+    </span>
+  );
 }
