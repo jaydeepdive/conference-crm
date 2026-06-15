@@ -3,4 +3,15 @@
 @tailwind utilities;
 
 html, body { height: 100%; }
-body { @apply bg-gray-50 text-gray-900 antialiased; }
+body { @apply bg-cream text-ink antialiased; font-feature-settings: "ss01" on, "cv11" on; }
+
+/* Headings use the serif display face, mimicking thedeepdive.ca's editorial feel */
+h1, h2, h3, h4 { @apply font-serif; }
+
+/* A masthead-style horizontal rule */
+.masthead-rule {
+  border-top: 2px solid #0E0E0E;
+  border-bottom: 1px solid #0E0E0E;
+  height: 6px;
+  margin: 8px 0;
+}

@@ -14,34 +14,45 @@ export default async function ConferencesPage() {
 
   const conferences = confs ?? [];
 
-  // If exactly one conference and no admin powers, auto-redirect into it
   if (conferences.length === 1 && !profile.is_super_admin) {
     redirect(`/conferences/${conferences[0].slug}`);
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <h1 className="text-lg font-bold text-brand">Mining Summit CRM</h1>
-          <div className="flex items-center gap-4">
-            {profile.is_super_admin && (
-              <Link href="/admin" className="text-sm font-medium text-brand hover:underline">Admin</Link>
-            )}
-            <span className="text-sm text-gray-600">{profile.full_name || profile.email}</span>
-            <SignOutButton />
+    <div className="min-h-screen bg-cream">
+      <header className="border-b border-ink bg-cream">
+        <div className="border-b border-ink/20">
+          <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2 text-xs uppercase tracking-widest2 text-ink/60">
+            <span>Welcome</span>
+            <div className="flex items-center gap-4">
+              {profile.is_super_admin && (
+                <Link href="/admin" className="text-brand-accent hover:underline">Admin</Link>
+              )}
+              <span className="text-ink/70 normal-case tracking-normal">{profile.full_name || profile.email}</span>
+              <SignOutButton />
+            </div>
           </div>
         </div>
+
+        <div className="mx-auto max-w-7xl px-6 pt-10 pb-6 text-center">
+          <h1 className="text-4xl font-serif font-black uppercase tracking-tight text-ink sm:text-5xl">Mining Summit CRM</h1>
+          <p className="mt-2 text-xs uppercase tracking-widest2 text-ink/60">All conferences</p>
+        </div>
+
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="masthead-rule" />
+        </div>
       </header>
+
       <main className="mx-auto max-w-5xl px-6 py-10">
-        <h2 className="text-2xl font-bold text-gray-900">Your conferences</h2>
-        <p className="mt-1 text-sm text-gray-500">Pick a conference to view its CRM and budget.</p>
+        <h2 className="font-serif text-2xl font-bold text-ink">Your conferences</h2>
+        <p className="mt-1 text-sm text-ink/60">Pick a conference to view its CRM and budget.</p>
 
         {conferences.length === 0 ? (
-          <div className="mt-8 rounded-xl border border-gray-200 bg-white p-8 text-center">
-            <p className="text-sm text-gray-600">You don&apos;t have access to any conferences yet.</p>
+          <div className="mt-8 rounded-lg border border-ink/20 bg-white p-8 text-center">
+            <p className="text-sm text-ink/70">You don&apos;t have access to any conferences yet.</p>
             {profile.is_super_admin && (
-              <Link href="/admin/conferences" className="mt-4 inline-block rounded-md bg-brand px-4 py-2 text-sm font-medium text-white">
+              <Link href="/admin/conferences" className="mt-4 inline-block bg-ink px-4 py-2 text-sm font-medium uppercase tracking-widest2 text-cream hover:bg-brand-accent">
                 + Create one
               </Link>
             )}
@@ -50,19 +61,19 @@ export default async function ConferencesPage() {
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             {conferences.map(c => (
               <Link key={c.id} href={`/conferences/${c.slug}`}
-                className="rounded-xl border border-gray-200 bg-white p-5 transition hover:border-brand hover:shadow-md">
+                className="group border border-ink/20 bg-white p-5 transition hover:border-brand-accent">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">{c.name}</h3>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                    c.status === "active" ? "bg-emerald-100 text-emerald-800"
-                    : c.status === "planning" ? "bg-sky-100 text-sky-800"
-                    : c.status === "past" ? "bg-gray-200 text-gray-700"
-                    : "bg-gray-100 text-gray-500"
+                  <h3 className="font-serif text-xl font-semibold text-ink group-hover:text-brand-accent">{c.name}</h3>
+                  <span className={`text-xs font-medium uppercase tracking-widest2 ${
+                    c.status === "active" ? "text-brand-accent"
+                    : c.status === "planning" ? "text-ink/70"
+                    : c.status === "past" ? "text-ink/50"
+                    : "text-ink/40"
                   }`}>{c.status}</span>
                 </div>
                 {c.date_start && (
-                  <p className="mt-2 text-sm text-gray-500">
-                    {c.date_start}{c.date_end && c.date_end !== c.date_start ? ` → ${c.date_end}` : ""}
+                  <p className="mt-2 text-xs uppercase tracking-widest2 text-ink/50">
+                    {c.date_start}{c.date_end && c.date_end !== c.date_start ? ` — ${c.date_end}` : ""}
                   </p>
                 )}
               </Link>

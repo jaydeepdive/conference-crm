@@ -21,10 +21,13 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand to-slate-900 p-6">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
-        <h1 className="text-2xl font-bold text-brand">Mining Summit CRM</h1>
-        <p className="mt-2 text-sm text-gray-600">Sign in with your work Google account.</p>
+    <div className="min-h-screen flex items-center justify-center bg-cream p-6">
+      <div className="w-full max-w-md border border-ink/20 bg-white p-10">
+        <div className="text-center">
+          <h1 className="font-serif text-3xl font-black uppercase tracking-tight text-ink">Mining Summit CRM</h1>
+          <div className="my-4 mx-auto h-[6px] max-w-[200px] border-t-2 border-b border-ink"></div>
+          <p className="text-xs uppercase tracking-widest2 text-ink/60">Sign in with your work Google account</p>
+        </div>
 
         {error && (
           <div className="mt-4 rounded-md bg-rose-50 p-3 text-sm text-rose-800">

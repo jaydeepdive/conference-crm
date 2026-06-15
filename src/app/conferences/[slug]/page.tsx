@@ -37,21 +37,19 @@ export default async function ConferenceDashboardPage({ params }: { params: Prom
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Companies</h2>
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className={`grid gap-4 ${showMoney ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <KpiCard label="Registered" value={count(co, r => r.stage === "registered")} />
           <KpiCard label="In pipeline" value={count(co, r => r.stage !== "registered" && r.stage !== "declined")} />
           {showMoney && <KpiCard label="Paid" value={count(co, r => r.payment_status === "paid")} />}
-          <KpiCard label="Total" value={co.length} />
         </div>
       </section>
 
       <section>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Investors</h2>
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className={`grid gap-4 ${showMoney ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <KpiCard label="Registered" value={count(iv, r => r.stage === "registered")} />
           <KpiCard label="In pipeline" value={count(iv, r => r.stage !== "registered" && r.stage !== "declined")} />
           {showMoney && <KpiCard label="Paid" value={count(iv, r => r.payment_status === "paid")} />}
-          <KpiCard label="Total" value={iv.length} />
         </div>
       </section>
 

@@ -41,7 +41,7 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true }: {
   const [stageFilter, setStageFilter] = useState<Stage | "all">("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey | null>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const ownerNameOf = (id: string | null) => {
@@ -124,9 +124,9 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true }: {
           <option value="unclaimed">Unclaimed</option>
           {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name || p.email}</option>)}
         </select>
-        {sortKey && (
-          <button onClick={() => { setSortKey(null); setSortDir("asc"); }}
-            className="text-xs text-gray-500 hover:text-gray-900 underline">Clear sort</button>
+        {sortKey && sortKey !== "name" && (
+          <button onClick={() => { setSortKey("name"); setSortDir("asc"); }}
+            className="text-xs text-gray-500 hover:text-gray-900 underline">Reset to A→Z</button>
         )}
         <div className="ml-auto text-xs text-gray-500">{sorted.length} of {rows.length}</div>
       </div>
