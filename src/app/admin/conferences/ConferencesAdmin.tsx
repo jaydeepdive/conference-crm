@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { FEE_TYPES, FEE_BASES } from "@/lib/constants";
 import { feeTermsLabel } from "@/lib/fees";
-import type { Conference, Entity, ConferenceEntity, ConfStatus, FeeType, FeeBasis } from "@/lib/types";
+import type { Conference, Entity, ConferenceEntity, ConfStatus, FeeType, FeeBasis, DiscountType } from "@/lib/types";
 
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
