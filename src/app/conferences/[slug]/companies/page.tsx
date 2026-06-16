@@ -12,11 +12,14 @@ export default async function CompaniesPage({ params }: { params: Promise<{ slug
   const ctx = await requireConferenceAccess(slug);
   const supabase = await createClient();
 
-  const [{ data: companies }, { data: profiles }, { count: uncheckedCount }] = await Promise.all([
+  const staleCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  const [{ data: companies }, { data: profiles }, { count: needsSyncCount }] = await Promise.all([
     supabase.from("companies").select("*").eq("conference_id", ctx.conference.id).order("updated_at", { ascending: false }),
     supabase.from("profiles").select("*"),
     supabase.from("companies").select("*", { count: "exact", head: true })
-      .eq("conference_id", ctx.conference.id).is("tdd_last_checked_at", null),
+      .eq("conference_id", ctx.conference.id)
+      .or(`tdd_last_checked_at.is.null,and(is_tdd_client.eq.false,tdd_last_checked_at.lt.${staleCutoff})`),
   ]);
 
   const rows = (companies ?? []).map(c => ({
@@ -34,7 +37,7 @@ export default async function CompaniesPage({ params }: { params: Promise<{ slug
         <div>
           <h1 className="font-display text-[32px] font-bold leading-none text-ink">Companies</h1>
           <p className="mt-2 text-sm text-muted">{rows.length} leads</p>
-          <div className="mt-2"><AutoTddSync conferenceId={ctx.conference.id} uncheckedCount={uncheckedCount ?? 0} /></div>
+          <div className="mt-2"><AutoTddSync conferenceId={ctx.conference.id} uncheckedCount={needsSyncCount ?? 0} /></div>
         </div>
         {canEditLeads(ctx.effectiveRole) && (
           <Link href={`/conferences/${slug}/companies/new`}

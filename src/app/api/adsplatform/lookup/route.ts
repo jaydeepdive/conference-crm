@@ -21,7 +21,6 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as RequestBody;
 
-  // Verify the user has access to the conference referenced by this lookup
   if (body.conference_id) {
     const { data: hasAccess } = await supabase.rpc("has_conference_access", { c_id: body.conference_id });
     if (!hasAccess) return NextResponse.json({ error: "No access to this conference" }, { status: 403 });
@@ -33,8 +32,9 @@ export async function POST(request: Request) {
     website_url: body.website_url,
   });
 
-  // Optionally cache the result on the lead row
-  if (body.persist && body.lead_type && body.lead_id) {
+  // Only persist when the lookup actually succeeded. If the wrapper returned an error
+  // (env not set, 503, network), leave tdd_last_checked_at alone so the next sync retries.
+  if (body.persist && body.lead_type && body.lead_id && !result.error) {
     const table = body.lead_type === "company" ? "companies" : "investors";
     await supabase.from(table).update({
       is_tdd_client: result.is_client,
