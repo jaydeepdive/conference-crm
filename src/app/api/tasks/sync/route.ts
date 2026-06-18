@@ -41,10 +41,10 @@ export async function POST(request: Request) {
       if (!body.conference_id || !body.instruction) return err("conference_id + instruction required");
       return NextResponse.json(await suggestTasks(body.conference_id, body.instruction));
     }
-    // default: create
+    // default: create — pass through category, parent_id, etc.
     if (!body.conference_id || !body.title) return err("conference_id + title required");
     const { conference_id, title, ...extra } = body;
-    return NextResponse.json(await createConferenceTask(conference_id, title, extra));
+    return NextResponse.json(await createConferenceTask(conference_id, title, extra as Parameters<typeof createConferenceTask>[2]));
   } catch (e) { return handleHubError(e); }
 }
 

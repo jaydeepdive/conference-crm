@@ -1,34 +1,34 @@
 import { requireConferenceAccess } from "@/lib/auth";
-import { getConferenceTasks } from "@/lib/hub";
-import { TasksClient } from "./TasksClient";
+import { getFullProject, getConferenceNotes, type FullProjectResponse, type HubNote } from "@/lib/hub";
+import { ProjectHubClient } from "./ProjectHubClient";
+import { PageTitle } from "@/components/SectionHeader";
+import { canSeePayments } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function TasksPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  await requireConferenceAccess(slug);
+  const ctx = await requireConferenceAccess(slug);
 
-  let project = null;
-  let tasks: { id: string; title: string; status: string; priority?: string | null; due_date?: string | null; notes?: string | null; source?: string }[] = [];
+  let full: FullProjectResponse | null = null;
+  let notes: HubNote[] = [];
   let hubError: string | null = null;
 
   try {
-    const data = await getConferenceTasks(slug, false);
-    project = data.project;
-    tasks = data.tasks;
+    full = await getFullProject(slug, { includeComments: true, includeDone: true });
   } catch (e) {
     hubError = e instanceof Error ? e.message : "Hub request failed";
   }
 
+  if (full?.project) {
+    notes = await getConferenceNotes(slug);
+  }
+
+  const showFinancials = canSeePayments(ctx.effectiveRole);
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="font-serif text-2xl font-bold text-ink">Tasks</h1>
-          {project && <p className="text-sm text-ink/60">Linked Hub project: <span className="font-medium">{project.title ?? project.name ?? project.id}</span></p>}
-          {!project && !hubError && <p className="text-sm text-ink/60">No Hub project linked yet. Open this conference in the Project Hub and link it (uses slug <code>{slug}</code>).</p>}
-        </div>
-      </div>
+    <div className="space-y-8">
+      <PageTitle title="Project Hub" sub={full?.project ? `${full.project.title ?? full.project.name ?? full.project.id} · Mining Summit Hub link` : "Tasks, schedule, team, and financials — synced with The Deep Dive Hub"} />
 
       {hubError && (
         <div className="rounded-md bg-rose-50 p-4 text-sm text-rose-800">
@@ -37,7 +37,12 @@ export default async function TasksPage({ params }: { params: Promise<{ slug: st
         </div>
       )}
 
-      <TasksClient slug={slug} initialTasks={tasks} hasProject={!!project} />
+      <ProjectHubClient
+        slug={slug}
+        initialFullProject={full}
+        initialNotes={notes}
+        showFinancials={showFinancials}
+      />
     </div>
   );
 }
