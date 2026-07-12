@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { FEE_TYPES, FEE_BASES } from "@/lib/constants";
 import { feeTermsLabel } from "@/lib/fees";
-import type { Conference, Entity, ConferenceEntity, ConfStatus, FeeType, FeeBasis, DiscountType } from "@/lib/types";
+import type { Conference, Entity, ConferenceEntity, ConfStatus, FeeType, FeeBasis, DiscountType, ConfVisibility } from "@/lib/types";
 
 const slugify = (s: string) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
@@ -20,7 +20,8 @@ export function ConferencesAdmin({ conferences, entities, links }: {
     const supabase = createClient();
     const finalSlug = slug || slugify(name);
     const { error } = await supabase.from("conferences").insert({
-      name, slug: finalSlug, date_start: dateStart || null, date_end: dateEnd || null, status: "planning",
+      name, slug: finalSlug, date_start: dateStart || null, date_end: dateEnd || null,
+      status: "planning", visibility: "public",
     });
     if (error) { alert(error.message); return; }
     setName(""); setSlug(""); setDateStart(""); setDateEnd("");
@@ -62,6 +63,7 @@ function ConferenceCard({ conference, entities, links }: {
     name: conference.name, slug: conference.slug,
     date_start: conference.date_start ?? "", date_end: conference.date_end ?? "",
     status: conference.status, notes: conference.notes ?? "",
+    visibility: (conference.visibility ?? "public") as ConfVisibility,
     client_discount_type: conference.client_discount_type as DiscountType,
     client_discount_value: conference.client_discount_value,
     client_discount_label: conference.client_discount_label,
@@ -73,6 +75,7 @@ function ConferenceCard({ conference, entities, links }: {
       name: form.name, slug: form.slug,
       date_start: form.date_start || null, date_end: form.date_end || null,
       status: form.status, notes: form.notes || null,
+      visibility: form.visibility,
       client_discount_type: form.client_discount_type,
       client_discount_value: Number(form.client_discount_value),
       client_discount_label: form.client_discount_label || "Client discount",
@@ -107,6 +110,20 @@ function ConferenceCard({ conference, entities, links }: {
             <option value="past">Past</option>
             <option value="archived">Archived</option>
           </select>
+          <div className="sm:col-span-3 border-t border-gray-200 pt-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Visibility</div>
+          </div>
+          <div className="sm:col-span-3">
+            <select className={input} value={form.visibility}
+              onChange={e => setForm({ ...form, visibility: e.target.value as ConfVisibility })}>
+              <option value="public">Public — everyone has access by default</option>
+              <option value="private">Private — only explicitly invited users have access</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Flip to <strong>Private</strong> for confidential events. All users are locked out until
+              a super admin (or conference admin) grants them a role in the conference&apos;s Team tab.
+            </p>
+          </div>
           <textarea className={`${input} sm:col-span-3 min-h-[60px]`} placeholder="Notes (optional)"
             value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
 
@@ -139,6 +156,10 @@ function ConferenceCard({ conference, entities, links }: {
               /{conference.slug} · {conference.date_start ?? "no start date"}
               {conference.date_end && conference.date_end !== conference.date_start ? ` → ${conference.date_end}` : ""}
               {" · "}{conference.status}
+              {" · "}
+              <span style={{ color: (conference.visibility ?? "public") === "private" ? "#C8102E" : undefined, fontWeight: 600 }}>
+                {(conference.visibility ?? "public") === "private" ? "🔒 PRIVATE" : "PUBLIC"}
+              </span>
             </p>
             {conference.notes && <p className="mt-1 text-sm text-gray-600">{conference.notes}</p>}
             <p className="mt-1 text-xs text-gray-500">

@@ -46,10 +46,11 @@ export const FEE_BASES = [
 ] as const;
 
 export const CONFERENCE_ROLES: { value: ConferenceRole; label: string; description: string }[] = [
-  { value: "conference_admin", label: "Conference Admin", description: "Full access to this conference, including team and budget" },
+  { value: "conference_admin", label: "Conference Admin", description: "Full access — leads, budget, team, everything" },
   { value: "finance", label: "Finance", description: "Budget + payment data; read-only on leads" },
   { value: "recruiter", label: "Recruiter", description: "Leads + activity; payments + budget hidden" },
   { value: "viewer", label: "Viewer", description: "Read-only access to leads" },
+  { value: "hidden", label: "Hidden", description: "This conference does not appear for this user at all" },
 ];
 
 export function stageMeta(s: Stage) { return STAGES.find(x => x.value === s)!; }

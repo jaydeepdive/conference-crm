@@ -1,5 +1,5 @@
 export type Role = "admin" | "team" | "attendee" | "pending"; // legacy v1 column
-export type ConferenceRole = "conference_admin" | "recruiter" | "finance" | "viewer";
+export type ConferenceRole = "conference_admin" | "recruiter" | "finance" | "viewer" | "hidden";
 
 export type Stage = "not_contacted" | "reaching_out" | "in_discussion" | "verbal_commit" | "registered" | "declined";
 export type Confirmed = "no" | "tentative" | "yes";
@@ -32,6 +32,7 @@ export interface Entity {
 }
 
 export type DiscountType = "percent" | "fixed";
+export type ConfVisibility = "public" | "private";
 
 export interface Conference {
   id: string;
@@ -40,6 +41,7 @@ export interface Conference {
   date_start: string | null;
   date_end: string | null;
   status: ConfStatus;
+  visibility: ConfVisibility;
   notes: string | null;
   created_at: string;
   client_discount_type: DiscountType;

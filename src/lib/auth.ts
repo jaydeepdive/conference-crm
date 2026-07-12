@@ -26,7 +26,11 @@ export interface ConferenceContext {
   effectiveRole: ConferenceRole | "super_admin";
 }
 
-/** Loads a conference by slug and confirms the user can access it. Redirects if not. */
+/** Loads a conference by slug and confirms access.
+ *  - Public conference + no membership → conference_admin (full access)
+ *  - Public conference + membership.role=hidden → redirect (no access)
+ *  - Private conference + no membership → redirect (must be explicitly invited)
+ *  - Any + membership with a normal role → that role */
 export async function requireConferenceAccess(slug: string): Promise<ConferenceContext> {
   const profile = await getCurrentProfile();
   const supabase = await createClient();
@@ -35,19 +39,30 @@ export async function requireConferenceAccess(slug: string): Promise<ConferenceC
     .from("conferences").select("*").eq("slug", slug).single();
   if (!conference) redirect("/conferences");
 
+  const conf = conference as Conference;
+
   if (profile.is_super_admin) {
-    return { profile, conference: conference as Conference, effectiveRole: "super_admin" };
+    return { profile, conference: conf, effectiveRole: "super_admin" };
   }
 
   const { data: membership } = await supabase
     .from("conference_memberships")
     .select("role")
     .eq("profile_id", profile.id)
-    .eq("conference_id", (conference as Conference).id)
+    .eq("conference_id", conf.id)
     .maybeSingle();
 
-  if (!membership) redirect("/conferences");
-  return { profile, conference: conference as Conference, effectiveRole: (membership as { role: ConferenceRole }).role };
+  const membershipRole = (membership as { role: ConferenceRole } | null)?.role;
+
+  if (membershipRole === "hidden") redirect("/conferences");
+
+  // Private conferences require an explicit membership
+  if (!membershipRole && (conf.visibility ?? "public") === "private") {
+    redirect("/conferences");
+  }
+
+  const effectiveRole: ConferenceRole = membershipRole ?? "conference_admin";
+  return { profile, conference: conf, effectiveRole };
 }
 
 export async function requireConferenceRole(
