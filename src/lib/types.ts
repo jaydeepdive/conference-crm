@@ -217,7 +217,7 @@ export function canEditExpenses(role: ConferenceRole | "super_admin"): boolean {
   return role === "super_admin" || role === "conference_admin" || role === "finance";
 }
 export function canManageTeam(role: ConferenceRole | "super_admin"): boolean {
-  return role === "super_admin" || role === "conference_admin";
+  return role === "super_admin";
 }
 export function canSendInvoices(role: ConferenceRole | "super_admin"): boolean {
   return role === "super_admin" || role === "conference_admin" || role === "finance";

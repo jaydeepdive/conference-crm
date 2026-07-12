@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function TeamPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const ctx = await requireConferenceRole(slug, ["super_admin", "conference_admin"]);
+  const ctx = await requireConferenceRole(slug, ["super_admin"]);
   const supabase = await createClient();
 
   const [{ data: memberships }, { data: profiles }] = await Promise.all([
