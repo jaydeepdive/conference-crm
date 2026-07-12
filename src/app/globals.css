@@ -4,12 +4,11 @@
 
 html, body { height: 100%; }
 body {
-  @apply bg-white text-ink antialiased;
-  font-feature-settings: "ss01" on, "cv11" on;
+  @apply bg-white text-ink antialiased font-sans;
 }
 
-/* Editorial display face for big headlines */
-.font-display { font-family: "Playfair Display", Georgia, serif; }
+/* Editorial display face for big headlines — same as thedeepdive.ca */
+.font-display { font-family: "Cardo", Georgia, serif; }
 
 /* Thick black underline used on section headers — matches the Hub's "Needs attention" style */
 .section-rule {
