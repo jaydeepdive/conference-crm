@@ -31,9 +31,14 @@ export function ConferenceNav({ profile, conference, role }: {
     ? `${conference.date_start}${conference.date_end && conference.date_end !== conference.date_start ? ` — ${conference.date_end}` : ""}`
     : "";
 
+  // Only super admins see the role label. Everyone else just sees the conference name + dates.
+  const subtitle = role === "super_admin"
+    ? `${conference.name}${dateLine ? ` · ${dateLine}` : ""} · super admin`
+    : `${conference.name}${dateLine ? ` · ${dateLine}` : ""}`;
+
   return (
     <Masthead profile={profile} title="Mining Summit CRM"
-      subtitle={`${conference.name}${dateLine ? ` · ${dateLine}` : ""} · ${role.replace("_", " ")}`}
+      subtitle={subtitle}
       navItems={items} showAdminLink={true} />
   );
 }
