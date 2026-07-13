@@ -62,7 +62,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
        *   - Companies: use the contact person's name.
        *   - Investors: use the investor (firm) name.
        * Falls back to any explicit recipient_name saved on the invoice, then null. */}
-      <InvoiceSender slug={slug} invoice={invoice} conferenceName={ctx.conference.name}
+      <InvoiceSender slug={slug} invoice={invoice}
+        conferenceName={ctx.conference.name}
+        publicName={ctx.conference.invoice_issuer_name ?? ""}
         recipient={{
           name: invoice.lead_type === "company"
             ? ((lead as { contact_name?: string } | null)?.contact_name ?? invoice.recipient_name ?? null)

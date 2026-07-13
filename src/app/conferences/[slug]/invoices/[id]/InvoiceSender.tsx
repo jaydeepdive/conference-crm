@@ -3,18 +3,29 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Invoice, EmailTemplate } from "@/lib/types";
 
-export function InvoiceSender({ slug, invoice, conferenceName, recipient, templates, senderProfile }: {
+export function InvoiceSender({ slug, invoice, conferenceName, publicName, recipient, templates, senderProfile }: {
   slug: string;
   invoice: Invoice;
+  /** Internal CRM name — never shown to recipients. Passed only for AI context. */
   conferenceName: string;
+  /** The public-facing name recipients see (invoice_issuer_name if set, else "").
+   *  Used in the subject line and email body. */
+  publicName: string;
   recipient: { name: string | null; email: string | null; organization: string };
   templates: EmailTemplate[];
   senderProfile: { name: string | null; email: string };
 }) {
   const router = useRouter();
   const [templateId, setTemplateId] = useState<string>("");
-  const [subject, setSubject] = useState(`Invoice #${invoice.invoice_number} for ${conferenceName}`);
-  const [body, setBody] = useState(`Hi ${recipient.name ?? "there"},\n\nPlease find attached invoice #${invoice.invoice_number} (${invoice.currency} ${Number(invoice.total).toFixed(2)})${invoice.due_date ? ` due ${invoice.due_date}` : ""}.\n\nLet me know if you have any questions.\n\nBest,\n${senderProfile.name ?? senderProfile.email}`);
+  const [subject, setSubject] = useState(publicName ? `Invoice from ${publicName}` : `Invoice`);
+  const [body, setBody] = useState(
+    `Hi ${recipient.name ?? "there"},\n\n` +
+    `Please find attached the invoice${publicName ? ` from ${publicName}` : ""} ` +
+    `(${invoice.currency} ${Number(invoice.total).toFixed(2)})` +
+    `${invoice.due_date ? ` due ${invoice.due_date}` : ""}.\n\n` +
+    `Let me know if you have any questions.\n\n` +
+    `Best,\n${senderProfile.name ?? senderProfile.email}`
+  );
   const [to, setTo] = useState(recipient.email ?? "");
   const [cc, setCc] = useState("");
   const [intent, setIntent] = useState("");
@@ -45,7 +56,9 @@ export function InvoiceSender({ slug, invoice, conferenceName, recipient, templa
       const res = await fetch("/api/ai/draft", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          conference: { name: conferenceName },
+          // Send the public-facing name if available so the AI doesn't
+          // reference the internal CRM name in the email it writes.
+          conference: { name: publicName || conferenceName },
           recipient: { name: recipient.name, email: recipient.email,
             lead_type: invoice.lead_type, lead_name: recipient.organization },
           template: t ? { subject: t.subject, body: t.body, kind: t.kind } : null,

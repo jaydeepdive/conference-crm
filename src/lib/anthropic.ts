@@ -71,8 +71,9 @@ function buildUserPrompt(ctx: DraftContext): string {
   }
 
   if (ctx.invoice) {
+    // Deliberately do NOT include the invoice number — the recipient
+    // doesn't care and referencing "invoice #N" implies a running series.
     parts.push(`\n# Invoice context`);
-    parts.push(`Invoice #${ctx.invoice.invoice_number}`);
     parts.push(`Total: ${ctx.invoice.currency} ${ctx.invoice.total.toFixed(2)}`);
     if (ctx.invoice.due_date) parts.push(`Due: ${ctx.invoice.due_date}`);
     if (ctx.invoice.line_items.length) {
@@ -81,6 +82,7 @@ function buildUserPrompt(ctx: DraftContext): string {
         parts.push(`  - ${li.description}: ${li.quantity} × ${ctx.invoice!.currency} ${li.unit_price.toFixed(2)}`);
       });
     }
+    parts.push(`Do NOT reference an invoice number in the body — the recipient doesn't need it.`);
   }
 
   parts.push(`\n# What the operator wants this email to do\n${ctx.user_intent}`);
