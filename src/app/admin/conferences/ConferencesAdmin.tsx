@@ -28,7 +28,7 @@ export function ConferencesAdmin({ conferences, entities, links }: {
     router.refresh();
   }
 
-  const input = "rounded-md border border-gray-300 px-3 py-1.5 text-sm";
+  const input = "w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm";
 
   return (
     <div className="space-y-6">
@@ -98,7 +98,7 @@ function ConferenceCard({ conference, entities, links }: {
     router.refresh();
   }
 
-  const input = "rounded-md border border-gray-300 px-3 py-1.5 text-sm";
+  const input = "w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm";
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5">
@@ -157,10 +157,14 @@ function ConferenceCard({ conference, entities, links }: {
             <input className={input} placeholder="e.g. Bri-Sim Capital Inc."
               value={form.invoice_issuer_name} onChange={e => setForm({ ...form, invoice_issuer_name: e.target.value })} /></div>
           <div className="sm:col-span-3"><label className="block text-xs text-gray-500">Mailing address (one line per row)</label>
-            <textarea className={`${input} min-h-[70px]`} placeholder={"100 King St W, Suite 200\nToronto, ON M5X 1A1\nCanada"}
+            <textarea className={`${input} min-h-[110px]`} rows={5} style={{ resize: "both", minWidth: "100%" }}
+              placeholder={"100 King St W, Suite 200\nToronto, ON M5X 1A1\nCanada"}
               value={form.invoice_issuer_address} onChange={e => setForm({ ...form, invoice_issuer_address: e.target.value })} /></div>
           <div className="sm:col-span-3"><label className="block text-xs text-gray-500">Payment instructions (wire, ACH, cheque, etc.)</label>
-            <textarea className={`${input} min-h-[120px] font-mono text-xs`} placeholder={"Wire (USD):\n  Bank: Royal Bank of Canada\n  Beneficiary: Bri-Sim Capital Inc.\n  Account: 12345-678-9\n  Routing / SWIFT: ROYCCAT2\n  Reference: Invoice #{{invoice_number}}\n\nCheques payable to Bri-Sim Capital Inc., mailed to the address above."}
+            <textarea className={`${input} min-h-[280px] font-mono text-xs whitespace-pre`} rows={14}
+              style={{ resize: "both", minWidth: "100%" }}
+              wrap="off"
+              placeholder={"Wire (USD):\n  Bank: Royal Bank of Canada\n  Beneficiary: Bri-Sim Capital Inc.\n  Account: 12345-678-9\n  Routing / SWIFT: ROYCCAT2\n  Reference: Invoice #{{invoice_number}}\n\nCheques payable to Bri-Sim Capital Inc., mailed to the address above."}
               value={form.invoice_payment_instructions} onChange={e => setForm({ ...form, invoice_payment_instructions: e.target.value })} /></div>
 
           <div className="sm:col-span-3 flex justify-end gap-2">
@@ -246,7 +250,7 @@ function SplitRow({ link, entityName }: { link: ConferenceEntity; entityName: st
     router.refresh();
   }
 
-  const input = "rounded-md border border-gray-300 px-3 py-1.5 text-sm";
+  const input = "w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm";
 
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
