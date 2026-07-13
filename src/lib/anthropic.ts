@@ -75,7 +75,7 @@ function buildUserPrompt(ctx: DraftContext): string {
     // doesn't care and referencing "invoice #N" implies a running series.
     parts.push(`\n# Invoice context`);
     parts.push(`Total: ${ctx.invoice.currency} ${ctx.invoice.total.toFixed(2)}`);
-    if (ctx.invoice.due_date) parts.push(`Due: ${ctx.invoice.due_date}`);
+    parts.push(ctx.invoice.due_date ? `Due: ${ctx.invoice.due_date}` : `Due: upon receipt`);
     if (ctx.invoice.line_items.length) {
       parts.push(`Line items:`);
       ctx.invoice.line_items.forEach(li => {

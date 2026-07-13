@@ -21,8 +21,8 @@ export function InvoiceSender({ slug, invoice, conferenceName, publicName, recip
   const [body, setBody] = useState(
     `Hi ${recipient.name ?? "there"},\n\n` +
     `Please find attached the invoice${publicName ? ` from ${publicName}` : ""} ` +
-    `(${invoice.currency} ${Number(invoice.total).toFixed(2)})` +
-    `${invoice.due_date ? ` due ${invoice.due_date}` : ""}.\n\n` +
+    `(${invoice.currency} ${Number(invoice.total).toFixed(2)}), ` +
+    `${invoice.due_date ? `due ${invoice.due_date}` : "due upon receipt"}.\n\n` +
     `Let me know if you have any questions.\n\n` +
     `Best,\n${senderProfile.name ?? senderProfile.email}`
   );
@@ -41,7 +41,7 @@ export function InvoiceSender({ slug, invoice, conferenceName, publicName, recip
     const fillVars = (s: string) => s
       .replace(/\{\{invoice_number\}\}/g, String(invoice.invoice_number))
       .replace(/\{\{total\}\}/g, `${invoice.currency} ${Number(invoice.total).toFixed(2)}`)
-      .replace(/\{\{due_date\}\}/g, invoice.due_date ?? "TBD")
+      .replace(/\{\{due_date\}\}/g, invoice.due_date ?? "upon receipt")
       .replace(/\{\{recipient_name\}\}/g, recipient.name ?? "there")
       .replace(/\{\{lead_name\}\}/g, recipient.organization)
       .replace(/\{\{sender_name\}\}/g, senderProfile.name ?? senderProfile.email);
