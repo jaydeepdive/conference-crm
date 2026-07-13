@@ -4,8 +4,9 @@ import React from "react";
 const styles = StyleSheet.create({
   page: { padding: 48, fontSize: 10, fontFamily: "Helvetica", color: "#0E0E0E" },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 32 },
-  brand: { fontSize: 22, fontFamily: "Helvetica-Bold", letterSpacing: 1 },
+  brand: { fontSize: 20, fontFamily: "Helvetica-Bold", letterSpacing: 0.5 },
   brandSub: { fontSize: 9, color: "#666", marginTop: 4 },
+  brandAddressLine: { fontSize: 9, color: "#444", marginTop: 2 },
   invoiceMeta: { textAlign: "right", fontSize: 10 },
   invoiceNumber: { fontSize: 18, fontFamily: "Helvetica-Bold" },
   section: { marginBottom: 18 },
@@ -27,11 +28,23 @@ const styles = StyleSheet.create({
   grandRow: { borderTop: "1pt solid #0E0E0E", paddingTop: 6, marginTop: 6 },
   grandLabel: { fontSize: 12, fontFamily: "Helvetica-Bold" },
   grandValue: { fontSize: 12, fontFamily: "Helvetica-Bold", textAlign: "right" },
-  footer: { marginTop: 32, paddingTop: 16, borderTop: "0.5pt solid #ddd", fontSize: 8, color: "#666" },
+  payBlock: { marginTop: 22, padding: 12, backgroundColor: "#F5F5F5", border: "0.5pt solid #ddd" },
+  payLine: { marginTop: 2, fontSize: 10 },
+  footer: { marginTop: 22, paddingTop: 14, borderTop: "0.5pt solid #ddd", fontSize: 8, color: "#666" },
 });
 
 export interface InvoicePdfArgs {
-  brand: { conferenceName: string; senderName: string; senderEmail: string };
+  brand: {
+    conferenceName: string;
+    senderName: string;
+    senderEmail: string;
+    /** Legal name of the issuing corporation, e.g. "Bri-Sim Capital Inc." */
+    issuerName?: string | null;
+    /** Multi-line mailing address of the issuer */
+    issuerAddress?: string | null;
+    /** Multi-line payment instructions — wire details, ACH info, checks, etc. */
+    paymentInstructions?: string | null;
+  };
   invoice: {
     number: number;
     issued_date: string;
@@ -53,13 +66,20 @@ export interface InvoicePdfArgs {
 export async function renderInvoicePdf(args: InvoicePdfArgs): Promise<Buffer> {
   const { brand, invoice, recipient } = args;
 
+  const brandName = (brand.issuerName && brand.issuerName.trim()) || "MINING SUMMIT CRM";
+  const addressLines = (brand.issuerAddress ?? "").split("\n").map(s => s.trim()).filter(Boolean);
+  const payLines = (brand.paymentInstructions ?? "").split("\n").map(s => s.trim()).filter(Boolean);
+
   const doc = React.createElement(Document, {},
     React.createElement(Page, { size: "LETTER", style: styles.page },
-      // Header
+      // Header — issuer name + address on the left; invoice meta on the right
       React.createElement(View, { style: styles.header },
         React.createElement(View, {},
-          React.createElement(Text, { style: styles.brand }, "MINING SUMMIT CRM"),
+          React.createElement(Text, { style: styles.brand }, brandName),
           React.createElement(Text, { style: styles.brandSub }, brand.conferenceName),
+          ...addressLines.map((line, i) =>
+            React.createElement(Text, { key: `addr-${i}`, style: styles.brandAddressLine }, line)
+          ),
         ),
         React.createElement(View, { style: styles.invoiceMeta },
           React.createElement(Text, { style: styles.invoiceNumber }, `Invoice #${invoice.number}`),
@@ -112,6 +132,11 @@ export async function renderInvoicePdf(args: InvoicePdfArgs): Promise<Buffer> {
           ),
         ),
       ),
+      // Payment instructions — prominent grey box, always shown when configured
+      payLines.length > 0 && React.createElement(View, { style: styles.payBlock },
+        React.createElement(Text, { style: styles.sectionLabel }, "Payment instructions"),
+        ...payLines.map((line, i) => React.createElement(Text, { key: `pay-${i}`, style: styles.payLine }, line)),
+      ),
       // Notes + terms
       (invoice.notes || invoice.payment_terms) && React.createElement(View, { style: styles.footer },
         invoice.payment_terms && React.createElement(View, { style: { marginBottom: 6 } },
@@ -140,6 +165,18 @@ function fmt(n: number, currency: string): string {
 /** HTML invoice for the email body (renders inline in Gmail/Outlook). */
 export function renderInvoiceHtml(args: InvoicePdfArgs): string {
   const { brand, invoice, recipient } = args;
+
+  const brandName = (brand.issuerName && brand.issuerName.trim()) || "MINING SUMMIT CRM";
+  const addressBlock = (brand.issuerAddress ?? "").trim()
+    ? `<div style="color:#444;font-size:12px;margin-top:4px;white-space:pre-wrap">${esc((brand.issuerAddress ?? "").trim())}</div>`
+    : "";
+  const payBlock = (brand.paymentInstructions ?? "").trim()
+    ? `<div style="margin-top:22px;padding:12px;background:#F5F5F5;border:1px solid #ddd">
+        <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Payment instructions</div>
+        <div style="font-size:12px;line-height:1.5;white-space:pre-wrap">${esc((brand.paymentInstructions ?? "").trim())}</div>
+      </div>`
+    : "";
+
   const items = invoice.line_items.map(li => `
     <tr>
       <td style="padding:8px;border-bottom:1px solid #eee">${esc(li.description)}</td>
@@ -152,8 +189,9 @@ export function renderInvoiceHtml(args: InvoicePdfArgs): string {
 <html><body style="font-family:Helvetica,Arial,sans-serif;color:#0E0E0E;max-width:640px;margin:0 auto;padding:24px">
   <div style="display:flex;justify-content:space-between;border-bottom:2px solid #0E0E0E;padding-bottom:16px">
     <div>
-      <div style="font-weight:bold;font-size:22px;letter-spacing:1px">MINING SUMMIT CRM</div>
+      <div style="font-weight:bold;font-size:20px;letter-spacing:.5px">${esc(brandName)}</div>
       <div style="color:#666;font-size:12px">${esc(brand.conferenceName)}</div>
+      ${addressBlock}
     </div>
     <div style="text-align:right">
       <div style="font-weight:bold;font-size:18px">Invoice #${invoice.number}</div>
@@ -184,9 +222,10 @@ export function renderInvoiceHtml(args: InvoicePdfArgs): string {
     ${invoice.tax_rate > 0 ? `<tr><td style="padding:4px">Tax (${invoice.tax_rate.toFixed(1)}%)</td><td style="padding:4px;text-align:right">${fmt(invoice.tax_amount, invoice.currency)}</td></tr>` : ""}
     <tr style="border-top:1px solid #0E0E0E"><td style="padding:8px;font-weight:bold;font-size:14px">Total Due</td><td style="padding:8px;text-align:right;font-weight:bold;font-size:14px">${fmt(invoice.total, invoice.currency)}</td></tr>
   </table>
-  ${invoice.payment_terms ? `<div style="margin-top:24px;font-size:11px;color:#666"><b>Payment terms:</b> ${esc(invoice.payment_terms)}</div>` : ""}
+  ${payBlock}
+  ${invoice.payment_terms ? `<div style="margin-top:16px;font-size:11px;color:#666"><b>Payment terms:</b> ${esc(invoice.payment_terms)}</div>` : ""}
   ${invoice.notes ? `<div style="margin-top:8px;font-size:11px;color:#666">${esc(invoice.notes)}</div>` : ""}
-  <div style="margin-top:32px;padding-top:12px;border-top:1px solid #ddd;font-size:10px;color:#666">
+  <div style="margin-top:24px;padding-top:12px;border-top:1px solid #ddd;font-size:10px;color:#666">
     Issued by ${esc(brand.senderName)} · ${esc(brand.senderEmail)}
   </div>
 </body></html>`;

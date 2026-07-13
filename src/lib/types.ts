@@ -47,6 +47,9 @@ export interface Conference {
   client_discount_type: DiscountType;
   client_discount_value: number;
   client_discount_label: string;
+  invoice_issuer_name: string | null;
+  invoice_issuer_address: string | null;
+  invoice_payment_instructions: string | null;
 }
 
 export type FeeType = "split_only" | "per_company" | "per_investor" | "per_lead" | "flat";

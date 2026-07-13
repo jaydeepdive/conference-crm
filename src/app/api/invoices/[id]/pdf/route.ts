@@ -29,6 +29,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       conferenceName: conference?.name ?? "",
       senderName: sender?.full_name ?? sender?.email ?? "",
       senderEmail: sender?.email ?? "",
+      issuerName: conference?.invoice_issuer_name ?? null,
+      issuerAddress: conference?.invoice_issuer_address ?? null,
+      paymentInstructions: conference?.invoice_payment_instructions ?? null,
     },
     invoice: {
       number: invoice.invoice_number,
