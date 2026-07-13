@@ -72,11 +72,12 @@ export async function renderInvoicePdf(args: InvoicePdfArgs): Promise<Buffer> {
 
   const doc = React.createElement(Document, {},
     React.createElement(Page, { size: "LETTER", style: styles.page },
-      // Header — issuer name + address on the left; invoice meta on the right
+      // Header — issuer name + address on the left; invoice meta on the right.
+      // We deliberately do NOT print the internal conference name here — the
+      // recipient is billed by the issuing corporation, not the event alias.
       React.createElement(View, { style: styles.header },
         React.createElement(View, {},
           React.createElement(Text, { style: styles.brand }, brandName),
-          React.createElement(Text, { style: styles.brandSub }, brand.conferenceName),
           ...addressLines.map((line, i) =>
             React.createElement(Text, { key: `addr-${i}`, style: styles.brandAddressLine }, line)
           ),
@@ -190,7 +191,6 @@ export function renderInvoiceHtml(args: InvoicePdfArgs): string {
   <div style="display:flex;justify-content:space-between;border-bottom:2px solid #0E0E0E;padding-bottom:16px">
     <div>
       <div style="font-weight:bold;font-size:20px;letter-spacing:.5px">${esc(brandName)}</div>
-      <div style="color:#666;font-size:12px">${esc(brand.conferenceName)}</div>
       ${addressBlock}
     </div>
     <div style="text-align:right">

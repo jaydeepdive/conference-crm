@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireConferenceRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { InvoiceSender } from "./InvoiceSender";
+import { InvoiceActions } from "./InvoiceActions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,15 +44,29 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             )}
           </p>
         </div>
-        <a href={`/api/invoices/${id}/pdf`} target="_blank" rel="noopener"
-          className="border border-ink/20 px-4 py-2 text-xs uppercase tracking-widest2 hover:bg-cream">
-          View PDF
-        </a>
+        <div className="flex items-center gap-2">
+          <a href={`/api/invoices/${id}/pdf`} target="_blank" rel="noopener"
+            className="border border-ink/20 px-3 py-2 text-xs uppercase tracking-widest2 hover:bg-cream">
+            View PDF
+          </a>
+          <InvoiceActions
+            slug={slug}
+            invoiceId={invoice.id}
+            invoiceNumber={invoice.invoice_number}
+            status={invoice.status}
+          />
+        </div>
       </div>
 
+      {/* Salutation rules:
+       *   - Companies: use the contact person's name.
+       *   - Investors: use the investor (firm) name.
+       * Falls back to any explicit recipient_name saved on the invoice, then null. */}
       <InvoiceSender slug={slug} invoice={invoice} conferenceName={ctx.conference.name}
         recipient={{
-          name: invoice.recipient_name ?? (lead as { contact_name?: string } | null)?.contact_name ?? null,
+          name: invoice.lead_type === "company"
+            ? ((lead as { contact_name?: string } | null)?.contact_name ?? invoice.recipient_name ?? null)
+            : ((lead as { firm_name?: string } | null)?.firm_name ?? invoice.recipient_name ?? null),
           email: invoice.recipient_email ?? (lead as { email?: string } | null)?.email ?? null,
           organization: orgName,
         }}

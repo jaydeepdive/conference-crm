@@ -11,13 +11,14 @@ export default async function BudgetPage({ params }: { params: Promise<{ slug: s
   const ctx = await requireConferenceRole(slug, ["super_admin","conference_admin","finance"]);
   const supabase = await createClient();
 
-  const [{ data: companies }, { data: investors }, { data: expenses }, { data: comps }, { data: ce }, { data: entities }] = await Promise.all([
+  const [{ data: companies }, { data: investors }, { data: expenses }, { data: comps }, { data: ce }, { data: entities }, { data: invoices }] = await Promise.all([
     supabase.from("companies").select("stage,payment_status,amount_due,amount_paid").eq("conference_id", ctx.conference.id),
     supabase.from("investors").select("stage,payment_status,amount_due,amount_paid").eq("conference_id", ctx.conference.id),
     supabase.from("expenses").select("*").eq("conference_id", ctx.conference.id).order("date", { ascending: false }),
     supabase.from("lead_comps").select("*").eq("conference_id", ctx.conference.id),
     supabase.from("conference_entities").select("*").eq("conference_id", ctx.conference.id),
     supabase.from("entities").select("*"),
+    supabase.from("invoices").select("status,total,currency").eq("conference_id", ctx.conference.id),
   ]);
 
   const co = companies ?? [];
@@ -38,6 +39,20 @@ export default async function BudgetPage({ params }: { params: Promise<{ slug: s
   const sumPaid = [...co, ...iv].reduce((a, r) => a + Number(r.amount_paid ?? 0), 0);
   const sumExpenses = ex.reduce((a, r) => a + Number(r.amount ?? 0), 0);
   const sumComps = cp.reduce((a, r) => a + Number(r.cost ?? 0), 0);
+
+  // Receivables = invoiced (sent/viewed/overdue/partial) but not yet paid.
+  // Sourced directly from the invoices table so it stays accurate even when
+  // a lead's manual amount_due is out of sync.
+  const inv = invoices ?? [];
+  const receivable = inv
+    .filter(i => ["sent","viewed","overdue","partial"].includes(i.status))
+    .reduce((a, i) => a + Number(i.total ?? 0), 0);
+  const invoicedPaid = inv
+    .filter(i => i.status === "paid")
+    .reduce((a, i) => a + Number(i.total ?? 0), 0);
+  const invoicedDraft = inv
+    .filter(i => i.status === "draft")
+    .reduce((a, i) => a + Number(i.total ?? 0), 0);
 
   // Management fees by entity
   const feeRows = (ce ?? []).map(link => {
@@ -71,8 +86,9 @@ export default async function BudgetPage({ params }: { params: Promise<{ slug: s
         <p className="text-sm text-gray-500">Revenue, expenses, comps, fees, and net split.</p>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-5">
         <KpiCard label="Revenue (collected)" value={usd(sumPaid)} sublabel={`Outstanding: ${usd(sumDue - sumPaid)}`} accent="text-emerald-700" />
+        <KpiCard label="Receivables" value={usd(receivable)} sublabel={`${inv.filter(i => ["sent","viewed","overdue","partial"].includes(i.status)).length} unpaid invoice${inv.filter(i => ["sent","viewed","overdue","partial"].includes(i.status)).length === 1 ? "" : "s"} · ${usd(invoicedPaid)} paid · ${usd(invoicedDraft)} draft`} accent="text-sky-700" />
         <KpiCard label="Expenses + Comps" value={usd(sumExpenses + sumComps)} sublabel={`Exp ${usd(sumExpenses)} · Comps ${usd(sumComps)}`} accent="text-rose-700" />
         <KpiCard label="Management fees" value={usd(sumFees)} sublabel={`${feeRows.filter(r => r.fee > 0).length} entities earning`} accent="text-amber-700" />
         <KpiCard label="Net" value={usd(net)} accent={net >= 0 ? "text-emerald-700" : "text-rose-700"} />

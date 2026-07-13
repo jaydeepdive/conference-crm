@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { computeClientDiscount } from "@/lib/adsplatform";
 import { TddBadge } from "@/components/TddBadge";
-import type { LeadType, InvoiceLineItem, DiscountType } from "@/lib/types";
+import type { LeadType, InvoiceLineItem, DiscountType, Invoice } from "@/lib/types";
 
 interface Lead {
   type: LeadType; id: string; name: string;
@@ -14,24 +14,31 @@ interface Lead {
 
 interface DiscountConfig { type: DiscountType; value: number; label: string }
 
-export function InvoiceBuilder({ slug, conferenceId, leads, discountConfig }: {
+/** The builder is used for both /invoices/new and /invoices/[id]/edit.
+ *  When `existing` is passed we PATCH; otherwise we INSERT. */
+export function InvoiceBuilder({ slug, conferenceId, leads, discountConfig, existing }: {
   slug: string; conferenceId: string; leads: Lead[];
   discountConfig: DiscountConfig;
+  existing?: Invoice | null;
 }) {
   const router = useRouter();
-  const [leadId, setLeadId] = useState<string>("");
-  const [items, setItems] = useState<InvoiceLineItem[]>([
-    { description: "Conference registration", quantity: 1, unit_price: 0 },
-  ]);
-  const [taxRate, setTaxRate] = useState("0");
-  const [dueDate, setDueDate] = useState("");
-  const [issuedDate, setIssuedDate] = useState(new Date().toISOString().slice(0, 10));
-  const [notes, setNotes] = useState("");
-  const [paymentTerms, setPaymentTerms] = useState("Net 30 — wire transfer details on request");
-  const [currency, setCurrency] = useState("USD");
-  const [discountLabel, setDiscountLabel] = useState(discountConfig.label);
-  const [discountAmount, setDiscountAmount] = useState("0");
-  const [discountAutoFilled, setDiscountAutoFilled] = useState(false);
+  const [leadId, setLeadId] = useState<string>(
+    existing ? `${existing.lead_type}:${existing.lead_id}` : ""
+  );
+  const [items, setItems] = useState<InvoiceLineItem[]>(
+    existing?.line_items && existing.line_items.length > 0
+      ? existing.line_items
+      : [{ description: "Conference registration", quantity: 1, unit_price: 0 }]
+  );
+  const [taxRate, setTaxRate] = useState(existing ? String(existing.tax_rate) : "0");
+  const [dueDate, setDueDate] = useState(existing?.due_date ?? "");
+  const [issuedDate, setIssuedDate] = useState(existing?.issued_date ?? new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState(existing?.notes ?? "");
+  const [paymentTerms, setPaymentTerms] = useState(existing?.payment_terms ?? "Due upon receipt.");
+  const [currency, setCurrency] = useState(existing?.currency ?? "USD");
+  const [discountLabel, setDiscountLabel] = useState(existing?.discount_label ?? discountConfig.label);
+  const [discountAmount, setDiscountAmount] = useState(existing ? String(existing.discount_amount ?? 0) : "0");
+  const [discountAutoFilled, setDiscountAutoFilled] = useState(!!existing);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,21 +89,39 @@ export function InvoiceBuilder({ slug, conferenceId, leads, discountConfig }: {
 
     const dAmount = Number(discountAmount) || 0;
 
-    const { data, error: err } = await supabase.from("invoices").insert({
+    // For investors we want the salutation to fall back to the firm name.
+    // For companies, contact_name is preferred. `selected.name` is the org
+    // name (firm_name / company name) and `selected.contact_name` is the
+    // person — we store contact_name if present, else the org name, so
+    // downstream renderers can just read `recipient_name`.
+    const recipientName = selected.type === "investor"
+      ? (selected.name || selected.contact_name)
+      : (selected.contact_name || selected.name);
+
+    const payload = {
       conference_id: conferenceId,
       lead_type: selected.type, lead_id: selected.id,
       line_items: items,
       subtotal, tax_rate: Number(taxRate), tax_amount: taxAmt, total,
       discount_label: dAmount > 0 ? (discountLabel || "Discount") : null,
       discount_amount: dAmount,
-      currency, status: "draft",
+      currency,
       issued_date: issuedDate, due_date: dueDate || null,
-      recipient_email: selected.email, recipient_name: selected.contact_name,
+      recipient_email: selected.email, recipient_name: recipientName,
       notes: notes || null, payment_terms: paymentTerms || null,
-    }).select().single();
+    };
 
-    if (err) { setError(err.message); setSaving(false); return; }
-    router.push(`/conferences/${slug}/invoices/${data.id}`);
+    if (existing) {
+      const { error: err } = await supabase.from("invoices").update(payload).eq("id", existing.id);
+      if (err) { setError(err.message); setSaving(false); return; }
+      router.push(`/conferences/${slug}/invoices/${existing.id}`);
+      router.refresh();
+    } else {
+      const { data, error: err } = await supabase.from("invoices")
+        .insert({ ...payload, status: "draft" }).select().single();
+      if (err) { setError(err.message); setSaving(false); return; }
+      router.push(`/conferences/${slug}/invoices/${data.id}`);
+    }
   }
 
   const input = "w-full rounded-md border border-ink/20 bg-white px-3 py-1.5 text-sm focus:border-brand-accent focus:outline-none";
@@ -219,7 +244,7 @@ export function InvoiceBuilder({ slug, conferenceId, leads, discountConfig }: {
         <button onClick={() => router.back()} className="border border-ink/20 px-4 py-2 text-sm">Cancel</button>
         <button onClick={saveDraft} disabled={saving || !selected}
           className="bg-ink px-4 py-2 text-sm font-medium uppercase tracking-widest2 text-cream hover:bg-brand-accent disabled:opacity-50">
-          {saving ? "Saving…" : "Save draft + go to send"}
+          {saving ? "Saving…" : existing ? "Save changes" : "Save draft + go to send"}
         </button>
       </div>
     </div>

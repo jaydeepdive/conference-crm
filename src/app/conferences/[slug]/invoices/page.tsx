@@ -8,8 +8,16 @@ export default async function InvoicesPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
   const ctx = await requireConferenceRole(slug, ["super_admin","conference_admin","finance"]);
   const supabase = await createClient();
-  const { data: invoices } = await supabase.from("invoices")
-    .select("*").eq("conference_id", ctx.conference.id).order("created_at", { ascending: false });
+  const [{ data: invoices }, { data: companies }, { data: investors }] = await Promise.all([
+    supabase.from("invoices").select("*").eq("conference_id", ctx.conference.id).order("created_at", { ascending: false }),
+    supabase.from("companies").select("id,name,contact_name").eq("conference_id", ctx.conference.id),
+    supabase.from("investors").select("id,firm_name,contact_name").eq("conference_id", ctx.conference.id),
+  ]);
+
+  // Build lookup maps so the recipient column shows the actual lead the user
+  // picked, not just whatever ended up in `recipient_name` at draft time.
+  const companyById = new Map((companies ?? []).map(c => [c.id, c]));
+  const investorById = new Map((investors ?? []).map(i => [i.id, i]));
 
   const usd = (n: number, cur: string) => `${cur} ${Number(n).toLocaleString()}`;
   const statusColor: Record<string, string> = {
@@ -47,14 +55,30 @@ export default async function InvoicesPage({ params }: { params: Promise<{ slug:
             </tr>
           </thead>
           <tbody>
-            {(invoices ?? []).map(i => (
+            {(invoices ?? []).map(i => {
+              // Recipient display: prefer the actual linked lead's org name
+              // (company name / investor firm name); fall back to whatever
+              // was captured on the invoice.
+              const org = i.lead_type === "company"
+                ? companyById.get(i.lead_id)?.name
+                : investorById.get(i.lead_id)?.firm_name;
+              const contact = i.lead_type === "company"
+                ? companyById.get(i.lead_id)?.contact_name
+                : investorById.get(i.lead_id)?.contact_name;
+              const displayOrg = org ?? i.recipient_name ?? "—";
+              const displayContact = contact ?? i.recipient_name ?? null;
+              return (
               <tr key={i.id} className="border-t border-ink/10 hover:bg-cream/50">
                 <td className="px-3 py-2 font-medium">
                   <Link href={`/conferences/${slug}/invoices/${i.id}`} className="hover:underline">#{i.invoice_number}</Link>
                 </td>
                 <td className="px-3 py-2">
-                  <div>{i.recipient_name ?? "—"}</div>
-                  <div className="text-xs text-ink/50">{i.recipient_email}</div>
+                  <div className="font-medium">{displayOrg}</div>
+                  <div className="text-xs text-ink/60">
+                    {i.lead_type === "company" ? "Company" : "Investor"}
+                    {displayContact && displayContact !== displayOrg ? ` · ${displayContact}` : ""}
+                  </div>
+                  {i.recipient_email && <div className="text-xs text-ink/50">{i.recipient_email}</div>}
                 </td>
                 <td className="px-3 py-2 text-xs">{i.issued_date ?? "—"}</td>
                 <td className="px-3 py-2 text-xs">{i.due_date ?? "—"}</td>
@@ -65,7 +89,8 @@ export default async function InvoicesPage({ params }: { params: Promise<{ slug:
                   </span>
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {(invoices ?? []).length === 0 && (
               <tr><td colSpan={6} className="px-3 py-12 text-center text-sm text-ink/50">No invoices yet. Click &ldquo;New invoice&rdquo; to draft one.</td></tr>
             )}
