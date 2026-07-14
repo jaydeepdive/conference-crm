@@ -2,6 +2,7 @@ import { requireConferenceRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { CompTypesManager } from "./CompTypesManager";
 import { TddBulkSync } from "./TddBulkSync";
+import { MeetingHoursForm } from "./MeetingHoursForm";
 import { PageTitle, SectionHeader } from "@/components/SectionHeader";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,18 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
             checkedLeads={checkedCount ?? 0} />
         </section>
       )}
+
+      <section>
+        <SectionHeader title="Attendee portal — meeting hours" meta="SCHEDULING" />
+        <p className="mt-3 text-sm text-muted">
+          Controls the slot grid the attendee portal shows. Store times in the
+          conference&rsquo;s local timezone; the portal converts to UTC for storage
+          and displays back in this same zone.
+        </p>
+        <div className="mt-4">
+          <MeetingHoursForm conference={ctx.conference} />
+        </div>
+      </section>
 
       <section>
         <SectionHeader title="Comp catalog" meta="ASSIGNABLE TO LEADS" />

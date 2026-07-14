@@ -6,7 +6,9 @@ import { LeadEditor } from "@/components/LeadEditor";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { LeadNotes } from "@/components/LeadNotes";
 import { LeadComps } from "@/components/LeadComps";
+import { LeadAttendees } from "@/components/LeadAttendees";
 import { canEditLeads } from "@/lib/types";
+import type { AttendeeProfile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +17,14 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
   const ctx = await requireConferenceAccess(slug);
   const supabase = await createClient();
 
-  const [{ data: company }, { data: profiles }, { data: activity }, { data: notes }, { data: comps }, { data: compTypes }] = await Promise.all([
+  const [{ data: company }, { data: profiles }, { data: activity }, { data: notes }, { data: comps }, { data: compTypes }, { data: attendees }] = await Promise.all([
     supabase.from("companies").select("*").eq("id", id).eq("conference_id", ctx.conference.id).single(),
     supabase.from("profiles").select("*"),
     supabase.from("activity_log").select("*").eq("lead_type","company").eq("lead_id", id).order("created_at",{ascending:false}),
     supabase.from("lead_notes").select("*").eq("lead_type","company").eq("lead_id", id).order("created_at",{ascending:false}),
     supabase.from("lead_comps").select("*").eq("lead_type","company").eq("lead_id", id).order("created_at",{ascending:false}),
     supabase.from("comp_types").select("*").eq("conference_id", ctx.conference.id).order("name"),
+    supabase.from("attendee_profiles").select("*").eq("lead_type","company").eq("lead_id", id).order("created_at",{ascending:true}),
   ]);
 
   if (!company) notFound();
@@ -56,6 +59,8 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
           <LeadComps comps={comps ?? []} compTypes={compTypes ?? []}
             leadType="company" leadId={id} conferenceId={ctx.conference.id}
             currentUserId={ctx.profile.id} canEdit={canEditLeads(ctx.effectiveRole)} />
+          <LeadAttendees conferenceId={ctx.conference.id} leadType="company" leadId={id}
+            attendees={(attendees ?? []) as AttendeeProfile[]} />
           <div>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Activity</h2>
             <ActivityFeed entries={activity ?? []} profiles={profiles ?? []} />

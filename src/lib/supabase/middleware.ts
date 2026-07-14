@@ -3,6 +3,14 @@ import { NextResponse, type NextRequest } from "next/server";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
+/**
+ * Refresh the Supabase session on every request AND gate access to the two
+ * front-ends:
+ *   * Staff CRM  — anything not under /portal, /login, /auth, /api/portal/invites
+ *                  redirects unauth'd users to /login.
+ *   * Attendee portal — anything under /portal/* (except /portal/login and
+ *                  /portal/accept) redirects unauth'd users to /portal/login.
+ */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -24,19 +32,45 @@ export async function updateSession(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
-
   const path = request.nextUrl.pathname;
-  const isPublic = path === "/login" || path.startsWith("/auth") || path.startsWith("/_next") || path === "/favicon.ico";
+
+  const isPortal = path.startsWith("/portal");
+  const isPortalPublic = path === "/portal/login" || path === "/portal/accept";
+
+  const isPublic =
+       path === "/login"
+    || path.startsWith("/auth")
+    || path.startsWith("/_next")
+    || path === "/favicon.ico"
+    || isPortalPublic
+    // Public webhook / intake surface — auth handled per-route via API keys.
+    || path.startsWith("/api/intake")
+    // Invite-accept flow is pre-auth (the whole point is to create the user).
+    || path === "/api/portal/accept"
+    || path.startsWith("/api/portal/invites/preview");
 
   if (!user && !isPublic) {
+    // API routes get a 401 (not an HTML redirect) so client fetches don't
+    // follow a redirect and receive the login page.
+    if (path.startsWith("/api/")) {
+      return new NextResponse(JSON.stringify({ error: "Not signed in" }), {
+        status: 401, headers: { "Content-Type": "application/json" },
+      });
+    }
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = isPortal ? "/portal/login" : "/login";
     return NextResponse.redirect(url);
   }
 
   if (user && path === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
+  if (user && path === "/portal/login") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/portal";
     return NextResponse.redirect(url);
   }
 

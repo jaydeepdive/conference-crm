@@ -50,6 +50,14 @@ export interface Conference {
   invoice_issuer_name: string | null;
   invoice_issuer_address: string | null;
   invoice_payment_instructions: string | null;
+  // Attendee-portal meeting-scheduling knobs (added in 0012).
+  timezone: string;
+  meeting_start_time: string;         // "09:00:00"
+  meeting_end_time: string;           // "16:00:00"
+  meeting_lunch_start: string | null;
+  meeting_lunch_end: string | null;
+  meeting_slot_minutes: number;
+  meeting_slot_stride_minutes: number;
 }
 
 export type FeeType = "split_only" | "per_company" | "per_investor" | "per_lead" | "flat";
@@ -104,10 +112,67 @@ export interface LeadBase {
   updated_at: string;
 }
 
-export interface Company extends LeadBase { name: string; industry: string | null; }
+export interface Company extends LeadBase {
+  name: string; industry: string | null;
+  about: string | null;
+}
 export interface Investor extends LeadBase {
   firm_name: string; investor_type: string | null;
   check_size: string | null; sector_focus: string | null;
+  about: string | null;
+  investment_criteria: string | null;
+}
+
+// =====================================================================
+// Attendee portal (added in 0012)
+// =====================================================================
+
+export type AttendeeSide = "company" | "investor";
+export type MeetingStatus = "proposed" | "countered" | "accepted" | "declined" | "cancelled";
+export type MeetingEventKind = "propose" | "counter" | "accept" | "decline" | "cancel" | "note";
+
+export interface AttendeeProfile {
+  id: string;
+  conference_id: string;
+  lead_type: AttendeeSide;
+  lead_id: string;
+  user_id: string | null;
+  email: string;
+  full_name: string | null;
+  title: string | null;
+  phone: string | null;
+  about: string | null;
+  invite_token: string | null;
+  invite_sent_at: string | null;
+  accepted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Meeting {
+  id: string;
+  conference_id: string;
+  company_id: string;
+  investor_id: string;
+  status: MeetingStatus;
+  proposed_time: string | null;
+  proposed_by: AttendeeSide | null;
+  scheduled_time: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingEvent {
+  id: string;
+  meeting_id: string;
+  actor_profile_id: string | null;
+  actor_side: AttendeeSide | "admin" | null;
+  kind: MeetingEventKind;
+  proposed_time: string | null;
+  body: string | null;
+  created_at: string;
 }
 
 export interface ActivityEntry {
