@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { createDocumentFromTemplate, SignWellError } from "@/lib/signwell";
+import { createDocumentFromTemplate, getTemplate, SignWellError } from "@/lib/signwell";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -96,17 +96,64 @@ export async function POST(request: Request) {
     if (dates) template_fields.push({ api_id: fieldMap.conference_dates, value: dates });
   }
 
+  // Load the CRM operator's profile — every SignWell placeholder OTHER than
+  // the designated signer placeholder gets auto-assigned to them (typically
+  // "document sender", "Organizer", etc). Also pull the template's live
+  // placeholder list so we cover all of them.
+  const { data: senderProfile } = await admin
+    .from("profiles").select("id, full_name, email").eq("id", user.id).single();
+  const senderName = (senderProfile?.full_name ?? senderProfile?.email ?? "").trim() || "Organizer";
+  const senderEmail = (senderProfile?.email ?? "").trim();
+
+  let templatePlaceholders: string[] = [];
+  try {
+    const tpl = await getTemplate(conference.signwell_template_id);
+    templatePlaceholders = tpl.placeholders.map(p => p.name);
+  } catch (e) {
+    return NextResponse.json({
+      error: `Couldn't load SignWell template: ${e instanceof Error ? e.message : String(e)}`,
+    }, { status: 500 });
+  }
+
+  const signerPlaceholder = conference.signwell_placeholder_signer ?? "Signer 1";
+
+  // Build one recipient per template placeholder. Signer placeholder → the
+  // company contact. Every other placeholder → the CRM operator sending
+  // the request. SignWell requires each recipient to carry an `id` — we use
+  // a simple numeric counter.
+  const recipients: Array<{ id: number; placeholder_name: string; name: string; email: string }> = [];
+  let recipientCounter = 0;
+  const seen = new Set<string>();
+  for (const ph of templatePlaceholders) {
+    if (seen.has(ph)) continue;
+    seen.add(ph);
+    recipientCounter += 1;
+    if (ph === signerPlaceholder) {
+      recipients.push({ id: recipientCounter, placeholder_name: ph, name: signerName, email: signerEmail });
+    } else {
+      if (!senderEmail) {
+        return NextResponse.json({
+          error: `SignWell placeholder "${ph}" needs to be filled with the CRM operator, but your profile doesn't have an email on file. Update your profile first.`,
+        }, { status: 400 });
+      }
+      recipients.push({ id: recipientCounter, placeholder_name: ph, name: senderName, email: senderEmail });
+    }
+  }
+
+  // If the operator never linked the signer placeholder to a real template
+  // placeholder, add it as a fallback so we still send something meaningful.
+  if (!seen.has(signerPlaceholder)) {
+    recipientCounter += 1;
+    recipients.push({ id: recipientCounter, placeholder_name: signerPlaceholder, name: signerName, email: signerEmail });
+  }
+
   try {
     const doc = await createDocumentFromTemplate({
       template_id: conference.signwell_template_id,
       name: `${conference.name} — Participation Agreement — ${company.name}`,
       subject: body.subject ?? `Participation Agreement — ${conference.name}`,
       message: body.message ?? `Hi ${signerName.split(" ")[0]},\n\nPlease review and sign the participation agreement for ${conference.name}.\n\nThanks.`,
-      recipients: [{
-        placeholder_name: conference.signwell_placeholder_signer ?? "Signer 1",
-        name: signerName,
-        email: signerEmail,
-      }],
+      recipients,
       template_fields,
       draft: false,
       test_mode: body.test_mode ?? (process.env.NODE_ENV !== "production" ? true : false),

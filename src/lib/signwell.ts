@@ -178,6 +178,8 @@ export interface CreateDocumentFromTemplateInput {
   subject?: string;                    // signer email subject
   message?: string;                    // signer email body
   recipients: Array<{
+    /** Client-generated identifier — SignWell requires it on every recipient. */
+    id: string | number;
     placeholder_name: string;          // must match a template placeholder
     name: string;
     email: string;

@@ -176,10 +176,16 @@ export function AgreementPanel({
 
       {showPrep && (
         <div className="mt-3 space-y-2 rounded-md border border-gray-200 bg-cream/40 p-3">
-          <Field label="Signer name">
+          <p className="rounded-md bg-white/70 p-2 text-[10px] leading-relaxed text-muted">
+            The name + email below are used <strong>only</strong> to address the SignWell email
+            (Hi &lt;name&gt;, please sign…) and route it to the correct inbox.
+            They do <strong>not</strong> pre-fill the Name field on the agreement PDF —
+            that&rsquo;s left for the client to type in when they sign.
+          </p>
+          <Field label="Recipient name (email greeting only)">
             <input className={input} value={signerName} onChange={e => setSignerName(e.target.value)} />
           </Field>
-          <Field label="Signer email">
+          <Field label="Recipient email (SignWell sends the link here)">
             <input className={input} type="email" value={signerEmail} onChange={e => setSignerEmail(e.target.value)} />
           </Field>
           <Field label="Subject (optional)">
