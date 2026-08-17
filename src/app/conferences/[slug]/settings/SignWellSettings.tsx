@@ -36,12 +36,37 @@ const SEMANTIC_SLOTS: { key: string; label: string; help: string; required?: boo
   { key: "conference_dates",  label: "Conference dates", help: "e.g. 2026-11-15 – 2026-11-17." },
 ];
 
-/** Strip either a full SignWell URL or a UUID down to just the UUID. */
-function extractTemplateId(input: string): string {
-  const trimmed = input.trim();
-  if (!trimmed) return "";
+/**
+ * Extract a SignWell template UUID from either a raw UUID or a full URL.
+ * Returns { id?, error? } — error is set if the input is clearly a
+ * share-signing link (which won't work).
+ */
+function extractTemplateId(input: string): { id?: string; error?: string } {
+  const trimmed = input.trim().replace(/\/$/, "");
+  if (!trimmed) return {};
+
+  // The "Get Template Link" URL from SignWell (e.g. /new_doc/<slug>) is a
+  // public start-signing URL, not the template ID — reject early with a
+  // helpful hint.
+  if (/\/new_doc\//.test(trimmed) || /^https?:\/\/[^/]*signwell\.com\/[a-zA-Z0-9]+\/?$/.test(trimmed)) {
+    return {
+      error:
+        "That's SignWell's public start-signing link, not the template ID. In SignWell, click on the template name to open the editor — then copy the UUID from the URL bar (looks like /document_templates/<uuid>/edit).",
+    };
+  }
+
+  // If it contains a UUID anywhere (either in a URL path or standalone), grab it.
   const uuidMatch = trimmed.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-  return uuidMatch ? uuidMatch[0] : trimmed;
+  if (uuidMatch) return { id: uuidMatch[0] };
+
+  // Some SignWell workspaces use non-hyphenated IDs — accept 20+ hex chars too.
+  const looseHex = trimmed.match(/[0-9a-f]{20,}/i);
+  if (looseHex) return { id: looseHex[0] };
+
+  return {
+    error:
+      "That doesn't look like a template ID. Open the template in SignWell's editor and copy the UUID from the URL (looks like /document_templates/<uuid>/edit).",
+  };
 }
 
 export function SignWellSettings({ conference }: { conference: Conference }) {
@@ -87,9 +112,16 @@ export function SignWellSettings({ conference }: { conference: Conference }) {
   }, [selectedId]);
 
   function loadTemplateFromInput() {
-    const id = extractTemplateId(rawInput);
-    setSelectedId(id);
+    const { id, error } = extractTemplateId(rawInput);
     setSaved(false);
+    if (error) {
+      setLoadError(error);
+      setSelectedId("");
+      setTemplate(null);
+      return;
+    }
+    setLoadError(null);
+    setSelectedId(id ?? "");
   }
 
   async function save() {
@@ -194,12 +226,23 @@ export function SignWellSettings({ conference }: { conference: Conference }) {
                         >
                           <option value="">— not mapped —</option>
                           {template.fields
-                            .filter(f => f.type !== "signature" && f.type !== "initials")
-                            .map(f => (
-                              <option key={f.api_id} value={f.api_id}>
-                                {(f.label || f.name || f.api_id)}{f.placeholder_name ? ` · ${f.placeholder_name}` : ""}
-                              </option>
-                            ))}
+                            // Signer-filled types shouldn't be autofillable from the CRM.
+                            .filter(f => {
+                              const t = (f.type ?? "").toLowerCase();
+                              return t !== "signature" && t !== "initials";
+                            })
+                            .map(f => {
+                              // SignWell field IDs look like "TextField_3" or
+                              // "Text_Company" — surface whatever's most useful.
+                              const displayLabel = f.label || f.name || f.api_id || "(unnamed field)";
+                              const typeSuffix = f.type ? ` [${f.type}]` : "";
+                              const placeholderSuffix = f.placeholder_name ? ` · ${f.placeholder_name}` : "";
+                              return (
+                                <option key={f.api_id} value={f.api_id}>
+                                  {displayLabel}{typeSuffix}{placeholderSuffix}
+                                </option>
+                              );
+                            })}
                         </select>
                       </td>
                     </tr>

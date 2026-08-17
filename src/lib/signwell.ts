@@ -49,15 +49,27 @@ async function call<T = unknown>(
     cache: "no-store",
   });
   const text = await res.text();
+  const contentType = res.headers.get("content-type") ?? "";
   let json: unknown = null;
-  if (text) {
+  if (text && contentType.includes("application/json")) {
     try { json = JSON.parse(text); } catch { /* not JSON */ }
   }
   if (!res.ok) {
-    const message = (json && typeof json === "object" && "errors" in json)
-      ? JSON.stringify((json as { errors: unknown }).errors)
-      : text || `${res.status} ${res.statusText}`;
-    throw new SignWellError(res.status, `SignWell ${method} ${path}: ${message}`, json);
+    // Detect the "SignWell returned an HTML page" case (typically means the
+    // path is wrong or the ID is invalid — SignWell falls back to its
+    // marketing-site 404). Don't dump the HTML into the caller's error.
+    let message: string;
+    if (contentType.includes("text/html")) {
+      message = `SignWell returned an HTML page instead of JSON (${res.status}). This usually means the template ID is wrong or the resource doesn't exist.`;
+    } else if (json && typeof json === "object" && "errors" in json) {
+      message = JSON.stringify((json as { errors: unknown }).errors);
+    } else if (json && typeof json === "object" && "error" in json) {
+      message = String((json as { error: unknown }).error);
+    } else {
+      // Truncate raw text so we never surface a full HTML dump.
+      message = (text || `${res.status} ${res.statusText}`).slice(0, 200);
+    }
+    throw new SignWellError(res.status, message, json);
   }
   return (json ?? {}) as T;
 }
@@ -119,13 +131,41 @@ export async function getTemplate(templateId: string): Promise<SignWellTemplate>
   const raw = await call<Record<string, unknown>>("GET", `/document_templates/${encodeURIComponent(templateId)}`);
   // SignWell may nest under `template` or return flat — normalize both.
   const src = (raw.template ?? raw) as Record<string, unknown>;
+
+  // SignWell returns `fields` as a 2-D array — one sub-array per file:
+  //   "fields": [ [ {api_id, type, ...}, {api_id, type, ...} ] ]
+  // Flatten it so downstream code doesn't have to care.
+  const rawFields = src.fields;
+  let flatFields: SignWellTemplateField[] = [];
+  if (Array.isArray(rawFields)) {
+    for (const item of rawFields) {
+      if (Array.isArray(item)) {
+        flatFields.push(...(item as SignWellTemplateField[]));
+      } else if (item && typeof item === "object") {
+        flatFields.push(item as SignWellTemplateField);
+      }
+    }
+  }
+
   return {
     id: String(src.id ?? templateId),
     name: String(src.name ?? ""),
-    fields: (Array.isArray(src.fields) ? src.fields : []) as SignWellTemplateField[],
+    fields: flatFields,
     placeholders: (Array.isArray(src.placeholders) ? src.placeholders : []) as SignWellTemplatePlaceholder[],
     created_at: typeof src.created_at === "string" ? src.created_at : undefined,
   };
+}
+
+/**
+ * SignWell field-type values that are meant to be filled by the signer, not
+ * pre-populated by the API. Comparison is case-insensitive because the API
+ * returns capitalized values ("Signature", "Initials") while some docs use
+ * lowercase.
+ */
+const SIGNER_FILLED_TYPES = new Set(["signature", "initials"]);
+export function isTextFillableFieldType(type: string | undefined): boolean {
+  if (!type) return true;
+  return !SIGNER_FILLED_TYPES.has(type.toLowerCase());
 }
 
 // ---------------------------------------------------------------------------
