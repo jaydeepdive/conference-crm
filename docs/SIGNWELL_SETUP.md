@@ -50,14 +50,16 @@ SignWell usually offers a "Send test event" button on the webhook detail — cli
 
 ## 4. Map the template inside the CRM
 
-1. Open the CRM → your conference → **Settings**.
-2. Scroll to **SignWell — Company Participation Agreement**.
-3. **Template**: pick "Above and Beyond - Company Participation Agreement" from the dropdown. (If it doesn't appear, either the API key didn't load — go back and check the deploy — or the template lives on a different SignWell workspace than the API key.)
-4. **Signer placeholder**: usually "Signer 1" is fine. If you built the template with a custom role name (e.g. "Company Representative"), pick that instead.
-5. **Field mapping** table appears. For each CRM slot on the left, pick which template field on the right should receive that value. At minimum, map **Company name** — that's the one the send API refuses to run without. The others (Signer name, Signer email, Conference name, Conference dates) are nice-to-haves.
+SignWell's public API doesn't expose a way to list templates, so you'll paste the ID by hand — one-time setup.
+
+1. In SignWell: open the "Above and Beyond - Company Participation Agreement" template in the editor. Copy the ID from the URL — it's the UUID in `/document_templates/<uuid>/edit`. (You can just copy the whole URL; the CRM will strip out the UUID for you.)
+2. Open the CRM → your conference → **Settings** → **SignWell — Company Participation Agreement**.
+3. Paste the ID (or URL) into **Template ID** → click **Load fields**. A green banner should confirm the template loaded, with the field count.
+4. **Signer placeholder**: usually "Signer 1" is fine. If you built the template with a custom role name (e.g. "Company Representative"), pick that from the dropdown.
+5. **Field mapping** table: for each CRM slot on the left, pick which template field on the right should receive that value. At minimum, map **Company name** — that's the one the send API refuses to run without. The others (Signer name, Signer email, Conference name, Conference dates) are nice-to-haves.
 6. **Save SignWell settings**.
 
-You have to do this once per conference. If two conferences use the same template you just repeat the mapping.
+Repeat once per conference if you're running multiple.
 
 ---
 

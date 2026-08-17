@@ -97,25 +97,26 @@ export interface SignWellTemplate {
 }
 
 /**
- * List every template on the workspace. SignWell paginates but for a small
- * shop (< 100 templates) the first page is fine. If we ever hit that limit
- * we can add cursor handling.
+ * NOTE: SignWell's public API doesn't expose a "list all templates" endpoint.
+ * The CRM UI asks the operator to paste the template ID (findable in the
+ * template's URL in the SignWell dashboard: /app/document_templates/<id>/edit).
+ * We keep this function around as a hint for future when SignWell ships a
+ * list endpoint — it just returns [] today.
  */
 export async function listTemplates(): Promise<SignWellTemplateSummary[]> {
-  const res = await call<{ templates?: SignWellTemplateSummary[] } | SignWellTemplateSummary[]>(
-    "GET", "/templates",
-  );
-  if (Array.isArray(res)) return res;
-  return res.templates ?? [];
+  return [];
 }
 
 /**
  * Fetch a single template so we can enumerate its fields and placeholders.
- * We use the response to populate the "which field is Company Name?" picker
- * in the CRM settings UI.
+ * The response drives the "which field is Company Name?" picker in the
+ * CRM settings UI.
+ *
+ * IMPORTANT: The correct SignWell path is `/document_templates/{id}`, NOT
+ * `/templates/{id}` — the latter 404s to signwell.com's marketing site.
  */
 export async function getTemplate(templateId: string): Promise<SignWellTemplate> {
-  const raw = await call<Record<string, unknown>>("GET", `/templates/${encodeURIComponent(templateId)}`);
+  const raw = await call<Record<string, unknown>>("GET", `/document_templates/${encodeURIComponent(templateId)}`);
   // SignWell may nest under `template` or return flat — normalize both.
   const src = (raw.template ?? raw) as Record<string, unknown>;
   return {
