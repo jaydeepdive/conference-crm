@@ -29,8 +29,9 @@ type SortKey =
 type SortDir = "asc" | "desc";
 
 const STAGE_ORDER: Record<Stage, number> = {
-  not_contacted: 0, reaching_out: 1, in_discussion: 2,
-  verbal_commit: 3, registered: 4, declined: 5,
+  pending_approval: 0,
+  not_contacted: 1, reaching_out: 2, in_discussion: 3,
+  verbal_commit: 4, registered: 5, declined: 6,
 };
 const CONFIRMED_ORDER: Record<Row["confirmed"], number> = { no: 0, tentative: 1, yes: 2 };
 const PAYMENT_ORDER: Record<Row["payment_status"], number> = {
@@ -156,7 +157,9 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true }: {
                     <span className="inline-flex h-1.5 w-1.5 flex-shrink-0 items-center justify-center">
                       {r.is_tdd_client && <TddBadge size="dot" />}
                     </span>
-                    <Link href={`${basePath}/${r.id}`} className="hover:underline">{r.name}</Link>
+                    <Link href={`${basePath}/${r.id}`} className="hover:underline">
+                      {r.name?.trim() ? r.name : <span className="italic text-ink/50">(no name)</span>}
+                    </Link>
                   </div>
                   {r.industry_or_type && <div className="ml-[14px] text-xs text-gray-500">{r.industry_or_type}</div>}
                 </td>

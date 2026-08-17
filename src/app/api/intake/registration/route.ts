@@ -124,8 +124,8 @@ export async function POST(request: Request) {
     email: body.email ?? null,
     phone: body.phone ?? null,
     ticker: body.ticker ?? null,
-    stage: "verbal_commit",      // registered via web = they've committed, not necessarily paid
-    confirmed: "yes",            // web signup = confirmed attendance
+    stage: "pending_approval",   // web signups wait for operator review before joining the pipeline
+    confirmed: "tentative",      // not confirmed until operator approves
     source: body.source ?? "web registration",
     notes,
     conference_id: conference.id,
@@ -141,11 +141,18 @@ export async function POST(request: Request) {
   }
 
   // ---- Insert or update ----
+  //
+  // On update we deliberately drop `stage` and `confirmed` from the payload:
+  // once the operator has moved a lead out of Pending Approval, a repeat form
+  // submission from the same person shouldn't bump them back to it.
   let leadId: string;
   let created: boolean;
 
   if (existing) {
-    const { data, error } = await supabase.from(table).update(fields).eq("id", existing.id).select("id").single();
+    const updateFields = { ...fields };
+    delete updateFields.stage;
+    delete updateFields.confirmed;
+    const { data, error } = await supabase.from(table).update(updateFields).eq("id", existing.id).select("id").single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     leadId = data.id;
     created = false;

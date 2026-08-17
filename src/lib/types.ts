@@ -1,7 +1,7 @@
 export type Role = "admin" | "team" | "attendee" | "pending"; // legacy v1 column
 export type ConferenceRole = "conference_admin" | "recruiter" | "finance" | "viewer" | "hidden";
 
-export type Stage = "not_contacted" | "reaching_out" | "in_discussion" | "verbal_commit" | "registered" | "declined";
+export type Stage = "pending_approval" | "not_contacted" | "reaching_out" | "in_discussion" | "verbal_commit" | "registered" | "declined";
 export type Confirmed = "no" | "tentative" | "yes";
 export type PaymentStatus = "not_invoiced" | "invoiced" | "partial" | "paid" | "waived";
 export type LeadType = "company" | "investor";

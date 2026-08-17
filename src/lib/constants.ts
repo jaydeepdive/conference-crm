@@ -1,6 +1,7 @@
 import type { Stage, Confirmed, PaymentStatus, ConferenceRole, ExpenseCategory } from "./types";
 
 export const STAGES: { value: Stage; label: string; color: string }[] = [
+  { value: "pending_approval", label: "Pending Approval", color: "bg-purple-100 text-purple-800" },
   { value: "not_contacted", label: "Not Contacted", color: "bg-gray-200 text-gray-800" },
   { value: "reaching_out", label: "Reaching Out", color: "bg-amber-100 text-amber-800" },
   { value: "in_discussion", label: "In Discussion", color: "bg-sky-100 text-sky-800" },
