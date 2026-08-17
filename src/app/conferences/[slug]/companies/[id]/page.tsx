@@ -7,6 +7,7 @@ import { ActivityFeed } from "@/components/ActivityFeed";
 import { LeadNotes } from "@/components/LeadNotes";
 import { LeadComps } from "@/components/LeadComps";
 import { LeadAttendees } from "@/components/LeadAttendees";
+import { AgreementPanel } from "@/components/AgreementPanel";
 import { canEditLeads } from "@/lib/types";
 import type { AttendeeProfile } from "@/lib/types";
 
@@ -61,6 +62,11 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             currentUserId={ctx.profile.id} canEdit={canEditLeads(ctx.effectiveRole)} />
           <LeadAttendees conferenceId={ctx.conference.id} leadType="company" leadId={id}
             attendees={(attendees ?? []) as AttendeeProfile[]} />
+          <AgreementPanel
+            company={company}
+            templateConfigured={!!ctx.conference.signwell_template_id && !!(ctx.conference.signwell_field_map ?? {}).company_name}
+            isSuperAdmin={ctx.effectiveRole === "super_admin"}
+          />
           <div>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Activity</h2>
             <ActivityFeed entries={activity ?? []} profiles={profiles ?? []} />

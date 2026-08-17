@@ -58,7 +58,14 @@ export interface Conference {
   meeting_lunch_end: string | null;
   meeting_slot_minutes: number;
   meeting_slot_stride_minutes: number;
+  // SignWell participation-agreement config (added in 0014).
+  signwell_template_id: string | null;
+  signwell_field_map: Record<string, string>;
+  signwell_placeholder_signer: string;
 }
+
+export type AgreementStatus =
+  | "not_sent" | "sent" | "viewed" | "signed" | "declined" | "voided" | "expired";
 
 export type FeeType = "split_only" | "per_company" | "per_investor" | "per_lead" | "flat";
 export type FeeBasis = "signed_up" | "registered" | "paid";
@@ -115,6 +122,16 @@ export interface LeadBase {
 export interface Company extends LeadBase {
   name: string; industry: string | null;
   about: string | null;
+  // SignWell agreement tracking (added in 0014).
+  agreement_status: AgreementStatus;
+  agreement_document_id: string | null;
+  agreement_sent_at: string | null;
+  agreement_viewed_at: string | null;
+  agreement_completed_at: string | null;
+  agreement_declined_at: string | null;
+  agreement_signer_name: string | null;
+  agreement_signer_email: string | null;
+  agreement_pdf_url: string | null;
 }
 export interface Investor extends LeadBase {
   firm_name: string; investor_type: string | null;

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { CompTypesManager } from "./CompTypesManager";
 import { TddBulkSync } from "./TddBulkSync";
 import { MeetingHoursForm } from "./MeetingHoursForm";
+import { SignWellSettings } from "./SignWellSettings";
 import { PageTitle, SectionHeader } from "@/components/SectionHeader";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +49,21 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
           <MeetingHoursForm conference={ctx.conference} />
         </div>
       </section>
+
+      {ctx.effectiveRole === "super_admin" && (
+        <section>
+          <SectionHeader title="SignWell — Company Participation Agreement" meta="ESIGN" />
+          <p className="mt-3 text-sm text-muted">
+            Pick which SignWell template represents this conference&rsquo;s participation
+            agreement, then map the template&rsquo;s Company Name field (and any others) to
+            the CRM. From then on, each company detail page will have a &ldquo;Send agreement&rdquo;
+            button that autofills these values.
+          </p>
+          <div className="mt-4">
+            <SignWellSettings conference={ctx.conference} />
+          </div>
+        </section>
+      )}
 
       <section>
         <SectionHeader title="Comp catalog" meta="ASSIGNABLE TO LEADS" />
