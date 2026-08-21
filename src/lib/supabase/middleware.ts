@@ -43,8 +43,10 @@ export async function updateSession(request: NextRequest) {
     || path.startsWith("/_next")
     || path === "/favicon.ico"
     || isPortalPublic
-    // Public webhook / intake surface — auth handled per-route via API keys.
+    // Public webhook / intake surface — auth handled per-route via API keys
+    // or (for webhooks) via signature verification / metadata routing.
     || path.startsWith("/api/intake")
+    || path === "/api/signwell/webhook"
     // Invite-accept flow is pre-auth (the whole point is to create the user).
     || path === "/api/portal/accept"
     || path.startsWith("/api/portal/invites/preview");
