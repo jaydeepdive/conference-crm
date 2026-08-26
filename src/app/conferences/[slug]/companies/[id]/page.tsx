@@ -89,10 +89,15 @@ type ConfWithSignWell = {
   signwell_placeholder_signer?: string | null;
 };
 function resolveSignWellTemplates(conf: ConfWithSignWell): SignWellTemplateConfig[] {
+  // NOTE: we deliberately DO NOT filter by "has company_name mapped" here.
+  // A misconfigured template should still show up in the picker so the
+  // operator can see it exists (and get a helpful error when they try to
+  // send). Filtering silently hid legitimate templates that just hadn't
+  // been fully mapped yet.
   if (Array.isArray(conf.signwell_templates) && conf.signwell_templates.length > 0) {
-    return conf.signwell_templates.filter(t => t.id && (t.field_map ?? {}).company_name);
+    return conf.signwell_templates.filter(t => !!t.id);
   }
-  if (conf.signwell_template_id && (conf.signwell_field_map ?? {}).company_name) {
+  if (conf.signwell_template_id) {
     return [{
       id: conf.signwell_template_id,
       name: "Default template",

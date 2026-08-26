@@ -175,6 +175,10 @@ export async function POST(request: Request) {
     recipients.push({ id: recipientCounter, placeholder_name: signerPlaceholder, name: signerName, email: signerEmail });
   }
 
+  // Force test_mode off in production. In dev / preview it defaults to true
+  // so we don't burn quota. The frontend can override either way.
+  const testMode = body.test_mode ?? (process.env.NODE_ENV !== "production");
+
   try {
     const doc = await createDocumentFromTemplate({
       template_id: template.id,
@@ -184,7 +188,7 @@ export async function POST(request: Request) {
       recipients,
       template_fields,
       draft: false,
-      test_mode: body.test_mode ?? (process.env.NODE_ENV !== "production" ? true : false),
+      test_mode: testMode,
       metadata: {
         crm_company_id: company.id,
         crm_conference_id: conference.id,
@@ -193,10 +197,36 @@ export async function POST(request: Request) {
       },
     });
 
+    // ---- POST-CREATE VERIFICATION -----------------------------------------
+    //
+    // SignWell can accept a `create document from template` call and return
+    // 201 even when the resulting document ends up in `draft`, `pending`,
+    // or another non-sent state (typical causes: a placeholder was left
+    // with the same email as the sender, a required field the template
+    // didn't expose was left blank, or the workspace is on a plan tier
+    // that suppresses email delivery). Fetch the doc back once and use its
+    // status as the source of truth for whether we consider this "sent".
+    let verified: Awaited<ReturnType<typeof getTemplate>> extends infer T ? T : never;
+    let observedStatus: string | undefined;
+    try {
+      const check = await import("@/lib/signwell").then(m => m.getDocument(doc.id));
+      observedStatus = check.status;
+      verified = check as never;
+    } catch (e) {
+      // Non-fatal — we still created the doc.
+      console.warn("[signwell/send] post-create getDocument failed:", e);
+    }
+
+    // Anything that isn't sent/viewed/pending/completed is suspicious.
+    const dispatchOK = observedStatus === undefined ||
+      ["sent", "viewed", "pending", "signed", "completed"].includes(observedStatus);
+
+    // ---- Persist status ---------------------------------------------------
+    const nextStatus = dispatchOK ? "sent" : "not_sent";
     const { error: upErr } = await admin.from("companies").update({
-      agreement_status: "sent",
+      agreement_status: nextStatus,
       agreement_document_id: doc.id,
-      agreement_sent_at: new Date().toISOString(),
+      agreement_sent_at: dispatchOK ? new Date().toISOString() : null,
       agreement_viewed_at: null,
       agreement_completed_at: null,
       agreement_declined_at: null,
@@ -213,12 +243,41 @@ export async function POST(request: Request) {
       lead_type: "company",
       lead_id: company.id,
       lead_name: company.name,
-      action: "Agreement sent",
-      notes: `SignWell doc ${doc.id} (${template.name}) sent to ${signerName} <${signerEmail}>`,
+      action: dispatchOK ? "Agreement sent" : "Agreement created but not dispatched",
+      notes: `SignWell doc ${doc.id} (${template.name}) → ${signerName} <${signerEmail}>. Observed status: ${observedStatus ?? "unknown"}. test_mode=${testMode}. Recipients: ${recipients.map(r => `${r.placeholder_name}:${r.email}`).join(", ")}`,
       user_id: user.id,
     });
 
-    return NextResponse.json({ ok: true, document_id: doc.id, template: template.name });
+    // Detailed diagnostic in the server log — critical when things silently
+    // fail. Search Vercel logs for [signwell/send] to see this.
+    console.log("[signwell/send]", JSON.stringify({
+      template_id: template.id,
+      template_name: template.name,
+      test_mode: testMode,
+      recipients: recipients.map(r => ({ ph: r.placeholder_name, email: r.email })),
+      template_fields_count: template_fields.length,
+      doc_id: doc.id,
+      observed_status: observedStatus,
+    }));
+
+    if (!dispatchOK) {
+      return NextResponse.json({
+        error: `SignWell created the document but its status is "${observedStatus}" instead of "sent". No email was dispatched. Check the SignWell dashboard for the doc and confirm the template's placeholders + fields are correctly configured.`,
+        document_id: doc.id,
+        observed_status: observedStatus,
+        test_mode: testMode,
+        recipients_sent: recipients.map(r => ({ placeholder: r.placeholder_name, email: r.email })),
+      }, { status: 502 });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      document_id: doc.id,
+      template: template.name,
+      observed_status: observedStatus ?? "assumed_sent",
+      test_mode: testMode,
+      recipients: recipients.map(r => ({ placeholder: r.placeholder_name, email: r.email })),
+    });
   } catch (e) {
     const status = e instanceof SignWellError ? e.status : 500;
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status });

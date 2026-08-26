@@ -115,8 +115,22 @@ export function SignWellSettings({ conference }: { conference: Conference }) {
     router.refresh();
   }
 
+  const persistedCount = (conference.signwell_templates ?? []).length ||
+    (conference.signwell_template_id ? 1 : 0);
+  const pendingCount = templates.length;
+  const hasUnsavedChanges = pendingCount !== persistedCount || !saved;
+
   return (
     <div className="space-y-4">
+      <div className="rounded-md border border-gray-200 bg-white p-3 text-xs text-muted">
+        <div>
+          <strong className="text-ink">{persistedCount}</strong> template{persistedCount === 1 ? "" : "s"} currently saved to this conference
+          {hasUnsavedChanges && (
+            <span className="ml-2 text-amber-700">· {pendingCount} in editor (unsaved changes)</span>
+          )}
+        </div>
+      </div>
+
       {templates.length === 0 && (
         <div className="rounded-md border border-gray-200 bg-white p-4 text-sm text-muted">
           No templates yet. Click <strong>Add template</strong> to configure your first one.

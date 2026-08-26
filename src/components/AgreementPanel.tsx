@@ -84,7 +84,19 @@ export function AgreementPanel({
       }),
     });
     const data = await res.json();
-    if (!res.ok) { setError(data.error ?? "Send failed"); setBusy(false); return; }
+    if (!res.ok) {
+      // Enrich the error with any diagnostic fields the API returned
+      // (observed_status, recipients, test_mode) so silent SignWell issues
+      // don't stay silent.
+      const bits: string[] = [data.error ?? "Send failed"];
+      if (data.observed_status)  bits.push(`SignWell status: ${data.observed_status}`);
+      if (data.test_mode)        bits.push(`test_mode: ${data.test_mode}`);
+      if (Array.isArray(data.recipients_sent)) {
+        bits.push(`Recipients: ${data.recipients_sent.map((r: { placeholder: string; email: string }) => `${r.placeholder}=${r.email}`).join(", ")}`);
+      }
+      setError(bits.join(" · "));
+      setBusy(false); return;
+    }
     setShowPrep(false); setBusy(false);
     router.refresh();
   }
@@ -190,19 +202,32 @@ export function AgreementPanel({
 
       {showPrep && (
         <div className="mt-3 space-y-2 rounded-md border border-gray-200 bg-cream/40 p-3">
-          {templates.length > 1 && (
+          {/* Always show the picker when there's more than one template so
+              it's impossible to accidentally send the wrong variant. Single
+              template = show as a static label. */}
+          {templates.length > 1 ? (
             <Field label={`Template (${templates.length} available)`}>
               <select className={input} value={templateId} onChange={e => setTemplateId(e.target.value)}>
-                {templates.map(t => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
+                {templates.map(t => {
+                  const missingMap = !(t.field_map ?? {}).company_name;
+                  return (
+                    <option key={t.id} value={t.id}>
+                      {t.name}{missingMap ? " (⚠ company name unmapped)" : ""}
+                    </option>
+                  );
+                })}
               </select>
             </Field>
-          )}
-          {templates.length === 1 && (
+          ) : (
             <p className="text-[10px] uppercase tracking-widest2 text-muted">
               Template: <span className="text-ink/80 normal-case">{templates[0].name}</span>
             </p>
+          )}
+          {selectedTemplate && !(selectedTemplate.field_map ?? {}).company_name && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-900">
+              <strong>{selectedTemplate.name}</strong> is missing the Company Name field mapping.
+              Send will fail until a super admin maps it under Settings → SignWell.
+            </div>
           )}
           <p className="rounded-md bg-white/70 p-2 text-[10px] leading-relaxed text-muted">
             The name + email below are used <strong>only</strong> to address the SignWell email
