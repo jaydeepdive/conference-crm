@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createDocumentFromTemplate, getTemplate, SignWellError } from "@/lib/signwell";
+import type { SignWellTemplateConfig } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -10,25 +11,26 @@ export const maxDuration = 60;
  * POST /api/signwell/send
  *
  * Body: {
- *   company_id: uuid,
- *   signer_name?: string,       // override the company's contact_name
- *   signer_email?: string,      // override the company's email
- *   subject?: string,           // override the default email subject
- *   message?: string,           // override the default email body
- *   test_mode?: boolean,        // default true when NODE_ENV !== 'production'
+ *   company_id:   uuid,
+ *   template_id?: string,       // SignWell template UUID — picks one of the
+ *                                 conference's configured templates. Defaults
+ *                                 to the first if the conference has exactly
+ *                                 one; otherwise required.
+ *   signer_name?:  string,      // override company.contact_name
+ *   signer_email?: string,      // override company.email
+ *   subject?:      string,
+ *   message?:      string,
+ *   test_mode?:    boolean,
  * }
  *
- * Sends the conference's SignWell participation-agreement template to the
- * company's designated signer, autofilling the "company name" field (and any
- * other fields the operator configured in conferences.signwell_field_map).
- *
- * Returns the SignWell document id + the stored company row.
- *
- * Auth: any user with edit access to the conference (recruiter+, staff).
+ * Sends the selected participation-agreement template to the company's
+ * designated signer, autofilling the fields the operator mapped for that
+ * template variant.
  */
 
 type Body = {
   company_id?: string;
+  template_id?: string;
   signer_name?: string;
   signer_email?: string;
   subject?: string;
@@ -48,7 +50,6 @@ export async function POST(request: Request) {
 
   const admin = createServiceClient();
 
-  // Load company + conference
   const { data: company, error: cErr } = await admin
     .from("companies").select("*").eq("id", body.company_id).single();
   if (cErr || !company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
@@ -57,16 +58,52 @@ export async function POST(request: Request) {
     .from("conferences").select("*").eq("id", company.conference_id).single();
   if (!conference) return NextResponse.json({ error: "Conference not found" }, { status: 404 });
 
-  if (!conference.signwell_template_id) {
+  // ---- Resolve which template to use ---------------------------------------
+  //
+  // Preference order:
+  //   1. Multi-template array (`signwell_templates`). Pick by `template_id`,
+  //      or the sole entry if there's only one.
+  //   2. Legacy single-template columns (`signwell_template_id` +
+  //      `signwell_field_map` + `signwell_placeholder_signer`) — synthesize
+  //      a config so the rest of the flow doesn't care.
+  const configured: SignWellTemplateConfig[] =
+    Array.isArray(conference.signwell_templates) && conference.signwell_templates.length > 0
+      ? (conference.signwell_templates as SignWellTemplateConfig[])
+      : (conference.signwell_template_id
+          ? [{
+              id: conference.signwell_template_id,
+              name: "Default",
+              placeholder_signer: conference.signwell_placeholder_signer ?? "Signer 1",
+              field_map: (conference.signwell_field_map ?? {}) as Record<string, string>,
+            }]
+          : []);
+
+  if (configured.length === 0) {
     return NextResponse.json({
-      error: "This conference doesn't have a SignWell template configured yet. Set one under Settings → SignWell.",
+      error: "This conference doesn't have any SignWell templates configured yet. Set one under Settings → SignWell.",
     }, { status: 400 });
   }
 
-  const fieldMap = (conference.signwell_field_map ?? {}) as Record<string, string>;
+  let template: SignWellTemplateConfig | undefined;
+  if (body.template_id) {
+    template = configured.find(t => t.id === body.template_id);
+    if (!template) {
+      return NextResponse.json({
+        error: `template_id "${body.template_id}" isn't configured on this conference. Available: ${configured.map(t => `${t.name} (${t.id})`).join(", ")}`,
+      }, { status: 400 });
+    }
+  } else if (configured.length === 1) {
+    template = configured[0];
+  } else {
+    return NextResponse.json({
+      error: `This conference has ${configured.length} templates. Pass template_id to pick one. Available: ${configured.map(t => `${t.name} (${t.id})`).join(", ")}`,
+    }, { status: 400 });
+  }
+
+  const fieldMap = template.field_map ?? {};
   if (!fieldMap.company_name) {
     return NextResponse.json({
-      error: "The SignWell template's Company Name field isn't mapped. Set it under Settings → SignWell.",
+      error: `Template "${template.name}" is missing the Company Name field mapping. Fix it under Settings → SignWell.`,
     }, { status: 400 });
   }
 
@@ -78,6 +115,7 @@ export async function POST(request: Request) {
     }, { status: 400 });
   }
 
+  // ---- Build the template_fields autofill payload --------------------------
   const template_fields: Array<{ api_id: string; value: string }> = [
     { api_id: fieldMap.company_name, value: company.name },
   ];
@@ -96,31 +134,24 @@ export async function POST(request: Request) {
     if (dates) template_fields.push({ api_id: fieldMap.conference_dates, value: dates });
   }
 
-  // Load the CRM operator's profile — every SignWell placeholder OTHER than
-  // the designated signer placeholder gets auto-assigned to them (typically
-  // "document sender", "Organizer", etc). Also pull the template's live
-  // placeholder list so we cover all of them.
+  // ---- Sender + recipients -------------------------------------------------
   const { data: senderProfile } = await admin
     .from("profiles").select("id, full_name, email").eq("id", user.id).single();
-  const senderName = (senderProfile?.full_name ?? senderProfile?.email ?? "").trim() || "Organizer";
+  const senderName  = (senderProfile?.full_name ?? senderProfile?.email ?? "").trim() || "Organizer";
   const senderEmail = (senderProfile?.email ?? "").trim();
 
   let templatePlaceholders: string[] = [];
   try {
-    const tpl = await getTemplate(conference.signwell_template_id);
+    const tpl = await getTemplate(template.id);
     templatePlaceholders = tpl.placeholders.map(p => p.name);
   } catch (e) {
     return NextResponse.json({
-      error: `Couldn't load SignWell template: ${e instanceof Error ? e.message : String(e)}`,
+      error: `Couldn't load SignWell template "${template.name}": ${e instanceof Error ? e.message : String(e)}`,
     }, { status: 500 });
   }
 
-  const signerPlaceholder = conference.signwell_placeholder_signer ?? "Signer 1";
+  const signerPlaceholder = template.placeholder_signer ?? "Signer 1";
 
-  // Build one recipient per template placeholder. Signer placeholder → the
-  // company contact. Every other placeholder → the CRM operator sending
-  // the request. SignWell requires each recipient to carry an `id` — we use
-  // a simple numeric counter.
   const recipients: Array<{ id: number; placeholder_name: string; name: string; email: string }> = [];
   let recipientCounter = 0;
   const seen = new Set<string>();
@@ -139,9 +170,6 @@ export async function POST(request: Request) {
       recipients.push({ id: recipientCounter, placeholder_name: ph, name: senderName, email: senderEmail });
     }
   }
-
-  // If the operator never linked the signer placeholder to a real template
-  // placeholder, add it as a fallback so we still send something meaningful.
   if (!seen.has(signerPlaceholder)) {
     recipientCounter += 1;
     recipients.push({ id: recipientCounter, placeholder_name: signerPlaceholder, name: signerName, email: signerEmail });
@@ -149,24 +177,22 @@ export async function POST(request: Request) {
 
   try {
     const doc = await createDocumentFromTemplate({
-      template_id: conference.signwell_template_id,
-      name: `${conference.name} — Participation Agreement — ${company.name}`,
+      template_id: template.id,
+      name: `${conference.name} — ${template.name} — ${company.name}`,
       subject: body.subject ?? `Participation Agreement — ${conference.name}`,
       message: body.message ?? `Hi ${signerName.split(" ")[0]},\n\nPlease review and sign the participation agreement for ${conference.name}.\n\nThanks.`,
       recipients,
       template_fields,
       draft: false,
       test_mode: body.test_mode ?? (process.env.NODE_ENV !== "production" ? true : false),
-      // Metadata is echoed back on every webhook, so we can look up the company
-      // without keeping a separate index.
       metadata: {
         crm_company_id: company.id,
         crm_conference_id: conference.id,
         crm_conference_slug: conference.slug,
+        crm_template_id: template.id,
       },
     });
 
-    // Persist status on the company row
     const { error: upErr } = await admin.from("companies").update({
       agreement_status: "sent",
       agreement_document_id: doc.id,
@@ -177,21 +203,22 @@ export async function POST(request: Request) {
       agreement_signer_name: signerName,
       agreement_signer_email: signerEmail,
       agreement_pdf_url: null,
+      agreement_template_id: template.id,
+      agreement_template_name: template.name,
     }).eq("id", company.id);
     if (upErr) console.error("Failed to persist SignWell state:", upErr);
 
-    // Activity log
     await admin.from("activity_log").insert({
       conference_id: conference.id,
       lead_type: "company",
       lead_id: company.id,
       lead_name: company.name,
       action: "Agreement sent",
-      notes: `SignWell doc ${doc.id} sent to ${signerName} <${signerEmail}>`,
+      notes: `SignWell doc ${doc.id} (${template.name}) sent to ${signerName} <${signerEmail}>`,
       user_id: user.id,
     });
 
-    return NextResponse.json({ ok: true, document_id: doc.id });
+    return NextResponse.json({ ok: true, document_id: doc.id, template: template.name });
   } catch (e) {
     const status = e instanceof SignWellError ? e.status : 500;
     return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status });

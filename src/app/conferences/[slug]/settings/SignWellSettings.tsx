@@ -2,208 +2,282 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Conference } from "@/lib/types";
+import type { Conference, SignWellTemplateConfig } from "@/lib/types";
 
 /**
- * Conference-scoped SignWell configuration UI.
+ * Conference-scoped SignWell configuration UI — multi-template edition.
  *
- * SignWell's public API does NOT expose a list-templates endpoint, so the
- * operator has to paste the template ID by hand. It's a UUID visible in the
- * URL when editing the template on the SignWell dashboard, e.g.
- *   https://www.signwell.com/app/document_templates/<THIS_UUID>/edit
+ * Each conference can hold N template configs (e.g. "Pricing A", "Pricing B").
+ * Each config = { id, name, placeholder_signer, field_map } where:
+ *   * id                 → SignWell template UUID (paste from editor URL)
+ *   * name               → operator-facing label shown in the send picker
+ *   * placeholder_signer → which template placeholder role is the recipient
+ *   * field_map          → semantic slot → template field api_id
  *
- * Once a valid ID is entered we hit /api/signwell/templates?id=<id> to fetch
- * the template's fields + placeholders, and let the operator:
- *   - Pick which placeholder role represents the signer (default "Signer 1").
- *   - Map each semantic slot (Company name, Signer name, etc.) to a specific
- *     template field.
- *
- * Saved values live on the `conferences` row: signwell_template_id,
- * signwell_placeholder_signer, signwell_field_map (JSONB).
+ * Legacy single-template settings loaded via 0015 backfill just appear as
+ * the first row of the list — nothing special.
  */
 
 type SwField = { api_id: string; name?: string; label?: string; type?: string; placeholder_name?: string };
 type SwPlaceholder = { name: string };
-type Template = { id: string; name: string; fields: SwField[]; placeholders: SwPlaceholder[] };
+type LoadedTemplate = { id: string; name: string; fields: SwField[]; placeholders: SwPlaceholder[] };
 
 // Semantic slots the CRM knows how to autofill.
 const SEMANTIC_SLOTS: { key: string; label: string; help: string; required?: boolean }[] = [
   { key: "company_name",      label: "Company name",     help: "Autofilled with the CRM company's name.", required: true },
-  { key: "signer_name",       label: "Signer name",      help: "Autofilled with the company's contact_name." },
-  { key: "signer_email",      label: "Signer email",     help: "Autofilled with the company's email." },
-  { key: "signer_title",      label: "Signer title",     help: "Autofilled with contact_title if present." },
+  { key: "signer_name",       label: "Signer name",      help: "Autofilled with contact_name (leave unmapped if you want the client to type it)." },
+  { key: "signer_email",      label: "Signer email",     help: "Autofilled with company's email." },
+  { key: "signer_title",      label: "Signer title",     help: "Autofilled with contact_title." },
   { key: "conference_name",   label: "Conference name",  help: "Autofilled with the conference name." },
   { key: "conference_dates",  label: "Conference dates", help: "e.g. 2026-11-15 – 2026-11-17." },
 ];
 
-/**
- * Extract a SignWell template UUID from either a raw UUID or a full URL.
- * Returns { id?, error? } — error is set if the input is clearly a
- * share-signing link (which won't work).
- */
 function extractTemplateId(input: string): { id?: string; error?: string } {
   const trimmed = input.trim().replace(/\/$/, "");
   if (!trimmed) return {};
-
-  // The "Get Template Link" URL from SignWell (e.g. /new_doc/<slug>) is a
-  // public start-signing URL, not the template ID — reject early with a
-  // helpful hint.
-  if (/\/new_doc\//.test(trimmed) || /^https?:\/\/[^/]*signwell\.com\/[a-zA-Z0-9]+\/?$/.test(trimmed)) {
+  if (/\/new_doc\//.test(trimmed)) {
     return {
       error:
-        "That's SignWell's public start-signing link, not the template ID. In SignWell, click on the template name to open the editor — then copy the UUID from the URL bar (looks like /document_templates/<uuid>/edit).",
+        "That's SignWell's public start-signing link, not the template ID. Open the template in the editor and copy the UUID from the URL (looks like /document_templates/<uuid>/edit or /template_builder/<uuid>).",
     };
   }
-
-  // If it contains a UUID anywhere (either in a URL path or standalone), grab it.
-  const uuidMatch = trimmed.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
-  if (uuidMatch) return { id: uuidMatch[0] };
-
-  // Some SignWell workspaces use non-hyphenated IDs — accept 20+ hex chars too.
+  const uuid = trimmed.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  if (uuid) return { id: uuid[0] };
   const looseHex = trimmed.match(/[0-9a-f]{20,}/i);
   if (looseHex) return { id: looseHex[0] };
-
   return {
     error:
-      "That doesn't look like a template ID. Open the template in SignWell's editor and copy the UUID from the URL (looks like /document_templates/<uuid>/edit).",
+      "That doesn't look like a template ID. Open the template in SignWell's editor and copy the UUID from the URL.",
   };
 }
 
 export function SignWellSettings({ conference }: { conference: Conference }) {
   const router = useRouter();
 
-  const [rawInput, setRawInput] = useState<string>(conference.signwell_template_id ?? "");
-  const [selectedId, setSelectedId] = useState<string>(conference.signwell_template_id ?? "");
-  const [template, setTemplate] = useState<Template | null>(null);
-  const [loadingTemplate, setLoadingTemplate] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  // Seed from server row. If empty AND the legacy single-template columns
+  // are populated, synthesize a first entry so the operator sees their
+  // existing config in the new UI.
+  const seed: SignWellTemplateConfig[] =
+    (conference.signwell_templates && conference.signwell_templates.length > 0)
+      ? conference.signwell_templates
+      : (conference.signwell_template_id
+          ? [{
+              id: conference.signwell_template_id,
+              name: "Default template",
+              placeholder_signer: conference.signwell_placeholder_signer || "Signer 1",
+              field_map: conference.signwell_field_map ?? {},
+            }]
+          : []);
 
-  const [placeholderSigner, setPlaceholderSigner] = useState(
-    conference.signwell_placeholder_signer ?? "Signer 1"
-  );
-  const [fieldMap, setFieldMap] = useState<Record<string, string>>(
-    (conference.signwell_field_map ?? {}) as Record<string, string>
-  );
-
+  const [templates, setTemplates] = useState<SignWellTemplateConfig[]>(seed);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  // Load the template whenever selectedId changes.
-  useEffect(() => {
-    if (!selectedId) { setTemplate(null); return; }
-    let cancelled = false;
-    (async () => {
-      setLoadingTemplate(true); setLoadError(null);
-      try {
-        const res = await fetch(`/api/signwell/templates?id=${encodeURIComponent(selectedId)}`);
-        const contentType = res.headers.get("content-type") ?? "";
-        if (!contentType.includes("application/json")) {
-          throw new Error(`SignWell returned a non-JSON response (${res.status}). Double-check the template ID and API key.`);
-        }
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? `Failed to load template (${res.status})`);
-        if (!cancelled) setTemplate(data.template);
-      } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : String(e));
-      } finally { if (!cancelled) setLoadingTemplate(false); }
-    })();
-    return () => { cancelled = true; };
-  }, [selectedId]);
-
-  function loadTemplateFromInput() {
-    const { id, error } = extractTemplateId(rawInput);
+  function addBlank() {
+    setTemplates([...templates, { id: "", name: "", placeholder_signer: "Signer 1", field_map: {} }]);
     setSaved(false);
-    if (error) {
-      setLoadError(error);
-      setSelectedId("");
-      setTemplate(null);
-      return;
-    }
-    setLoadError(null);
-    setSelectedId(id ?? "");
+  }
+
+  function updateAt(i: number, patch: Partial<SignWellTemplateConfig>) {
+    setTemplates(templates.map((t, idx) => idx === i ? { ...t, ...patch } : t));
+    setSaved(false);
+  }
+
+  function removeAt(i: number) {
+    if (!confirm("Remove this template from the conference? You can add it back later.")) return;
+    setTemplates(templates.filter((_, idx) => idx !== i));
+    setSaved(false);
   }
 
   async function save() {
     setSaving(true); setSaveError(null); setSaved(false);
+    // Basic validation
+    for (const t of templates) {
+      if (!t.name.trim()) { setSaveError("Every template needs a name."); setSaving(false); return; }
+      if (!t.id.trim())   { setSaveError(`Template "${t.name}" is missing its SignWell template ID.`); setSaving(false); return; }
+      if (!t.field_map.company_name) {
+        setSaveError(`Template "${t.name}" needs the Company name field mapped.`);
+        setSaving(false); return;
+      }
+    }
     const supabase = createClient();
     const { error } = await supabase.from("conferences").update({
-      signwell_template_id: selectedId || null,
-      signwell_placeholder_signer: placeholderSigner || "Signer 1",
-      signwell_field_map: fieldMap,
+      signwell_templates: templates,
+      // Keep the legacy columns roughly in sync with the first template so
+      // nothing that still reads the old columns breaks.
+      signwell_template_id:        templates[0]?.id ?? null,
+      signwell_placeholder_signer: templates[0]?.placeholder_signer ?? "Signer 1",
+      signwell_field_map:          templates[0]?.field_map ?? {},
     }).eq("id", conference.id);
     if (error) { setSaveError(error.message); setSaving(false); return; }
     setSaved(true); setSaving(false);
     router.refresh();
   }
 
+  return (
+    <div className="space-y-4">
+      {templates.length === 0 && (
+        <div className="rounded-md border border-gray-200 bg-white p-4 text-sm text-muted">
+          No templates yet. Click <strong>Add template</strong> to configure your first one.
+        </div>
+      )}
+
+      {templates.map((t, i) => (
+        <TemplateEditor
+          key={i}
+          value={t}
+          onChange={patch => updateAt(i, patch)}
+          onRemove={() => removeAt(i)}
+        />
+      ))}
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={addBlank}
+          className="border border-gray-300 px-3 py-2 text-xs font-semibold uppercase tracking-widest2 hover:bg-cream"
+        >
+          + Add template
+        </button>
+        <button
+          onClick={save}
+          disabled={saving}
+          style={{ backgroundColor: "#C8102E", color: "#FFFFFF" }}
+          className="px-4 py-2 text-xs font-semibold uppercase tracking-widest2 hover:opacity-90 disabled:opacity-50"
+        >
+          {saving ? "Saving…" : "Save all templates"}
+        </button>
+        {saved && <span className="text-xs text-emerald-700">Saved.</span>}
+        {saveError && <span className="text-xs text-rose-700">{saveError}</span>}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Per-template card. Owns its own load-fields state so multiple templates
+// can be edited independently.
+// ---------------------------------------------------------------------------
+function TemplateEditor({
+  value, onChange, onRemove,
+}: {
+  value: SignWellTemplateConfig;
+  onChange: (patch: Partial<SignWellTemplateConfig>) => void;
+  onRemove: () => void;
+}) {
+  const [rawInput, setRawInput] = useState<string>(value.id);
+  const [loaded, setLoaded] = useState<LoadedTemplate | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Auto-load fields when we already know the id (e.g. on mount for existing templates)
+  useEffect(() => {
+    if (value.id && !loaded && !loading) loadTemplate(value.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function loadTemplate(id: string) {
+    setLoading(true); setLoadError(null);
+    try {
+      const res = await fetch(`/api/signwell/templates?id=${encodeURIComponent(id)}`);
+      const ct = res.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) {
+        throw new Error(`SignWell returned a non-JSON response (${res.status}). Double-check the template ID and API key.`);
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `Failed to load template (${res.status})`);
+      setLoaded(data.template);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : String(e));
+      setLoaded(null);
+    } finally { setLoading(false); }
+  }
+
+  function loadFromInput() {
+    const { id, error } = extractTemplateId(rawInput);
+    if (error) { setLoadError(error); setLoaded(null); return; }
+    if (!id) { setLoadError("Enter a template ID first."); return; }
+    onChange({ id });
+    loadTemplate(id);
+  }
+
   const input = "w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm";
   const label = "block text-xs font-semibold uppercase tracking-widest2 text-muted";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 rounded-md border border-gray-300 bg-white p-4">
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <label className={label}>Label (shown in send picker)</label>
+          <input
+            className={`${input} mt-1`}
+            placeholder="e.g. Pricing A"
+            value={value.name}
+            onChange={e => onChange({ name: e.target.value })}
+          />
+        </div>
+        <button
+          onClick={onRemove}
+          className="mt-5 border border-rose-300 px-3 py-1.5 text-xs uppercase tracking-widest2 text-rose-700 hover:bg-rose-50"
+          title="Remove this template"
+        >
+          Remove
+        </button>
+      </div>
+
       <div>
         <label className={label}>Template ID</label>
-        <div className="mt-2 flex gap-2">
+        <div className="mt-1 flex gap-2">
           <input
             className={input}
             placeholder="Paste template ID or SignWell URL"
             value={rawInput}
             onChange={e => setRawInput(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); loadTemplateFromInput(); } }}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); loadFromInput(); } }}
           />
           <button
-            onClick={loadTemplateFromInput}
-            disabled={loadingTemplate || !rawInput.trim()}
+            onClick={loadFromInput}
+            disabled={loading || !rawInput.trim()}
             className="whitespace-nowrap border border-gray-300 px-3 py-1.5 text-xs uppercase tracking-widest2 hover:bg-cream disabled:opacity-50"
           >
-            {loadingTemplate ? "Loading…" : "Load fields"}
+            {loading ? "Loading…" : "Load fields"}
           </button>
         </div>
-        <p className="mt-1 text-xs text-muted">
-          SignWell doesn&rsquo;t expose a template list. In SignWell, open the template &rarr;
-          copy the ID from the URL (looks like <code className="rounded bg-cream px-1">/document_templates/&lt;uuid&gt;/edit</code>)
-          and paste it here.
-        </p>
         {loadError && (
           <div className="mt-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800">
             {loadError}
           </div>
         )}
+        {loaded && (
+          <div className="mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-xs text-emerald-900">
+            Loaded: <strong>{loaded.name}</strong> ({loaded.fields.length} field{loaded.fields.length === 1 ? "" : "s"}, {loaded.placeholders.length} placeholder{loaded.placeholders.length === 1 ? "" : "s"})
+          </div>
+        )}
       </div>
 
-      {template && (
+      {loaded && (
         <>
-          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
-            Loaded: <strong>{template.name}</strong> ({template.fields.length} field{template.fields.length === 1 ? "" : "s"}, {template.placeholders.length} placeholder{template.placeholders.length === 1 ? "" : "s"})
-          </div>
-
           <div>
             <label className={label}>Signer placeholder</label>
-            {template.placeholders.length > 0 ? (
-              <select className={`${input} mt-2`}
-                value={placeholderSigner}
-                onChange={e => setPlaceholderSigner(e.target.value)}>
-                {template.placeholders.map(p => (
+            {loaded.placeholders.length > 0 ? (
+              <select className={`${input} mt-1`}
+                value={value.placeholder_signer}
+                onChange={e => onChange({ placeholder_signer: e.target.value })}>
+                {loaded.placeholders.map(p => (
                   <option key={p.name} value={p.name}>{p.name}</option>
                 ))}
               </select>
             ) : (
-              <input className={`${input} mt-2`}
-                value={placeholderSigner}
-                onChange={e => setPlaceholderSigner(e.target.value)}
+              <input className={`${input} mt-1`}
+                value={value.placeholder_signer}
+                onChange={e => onChange({ placeholder_signer: e.target.value })}
                 placeholder="Signer 1" />
             )}
-            <p className="mt-1 text-xs text-muted">
-              The company&rsquo;s contact person is assigned to this placeholder when we send.
-            </p>
           </div>
 
           <div>
-            <div className="mb-2 flex items-baseline justify-between">
-              <span className={label}>Field mapping</span>
-            </div>
-            <div className="overflow-hidden rounded-md border border-gray-200">
+            <div className={label}>Field mapping</div>
+            <div className="mt-1 overflow-hidden rounded-md border border-gray-200">
               <table className="w-full text-sm">
                 <thead className="bg-cream text-left text-[10px] uppercase tracking-widest2 text-muted">
                   <tr>
@@ -221,19 +295,16 @@ export function SignWellSettings({ conference }: { conference: Conference }) {
                       <td className="px-3 py-2">
                         <select
                           className={input}
-                          value={fieldMap[slot.key] ?? ""}
-                          onChange={e => setFieldMap({ ...fieldMap, [slot.key]: e.target.value })}
+                          value={value.field_map[slot.key] ?? ""}
+                          onChange={e => onChange({ field_map: { ...value.field_map, [slot.key]: e.target.value } })}
                         >
                           <option value="">— not mapped —</option>
-                          {template.fields
-                            // Signer-filled types shouldn't be autofillable from the CRM.
+                          {loaded.fields
                             .filter(f => {
                               const t = (f.type ?? "").toLowerCase();
                               return t !== "signature" && t !== "initials";
                             })
                             .map(f => {
-                              // SignWell field IDs look like "TextField_3" or
-                              // "Text_Company" — surface whatever's most useful.
                               const displayLabel = f.label || f.name || f.api_id || "(unnamed field)";
                               const typeSuffix = f.type ? ` [${f.type}]` : "";
                               const placeholderSuffix = f.placeholder_name ? ` · ${f.placeholder_name}` : "";
@@ -250,25 +321,9 @@ export function SignWellSettings({ conference }: { conference: Conference }) {
                 </tbody>
               </table>
             </div>
-            <p className="mt-2 text-xs text-muted">
-              Only text-type fields are shown. Signature and initials fields are always filled by the signer, not by the CRM.
-            </p>
           </div>
         </>
       )}
-
-      <div className="flex items-center gap-3">
-        <button
-          onClick={save}
-          disabled={saving || !selectedId}
-          style={{ backgroundColor: "#C8102E", color: "#FFFFFF" }}
-          className="px-4 py-2 text-xs font-semibold uppercase tracking-widest2 hover:opacity-90 disabled:opacity-50"
-        >
-          {saving ? "Saving…" : "Save SignWell settings"}
-        </button>
-        {saved && <span className="text-xs text-emerald-700">Saved.</span>}
-        {saveError && <span className="text-xs text-rose-700">{saveError}</span>}
-      </div>
     </div>
   );
 }

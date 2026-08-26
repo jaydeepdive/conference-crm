@@ -58,10 +58,21 @@ export interface Conference {
   meeting_lunch_end: string | null;
   meeting_slot_minutes: number;
   meeting_slot_stride_minutes: number;
-  // SignWell participation-agreement config (added in 0014).
+  // SignWell participation-agreement config (added in 0014, extended in 0015).
+  // Legacy single-template columns — kept for backwards compat, superseded
+  // by `signwell_templates`.
   signwell_template_id: string | null;
   signwell_field_map: Record<string, string>;
   signwell_placeholder_signer: string;
+  // Multi-template config (0015). Empty array = no templates configured.
+  signwell_templates: SignWellTemplateConfig[];
+}
+
+export interface SignWellTemplateConfig {
+  id: string;                                 // SignWell template UUID
+  name: string;                               // operator-facing label
+  placeholder_signer: string;                 // e.g. "Client"
+  field_map: Record<string, string>;          // semantic slot → api_id
 }
 
 export type AgreementStatus =
@@ -132,6 +143,9 @@ export interface Company extends LeadBase {
   agreement_signer_name: string | null;
   agreement_signer_email: string | null;
   agreement_pdf_url: string | null;
+  // Which template variant was used for this company's agreement (0015).
+  agreement_template_id: string | null;
+  agreement_template_name: string | null;
 }
 export interface Investor extends LeadBase {
   firm_name: string; investor_type: string | null;

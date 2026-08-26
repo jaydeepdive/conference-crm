@@ -1,20 +1,24 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { AgreementStatus, Company } from "@/lib/types";
+import type { AgreementStatus, Company, SignWellTemplateConfig } from "@/lib/types";
 
 /**
  * Company detail sidebar panel for the SignWell participation agreement.
  *
+ * With multi-template support (v6.26+), the send modal now includes a
+ * dropdown to pick which template variant (Pricing A, Pricing B, …) to send.
+ * When the conference has exactly one template configured, the picker is
+ * hidden and that template is used automatically.
+ *
  * States handled:
- *   * templateConfigured=false  → link to Settings, explain what's missing.
+ *   * templates.length === 0    → link to Settings, explain what's missing.
  *   * agreement_status='not_sent' → "Send agreement" button (opens a confirm
- *     dialog that lets the user tweak the signer name/email + subject/message).
- *   * sent / viewed             → status + "Void & resend" (super admin) buttons.
- *   * signed                    → status + "View signed PDF" link + "Resend".
+ *     dialog to pick template + tweak signer name/email + subject/message).
+ *   * sent / viewed             → status + "Void & resend" (super admin).
+ *   * signed                    → status + "View signed PDF" link.
  *   * declined / expired /
- *     voided                    → status + "Send again" button (goes through
- *     void+send in one shot).
+ *     voided                    → status + "Send again".
  */
 
 const STATUS_LABEL: Record<AgreementStatus, string> = {
@@ -37,18 +41,20 @@ const STATUS_STYLE: Record<AgreementStatus, string> = {
 };
 
 export function AgreementPanel({
-  company, templateConfigured, isSuperAdmin,
+  company, templates, isSuperAdmin,
 }: {
   company: Pick<Company,
     | "id" | "name" | "contact_name" | "email" | "agreement_status"
     | "agreement_document_id" | "agreement_sent_at" | "agreement_viewed_at"
     | "agreement_completed_at" | "agreement_declined_at"
-    | "agreement_signer_name" | "agreement_signer_email">;
-  templateConfigured: boolean;
+    | "agreement_signer_name" | "agreement_signer_email"
+    | "agreement_template_id" | "agreement_template_name">;
+  templates: SignWellTemplateConfig[];
   isSuperAdmin: boolean;
 }) {
   const router = useRouter();
   const [showPrep, setShowPrep] = useState(false);
+  const [templateId, setTemplateId] = useState<string>(templates[0]?.id ?? "");
   const [signerName, setSignerName] = useState(company.contact_name ?? "");
   const [signerEmail, setSignerEmail] = useState(company.email ?? "");
   const [subject, setSubject] = useState("");
@@ -57,17 +63,20 @@ export function AgreementPanel({
   const [error, setError] = useState<string | null>(null);
 
   const status = company.agreement_status ?? "not_sent";
+  const selectedTemplate = templates.find(t => t.id === templateId);
 
   async function send() {
+    if (!templateId) { setError("Pick which template to send."); return; }
     if (!signerName.trim() || !signerEmail.trim()) {
-      setError("Signer name and email are required."); return;
+      setError("Recipient name and email are required."); return;
     }
-    if (!confirm(`Send the participation agreement to ${signerName} <${signerEmail}>?`)) return;
+    if (!confirm(`Send "${selectedTemplate?.name ?? "agreement"}" to ${signerName} <${signerEmail}>?`)) return;
     setBusy(true); setError(null);
     const res = await fetch("/api/signwell/send", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         company_id: company.id,
+        template_id: templateId,
         signer_name: signerName.trim(),
         signer_email: signerEmail.trim(),
         subject: subject.trim() || undefined,
@@ -94,12 +103,12 @@ export function AgreementPanel({
     router.refresh();
   }
 
-  if (!templateConfigured) {
+  if (templates.length === 0) {
     return (
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Participation Agreement</h2>
         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-          SignWell template not configured for this conference yet. Ask a super admin to set it under Settings → SignWell.
+          No SignWell templates configured for this conference yet. Ask a super admin to add one under Settings → SignWell.
         </div>
       </div>
     );
@@ -121,6 +130,12 @@ export function AgreementPanel({
           )}
         </div>
 
+        {company.agreement_template_name && (
+          <div className="text-[10px] uppercase tracking-widest2 text-muted">
+            Template: <span className="text-ink/80">{company.agreement_template_name}</span>
+          </div>
+        )}
+
         {(company.agreement_sent_at || company.agreement_completed_at || company.agreement_declined_at) && (
           <dl className="grid grid-cols-2 gap-1 text-[11px]">
             {company.agreement_sent_at && (<><dt className="text-muted">Sent</dt><dd>{fmt(company.agreement_sent_at)}</dd></>)}
@@ -132,7 +147,6 @@ export function AgreementPanel({
 
         {error && <div className="text-xs text-rose-700">{error}</div>}
 
-        {/* Actions vary by state */}
         {status === "not_sent" && !showPrep && (
           <button
             onClick={() => setShowPrep(true)}
@@ -176,6 +190,20 @@ export function AgreementPanel({
 
       {showPrep && (
         <div className="mt-3 space-y-2 rounded-md border border-gray-200 bg-cream/40 p-3">
+          {templates.length > 1 && (
+            <Field label={`Template (${templates.length} available)`}>
+              <select className={input} value={templateId} onChange={e => setTemplateId(e.target.value)}>
+                {templates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </Field>
+          )}
+          {templates.length === 1 && (
+            <p className="text-[10px] uppercase tracking-widest2 text-muted">
+              Template: <span className="text-ink/80 normal-case">{templates[0].name}</span>
+            </p>
+          )}
           <p className="rounded-md bg-white/70 p-2 text-[10px] leading-relaxed text-muted">
             The name + email below are used <strong>only</strong> to address the SignWell email
             (Hi &lt;name&gt;, please sign…) and route it to the correct inbox.

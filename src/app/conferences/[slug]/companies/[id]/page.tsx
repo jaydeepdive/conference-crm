@@ -9,7 +9,7 @@ import { LeadComps } from "@/components/LeadComps";
 import { LeadAttendees } from "@/components/LeadAttendees";
 import { AgreementPanel } from "@/components/AgreementPanel";
 import { canEditLeads } from "@/lib/types";
-import type { AttendeeProfile } from "@/lib/types";
+import type { AttendeeProfile, SignWellTemplateConfig } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +64,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             attendees={(attendees ?? []) as AttendeeProfile[]} />
           <AgreementPanel
             company={company}
-            templateConfigured={!!ctx.conference.signwell_template_id && !!(ctx.conference.signwell_field_map ?? {}).company_name}
+            templates={resolveSignWellTemplates(ctx.conference)}
             isSuperAdmin={ctx.effectiveRole === "super_admin"}
           />
           <div>
@@ -75,4 +75,30 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
       </div>
     </div>
   );
+}
+
+/**
+ * Prefer the new multi-template array. Fall back to synthesizing an entry
+ * from the legacy single-template columns for conferences that haven't been
+ * re-saved through the new Settings UI yet.
+ */
+type ConfWithSignWell = {
+  signwell_templates?: SignWellTemplateConfig[] | null;
+  signwell_template_id?: string | null;
+  signwell_field_map?: Record<string, string> | null;
+  signwell_placeholder_signer?: string | null;
+};
+function resolveSignWellTemplates(conf: ConfWithSignWell): SignWellTemplateConfig[] {
+  if (Array.isArray(conf.signwell_templates) && conf.signwell_templates.length > 0) {
+    return conf.signwell_templates.filter(t => t.id && (t.field_map ?? {}).company_name);
+  }
+  if (conf.signwell_template_id && (conf.signwell_field_map ?? {}).company_name) {
+    return [{
+      id: conf.signwell_template_id,
+      name: "Default template",
+      placeholder_signer: conf.signwell_placeholder_signer ?? "Signer 1",
+      field_map: conf.signwell_field_map ?? {},
+    }];
+  }
+  return [];
 }
