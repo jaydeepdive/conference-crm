@@ -61,6 +61,7 @@ function ConferenceCard({ conference, entities, links }: {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
     name: conference.name, slug: conference.slug,
+    public_name: conference.public_name ?? "",
     date_start: conference.date_start ?? "", date_end: conference.date_end ?? "",
     status: conference.status, notes: conference.notes ?? "",
     visibility: (conference.visibility ?? "public") as ConfVisibility,
@@ -76,6 +77,7 @@ function ConferenceCard({ conference, entities, links }: {
     const supabase = createClient();
     const { error } = await supabase.from("conferences").update({
       name: form.name, slug: form.slug,
+      public_name: form.public_name.trim() || null,
       date_start: form.date_start || null, date_end: form.date_end || null,
       status: form.status, notes: form.notes || null,
       visibility: form.visibility,
@@ -104,10 +106,16 @@ function ConferenceCard({ conference, entities, links }: {
     <div className="rounded-xl border border-gray-200 bg-white p-5">
       {editing ? (
         <div className="grid gap-3 sm:grid-cols-3">
-          <input className={`${input} sm:col-span-2`} placeholder="Name"
-            value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
-          <input className={input} placeholder="slug"
-            value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} />
+          <div className="sm:col-span-2"><label className="block text-xs text-gray-500">Internal name (shown to staff)</label>
+            <input className={input} placeholder="e.g. Mining Summit 2026"
+              value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+          <div><label className="block text-xs text-gray-500">Slug (URL)</label>
+            <input className={input} placeholder="mining-summit-2026"
+              value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} /></div>
+          <div className="sm:col-span-3"><label className="block text-xs text-gray-500">Public name (shown to recipients — SignWell emails, invoices, etc.)</label>
+            <input className={input} placeholder={form.name || "e.g. Above & Beyond Mining Summit"}
+              value={form.public_name} onChange={e => setForm({ ...form, public_name: e.target.value })} />
+            <p className="mt-1 text-xs text-gray-400">Leave blank to fall back to the internal name.</p></div>
           <input className={input} type="date" value={form.date_start} onChange={e => setForm({ ...form, date_start: e.target.value })} />
           <input className={input} type="date" value={form.date_end} onChange={e => setForm({ ...form, date_end: e.target.value })} />
           <select className={input} value={form.status} onChange={e => setForm({ ...form, status: e.target.value as ConfStatus })}>

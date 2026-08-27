@@ -4,7 +4,7 @@ import Link from "next/link";
 import { StageBadge, ConfirmedBadge, PaymentBadge } from "./StageBadge";
 import { TddBadge } from "./TddBadge";
 import { STAGES } from "@/lib/constants";
-import type { Profile, Stage } from "@/lib/types";
+import type { Profile, Stage, AgreementStatus } from "@/lib/types";
 
 interface Row {
   id: string;
@@ -21,11 +21,13 @@ interface Row {
   next_action_date: string | null;
   next_action: string | null;
   is_tdd_client?: boolean;
+  agreement_status?: AgreementStatus;    // companies only — undefined for investors
 }
 
 type SortKey =
   | "name" | "industry_or_type" | "contact_name" | "email" | "owner"
-  | "stage" | "confirmed" | "payment_status" | "balance" | "next_action_date" | "next_action";
+  | "stage" | "confirmed" | "payment_status" | "balance" | "next_action_date" | "next_action"
+  | "agreement";
 type SortDir = "asc" | "desc";
 
 const STAGE_ORDER: Record<Stage, number> = {
@@ -37,9 +39,33 @@ const CONFIRMED_ORDER: Record<Row["confirmed"], number> = { no: 0, tentative: 1,
 const PAYMENT_ORDER: Record<Row["payment_status"], number> = {
   not_invoiced: 0, invoiced: 1, partial: 2, paid: 3, waived: 4,
 };
+const AGREEMENT_ORDER: Record<AgreementStatus, number> = {
+  not_sent: 0, sent: 1, viewed: 2, declined: 3, expired: 4, voided: 5, signed: 6,
+};
+const AGREEMENT_LABEL: Record<AgreementStatus, string> = {
+  not_sent: "Not sent",
+  sent:     "Sent",
+  viewed:   "Viewed",
+  signed:   "Signed",
+  declined: "Declined",
+  voided:   "Voided",
+  expired:  "Expired",
+};
+const AGREEMENT_STYLE: Record<AgreementStatus, string> = {
+  not_sent: "bg-gray-100 text-gray-600",
+  sent:     "bg-amber-100 text-amber-800",
+  viewed:   "bg-sky-100 text-sky-800",
+  signed:   "bg-emerald-100 text-emerald-800",
+  declined: "bg-rose-100 text-rose-800",
+  voided:   "bg-gray-200 text-gray-500",
+  expired:  "bg-rose-100 text-rose-800",
+};
 
-export function LeadTable({ rows, profiles, basePath, showPayments = true }: {
-  rows: Row[]; profiles: Profile[]; basePath: string; showPayments?: boolean;
+export function LeadTable({ rows, profiles, basePath, showPayments = true, showAgreement = false }: {
+  rows: Row[]; profiles: Profile[]; basePath: string;
+  showPayments?: boolean;
+  /** Companies list only — surfaces the SignWell participation-agreement status. */
+  showAgreement?: boolean;
 }) {
   const [stageFilter, setStageFilter] = useState<Stage | "all">("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
@@ -78,6 +104,7 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true }: {
           case "balance": return r.amount_due - r.amount_paid;
           case "next_action_date": return r.next_action_date ?? "";
           case "next_action": return (r.next_action ?? "").toLowerCase();
+          case "agreement": return r.agreement_status ? AGREEMENT_ORDER[r.agreement_status] : -1;
         }
       };
       const av = get(a); const bv = get(b);
@@ -145,6 +172,7 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true }: {
               <SortHeader label="Confirmed" sortKey="confirmed" active={sortKey} dir={sortDir} onClick={clickHeader} />
               {showPayments && <SortHeader label="Payment" sortKey="payment_status" active={sortKey} dir={sortDir} onClick={clickHeader} />}
               {showPayments && <SortHeader label="Balance" sortKey="balance" active={sortKey} dir={sortDir} onClick={clickHeader} align="right" />}
+              {showAgreement && <SortHeader label="Agreement" sortKey="agreement" active={sortKey} dir={sortDir} onClick={clickHeader} />}
               <SortHeader label="Next action" sortKey="next_action_date" active={sortKey} dir={sortDir} onClick={clickHeader} />
             </tr>
           </thead>
@@ -172,6 +200,15 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true }: {
                 <td className="px-3 py-2"><ConfirmedBadge value={r.confirmed} /></td>
                 {showPayments && <td className="px-3 py-2"><PaymentBadge value={r.payment_status} /></td>}
                 {showPayments && <td className="px-3 py-2 text-right tabular-nums">${(r.amount_due - r.amount_paid).toLocaleString()}</td>}
+                {showAgreement && (
+                  <td className="px-3 py-2">
+                    {r.agreement_status && (
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${AGREEMENT_STYLE[r.agreement_status]}`}>
+                        {AGREEMENT_LABEL[r.agreement_status]}
+                      </span>
+                    )}
+                  </td>
+                )}
                 <td className="px-3 py-2 text-xs">
                   {r.next_action_date && (
                     <div className={isOverdue(r.next_action_date, r.stage) ? "text-rose-600 font-medium" : "text-gray-500"}>
@@ -183,7 +220,8 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true }: {
               </tr>
             ))}
             {sorted.length === 0 && (
-              <tr><td colSpan={showPayments ? 8 : 6} className="px-3 py-8 text-center text-sm text-gray-500">No leads match your filters.</td></tr>
+              <tr><td colSpan={6 + (showPayments ? 2 : 0) + (showAgreement ? 1 : 0)}
+                className="px-3 py-8 text-center text-sm text-gray-500">No leads match your filters.</td></tr>
             )}
           </tbody>
         </table>

@@ -125,7 +125,7 @@ export async function POST(request: Request) {
     template_fields.push({ api_id: fieldMap.signer_title, value: company.contact_title });
   }
   if (fieldMap.conference_name) {
-    template_fields.push({ api_id: fieldMap.conference_name, value: conference.name });
+    template_fields.push({ api_id: fieldMap.conference_name, value: conference.public_name ?? conference.name });
   }
   if (fieldMap.conference_dates) {
     const dates = conference.date_start
@@ -221,9 +221,9 @@ export async function POST(request: Request) {
   try {
     const doc = await createDocumentFromTemplate({
       template_id: template.id,
-      name: `${conference.name} — ${template.name} — ${company.name}`,
-      subject: body.subject ?? `Participation Agreement — ${conference.name}`,
-      message: body.message ?? `Hi ${signerName.split(" ")[0]},\n\nPlease review and sign the participation agreement for ${conference.name}.\n\nThanks.`,
+      name: `${conference.public_name ?? conference.name} — ${template.name} — ${company.name}`,
+      subject: body.subject ?? `Participation Agreement — ${conference.public_name ?? conference.name}`,
+      message: body.message ?? `Hi ${signerName.split(" ")[0]},\n\nPlease review and sign the participation agreement for ${conference.public_name ?? conference.name}.\n\nThanks.`,
       recipients,
       template_fields,
       draft: false,
@@ -256,9 +256,12 @@ export async function POST(request: Request) {
       console.warn("[signwell/send] post-create getDocument failed:", e);
     }
 
-    // Anything that isn't sent/viewed/pending/completed is suspicious.
+    // SignWell status values are capitalized ("Sent", "Viewed", "Pending",
+    // "Completed", "Draft", "Declined"). Compare case-insensitively so we
+    // don't reject a perfectly-sent doc on a spelling technicality.
+    const normalized = (observedStatus ?? "").toLowerCase();
     const dispatchOK = observedStatus === undefined ||
-      ["sent", "viewed", "pending", "signed", "completed"].includes(observedStatus);
+      ["sent", "viewed", "pending", "signed", "completed"].includes(normalized);
 
     // ---- Persist status ---------------------------------------------------
     const nextStatus = dispatchOK ? "sent" : "not_sent";

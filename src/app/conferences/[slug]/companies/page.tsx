@@ -29,6 +29,7 @@ export default async function CompaniesPage({ params }: { params: Promise<{ slug
     amount_due: Number(c.amount_due), amount_paid: Number(c.amount_paid),
     next_action_date: c.next_action_date, next_action: c.next_action,
     is_tdd_client: c.is_tdd_client,
+    agreement_status: c.agreement_status ?? "not_sent",
   }));
 
   return (
@@ -45,7 +46,10 @@ export default async function CompaniesPage({ params }: { params: Promise<{ slug
             className="px-4 py-2 text-xs font-semibold uppercase tracking-widest2 hover:opacity-90">+ New company</Link>
         )}
       </div>
-      <LeadTable rows={rows} profiles={profiles ?? []} basePath={`/conferences/${slug}/companies`} showPayments={canSeePayments(ctx.effectiveRole)} />
+      <LeadTable rows={rows} profiles={profiles ?? []}
+        basePath={`/conferences/${slug}/companies`}
+        showPayments={canSeePayments(ctx.effectiveRole)}
+        showAgreement />
     </div>
   );
 }

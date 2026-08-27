@@ -37,7 +37,8 @@ export type ConfVisibility = "public" | "private";
 export interface Conference {
   id: string;
   slug: string;
-  name: string;
+  name: string;                    // internal CRM label ("Mining Summit 2026")
+  public_name: string | null;      // recipient-facing name ("Above & Beyond Mining Summit"); falls back to `name`
   date_start: string | null;
   date_end: string | null;
   status: ConfStatus;
