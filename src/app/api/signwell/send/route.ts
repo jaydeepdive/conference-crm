@@ -238,22 +238,32 @@ export async function POST(request: Request) {
 
     // ---- POST-CREATE VERIFICATION -----------------------------------------
     //
-    // SignWell can accept a `create document from template` call and return
-    // 201 even when the resulting document ends up in `draft`, `pending`,
-    // or another non-sent state (typical causes: a placeholder was left
-    // with the same email as the sender, a required field the template
-    // didn't expose was left blank, or the workspace is on a plan tier
-    // that suppresses email delivery). Fetch the doc back once and use its
-    // status as the source of truth for whether we consider this "sent".
-    let verified: Awaited<ReturnType<typeof getTemplate>> extends infer T ? T : never;
+    // SignWell returns 201 immediately after accepting the create-from-
+    // template call, but their internal dispatch pipeline is async — the
+    // doc typically sits in "Draft" for a few hundred ms before flipping
+    // to "Sent" once the email is queued. Retry the status GET with a
+    // short exponential backoff before deciding the doc is truly stuck.
+    //
+    // Real problems (misconfigured template, duplicate signer email, etc.)
+    // stay in Draft indefinitely — 5s is enough to distinguish transient
+    // dispatch-lag from a genuine dispatch failure.
     let observedStatus: string | undefined;
-    try {
-      const check = await import("@/lib/signwell").then(m => m.getDocument(doc.id));
-      observedStatus = check.status;
-      verified = check as never;
-    } catch (e) {
-      // Non-fatal — we still created the doc.
-      console.warn("[signwell/send] post-create getDocument failed:", e);
+    {
+      const { getDocument } = await import("@/lib/signwell");
+      const delays = [400, 800, 1500, 2500];  // ~5.2s total
+      for (let attempt = 0; attempt < delays.length + 1; attempt++) {
+        try {
+          const check = await getDocument(doc.id);
+          observedStatus = check.status;
+          const norm = (observedStatus ?? "").toLowerCase();
+          if (norm !== "draft") break;   // it dispatched — stop polling
+        } catch (e) {
+          console.warn(`[signwell/send] post-create getDocument (attempt ${attempt + 1}) failed:`, e);
+        }
+        if (attempt < delays.length) {
+          await new Promise(r => setTimeout(r, delays[attempt]));
+        }
+      }
     }
 
     // SignWell status values are capitalized ("Sent", "Viewed", "Pending",

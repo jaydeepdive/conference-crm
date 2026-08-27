@@ -101,6 +101,19 @@ export function AgreementPanel({
     router.refresh();
   }
 
+  async function overrideStatus(next: AgreementStatus) {
+    if (!confirm(`Manually mark the agreement as "${STATUS_LABEL[next]}"? Use this when SignWell says one thing and the CRM says another.`)) return;
+    setBusy(true); setError(null);
+    const res = await fetch("/api/signwell/status", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ company_id: company.id, status: next }),
+    });
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) { setError(data.error ?? "Override failed"); return; }
+    router.refresh();
+  }
+
   async function voidAndResend() {
     if (!confirm("Void the existing SignWell document and start over? The signer's link will stop working.")) return;
     setBusy(true); setError(null);
@@ -197,6 +210,30 @@ export function AgreementPanel({
           >
             Send again
           </button>
+        )}
+
+        {/* Manual override — super admin only. Use when SignWell's dispatch-
+            lag racecondition or a missed webhook leaves the CRM out of sync. */}
+        {isSuperAdmin && (
+          <div className="border-t border-gray-100 pt-2">
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-widest2 text-muted">
+              Manual override
+            </label>
+            <select
+              value=""
+              disabled={busy}
+              onChange={e => { if (e.target.value) overrideStatus(e.target.value as AgreementStatus); e.currentTarget.value = ""; }}
+              className="w-full rounded-md border border-gray-300 bg-white px-2 py-1 text-xs disabled:opacity-50"
+            >
+              <option value="">— force status to… —</option>
+              {(Object.keys(STATUS_LABEL) as AgreementStatus[])
+                .filter(s => s !== status)
+                .map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+            </select>
+            <p className="mt-1 text-[10px] text-muted">
+              Doesn&rsquo;t touch SignWell — only updates the CRM record. Logged to Activity.
+            </p>
+          </div>
         )}
       </div>
 
