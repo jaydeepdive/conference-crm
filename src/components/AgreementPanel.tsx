@@ -101,6 +101,21 @@ export function AgreementPanel({
     router.refresh();
   }
 
+  async function refreshFromSignWell() {
+    setBusy(true); setError(null);
+    const res = await fetch("/api/signwell/refresh", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ company_id: company.id }),
+    });
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) {
+      setError(data.error ?? "Refresh failed");
+      return;
+    }
+    router.refresh();
+  }
+
   async function overrideStatus(next: AgreementStatus) {
     if (!confirm(`Manually mark the agreement as "${STATUS_LABEL[next]}"? Use this when SignWell says one thing and the CRM says another.`)) return;
     setBusy(true); setError(null);
@@ -209,6 +224,19 @@ export function AgreementPanel({
             className="w-full px-3 py-2 text-xs font-semibold uppercase tracking-widest2 hover:opacity-90"
           >
             Send again
+          </button>
+        )}
+
+        {/* Pull-based refresh — works for anyone who can see the company,
+            not just super admins. First thing to try when the status looks
+            stale (e.g. you got a SignWell email but the CRM didn't update). */}
+        {company.agreement_document_id && (
+          <button
+            onClick={refreshFromSignWell}
+            disabled={busy}
+            className="w-full border border-gray-300 px-3 py-2 text-xs uppercase tracking-widest2 hover:bg-cream disabled:opacity-50"
+          >
+            {busy ? "Refreshing…" : "↻ Refresh from SignWell"}
           </button>
         )}
 
