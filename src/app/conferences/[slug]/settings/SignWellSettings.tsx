@@ -200,7 +200,16 @@ function TemplateEditor({
       }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `Failed to load template (${res.status})`);
-      setLoaded(data.template);
+      const tpl = data.template as LoadedTemplate;
+      setLoaded(tpl);
+      // If the currently-configured signer placeholder doesn't match any of
+      // the template's real placeholders, auto-pick the first one so the
+      // send route doesn't blow up with an "unexisting_placeholder_name"
+      // error later. Silently correct instead of leaving a broken config.
+      const validNames = tpl.placeholders.map(p => p.name);
+      if (!validNames.includes(value.placeholder_signer) && validNames.length > 0) {
+        onChange({ placeholder_signer: validNames[0] });
+      }
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : String(e));
       setLoaded(null);

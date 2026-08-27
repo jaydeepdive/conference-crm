@@ -150,29 +150,68 @@ export async function POST(request: Request) {
     }, { status: 500 });
   }
 
-  const signerPlaceholder = template.placeholder_signer ?? "Signer 1";
+  // Resolve which template placeholder is the signer:
+  //   * Prefer the operator's configured placeholder if it matches a real one.
+  //   * Otherwise fall back to the first placeholder (better than 400'ing).
+  //   * Never invent a placeholder that isn't in the template — SignWell
+  //     rejects those with "unexisting_placeholder_name".
+  let signerPlaceholder = template.placeholder_signer;
+  if (!templatePlaceholders.includes(signerPlaceholder)) {
+    if (templatePlaceholders.length === 0) {
+      return NextResponse.json({
+        error: `Template "${template.name}" has no placeholders defined in SignWell. Nothing to send.`,
+      }, { status: 400 });
+    }
+    signerPlaceholder = templatePlaceholders[0];
+  }
 
+  // Build recipients. Rules:
+  //   * Signer placeholder → the company contact (signer name/email).
+  //   * Every other placeholder → the CRM operator (sender).
+  //   * SignWell 400s on duplicate emails across recipients, so if a second
+  //     non-signer placeholder would end up with the operator's email,
+  //     skip it. The doc still sends; that placeholder just stays unfilled
+  //     (SignWell will treat it as pre-signed or leave it blank per template
+  //     defaults). Better than failing to send at all.
   const recipients: Array<{ id: number; placeholder_name: string; name: string; email: string }> = [];
+  const usedEmails = new Set<string>();
   let recipientCounter = 0;
   const seen = new Set<string>();
+  const skippedPlaceholders: string[] = [];
   for (const ph of templatePlaceholders) {
     if (seen.has(ph)) continue;
     seen.add(ph);
-    recipientCounter += 1;
-    if (ph === signerPlaceholder) {
-      recipients.push({ id: recipientCounter, placeholder_name: ph, name: signerName, email: signerEmail });
-    } else {
-      if (!senderEmail) {
+
+    const isSigner = ph === signerPlaceholder;
+    const nm = isSigner ? signerName : senderName;
+    const em = (isSigner ? signerEmail : senderEmail).toLowerCase();
+
+    if (!em) {
+      if (isSigner) {
         return NextResponse.json({
-          error: `SignWell placeholder "${ph}" needs to be filled with the CRM operator, but your profile doesn't have an email on file. Update your profile first.`,
+          error: `Signer email is required for placeholder "${ph}".`,
         }, { status: 400 });
       }
-      recipients.push({ id: recipientCounter, placeholder_name: ph, name: senderName, email: senderEmail });
+      // Non-signer placeholder and we don't have a sender email — skip.
+      skippedPlaceholders.push(ph);
+      continue;
     }
-  }
-  if (!seen.has(signerPlaceholder)) {
+
+    if (usedEmails.has(em)) {
+      // Duplicate would break SignWell — skip and log.
+      skippedPlaceholders.push(ph);
+      continue;
+    }
+
     recipientCounter += 1;
-    recipients.push({ id: recipientCounter, placeholder_name: signerPlaceholder, name: signerName, email: signerEmail });
+    recipients.push({ id: recipientCounter, placeholder_name: ph, name: nm, email: isSigner ? signerEmail : senderEmail });
+    usedEmails.add(em);
+  }
+
+  if (recipients.length === 0) {
+    return NextResponse.json({
+      error: `No usable recipients — all of template "${template.name}"'s placeholders were either duplicates or missing an email.`,
+    }, { status: 400 });
   }
 
   // Force test_mode off in production. In dev / preview it defaults to true
@@ -255,6 +294,7 @@ export async function POST(request: Request) {
       template_name: template.name,
       test_mode: testMode,
       recipients: recipients.map(r => ({ ph: r.placeholder_name, email: r.email })),
+      skipped_placeholders: skippedPlaceholders,
       template_fields_count: template_fields.length,
       doc_id: doc.id,
       observed_status: observedStatus,
