@@ -47,6 +47,9 @@ export async function updateSession(request: NextRequest) {
     // or (for webhooks) via signature verification / metadata routing.
     || path.startsWith("/api/intake")
     || path === "/api/signwell/webhook"
+    // Vercel cron pings this without a user session; the route enforces
+    // a CRON_SECRET Bearer check itself.
+    || path === "/api/signwell/refresh-all"
     // Invite-accept flow is pre-auth (the whole point is to create the user).
     || path === "/api/portal/accept"
     || path.startsWith("/api/portal/invites/preview");

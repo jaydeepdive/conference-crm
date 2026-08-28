@@ -3,6 +3,7 @@ import { requireConferenceAccess } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { LeadTable } from "@/components/LeadTable";
 import { AutoTddSync } from "@/components/AutoTddSync";
+import { AutoAgreementSync } from "@/components/AutoAgreementSync";
 import { canSeePayments, canEditLeads } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -14,12 +15,16 @@ export default async function CompaniesPage({ params }: { params: Promise<{ slug
 
   const staleCutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
-  const [{ data: companies }, { data: profiles }, { count: needsSyncCount }] = await Promise.all([
+  const [{ data: companies }, { data: profiles }, { count: needsSyncCount }, { count: inFlightAgreementCount }] = await Promise.all([
     supabase.from("companies").select("*").eq("conference_id", ctx.conference.id).order("updated_at", { ascending: false }),
     supabase.from("profiles").select("*"),
     supabase.from("companies").select("*", { count: "exact", head: true })
       .eq("conference_id", ctx.conference.id)
       .or(`tdd_last_checked_at.is.null,and(is_tdd_client.eq.false,tdd_last_checked_at.lt.${staleCutoff})`),
+    supabase.from("companies").select("*", { count: "exact", head: true })
+      .eq("conference_id", ctx.conference.id)
+      .not("agreement_document_id", "is", null)
+      .in("agreement_status", ["sent", "viewed"]),
   ]);
 
   const rows = (companies ?? []).map(c => ({
@@ -38,7 +43,10 @@ export default async function CompaniesPage({ params }: { params: Promise<{ slug
         <div>
           <h1 className="font-display text-[32px] font-bold leading-none text-ink">Companies</h1>
           <p className="mt-2 text-sm text-muted">{rows.length} leads</p>
-          <div className="mt-2"><AutoTddSync conferenceId={ctx.conference.id} uncheckedCount={needsSyncCount ?? 0} /></div>
+          <div className="mt-2 flex flex-col gap-1">
+            <AutoTddSync conferenceId={ctx.conference.id} uncheckedCount={needsSyncCount ?? 0} />
+            <AutoAgreementSync conferenceId={ctx.conference.id} inFlightCount={inFlightAgreementCount ?? 0} />
+          </div>
         </div>
         {canEditLeads(ctx.effectiveRole) && (
           <Link href={`/conferences/${slug}/companies/new`}

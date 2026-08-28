@@ -51,22 +51,51 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `SignWell: ${e instanceof Error ? e.message : String(e)}` }, { status });
   }
 
-  // Map SignWell status (case-insensitive) → CRM status.
-  const raw = (doc.status ?? "").toLowerCase();
+  // Log the whole SignWell doc so we can debug status mismatches from
+  // Vercel logs without guessing. Only the fields that matter are logged.
+  console.log("[signwell/refresh]", JSON.stringify({
+    doc_id: doc.id,
+    doc_status: doc.status,
+    recipients: (doc.recipients ?? []).map(r => ({
+      email: r.email, status: r.status, placeholder: r.placeholder_name,
+    })),
+  }));
+
+  // ---- Combine document + recipient statuses ----------------------------
+  //
+  // SignWell's doc.status is the OVERALL state ("Sent", "Outstanding",
+  // "Completed"). But per-recipient statuses tell us who has viewed or
+  // signed. A single recipient viewing does NOT bump doc.status from "Sent"
+  // to "Viewed" — that only happens once everyone required has viewed.
+  //
+  // So we combine: use doc.status for terminal states (Completed, Declined,
+  // etc.), but check recipient statuses to detect earlier progress like
+  // "at least one recipient has viewed" or "some recipients have signed".
+  const rawDoc = (doc.status ?? "").toLowerCase();
+  const recipientStatuses = (doc.recipients ?? [])
+    .map(r => (r.status ?? "").toLowerCase())
+    .filter(Boolean);
+  const anyRecipient = (needle: string) => recipientStatuses.some(s => s.includes(needle));
+
   const nextStatus =
-    raw === "completed" || raw === "signed" ? "signed" :
-    raw === "declined" ? "declined" :
-    raw === "expired" ? "expired" :
-    raw === "canceled" || raw === "cancelled" || raw === "deleted" ? "voided" :
-    raw === "viewed" ? "viewed" :
-    raw === "sent" || raw === "pending" ? "sent" :
-    raw === "draft" ? "not_sent" :
+    rawDoc === "completed" || rawDoc === "signed" ? "signed" :
+    rawDoc === "declined" || anyRecipient("declined") ? "declined" :
+    rawDoc === "expired"  ? "expired" :
+    rawDoc === "canceled" || rawDoc === "cancelled" || rawDoc === "deleted" ? "voided" :
+    // If any recipient viewed the doc, surface Viewed — even if the doc-
+    // level status is still "Sent" / "Outstanding" waiting on other signers.
+    anyRecipient("signed")    ? "signed"   :  // one signer done — treat as signed
+    anyRecipient("viewed")    ? "viewed"   :
+    rawDoc === "viewed"       ? "viewed"   :
+    rawDoc === "sent" || rawDoc === "pending" || rawDoc === "outstanding" ? "sent" :
+    rawDoc === "draft" ? "not_sent" :
     null;
 
   if (!nextStatus) {
     return NextResponse.json({
-      error: `SignWell reported an unrecognized status: "${doc.status}". Nothing was changed.`,
+      error: `SignWell reported an unrecognized document status: "${doc.status}". Recipient statuses: ${recipientStatuses.join(", ") || "none"}. Nothing was changed.`,
       signwell_status: doc.status,
+      signwell_recipients: doc.recipients,
     }, { status: 502 });
   }
 
@@ -97,6 +126,9 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     signwell_status: doc.status,
+    signwell_recipients: (doc.recipients ?? []).map(r => ({
+      email: r.email, status: r.status, placeholder: r.placeholder_name,
+    })),
     previous: company.agreement_status,
     current: nextStatus,
     changed: nextStatus !== company.agreement_status,

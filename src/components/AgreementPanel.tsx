@@ -101,8 +101,9 @@ export function AgreementPanel({
     router.refresh();
   }
 
+  const [refreshInfo, setRefreshInfo] = useState<string | null>(null);
   async function refreshFromSignWell() {
-    setBusy(true); setError(null);
+    setBusy(true); setError(null); setRefreshInfo(null);
     const res = await fetch("/api/signwell/refresh", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ company_id: company.id }),
@@ -110,9 +111,21 @@ export function AgreementPanel({
     const data = await res.json();
     setBusy(false);
     if (!res.ok) {
-      setError(data.error ?? "Refresh failed");
+      // Include SignWell's raw status + recipient statuses if available.
+      const bits: string[] = [data.error ?? "Refresh failed"];
+      if (data.signwell_status) bits.push(`SignWell doc: ${data.signwell_status}`);
+      if (Array.isArray(data.signwell_recipients) && data.signwell_recipients.length > 0) {
+        bits.push(`Recipients: ${data.signwell_recipients.map((r: { email?: string; status?: string }) => `${r.email}=${r.status}`).join(", ")}`);
+      }
+      setError(bits.join(" · "));
       return;
     }
+    const recipientPart = Array.isArray(data.signwell_recipients) && data.signwell_recipients.length > 0
+      ? ` · Recipients: ${data.signwell_recipients.map((r: { email?: string; status?: string }) => `${r.email}=${r.status ?? "?"}`).join(", ")}`
+      : "";
+    setRefreshInfo(
+      `SignWell doc: ${data.signwell_status}${recipientPart}. CRM ${data.changed ? `→ ${data.current}` : `unchanged (${data.current})`}.`
+    );
     router.refresh();
   }
 
@@ -231,13 +244,20 @@ export function AgreementPanel({
             not just super admins. First thing to try when the status looks
             stale (e.g. you got a SignWell email but the CRM didn't update). */}
         {company.agreement_document_id && (
-          <button
-            onClick={refreshFromSignWell}
-            disabled={busy}
-            className="w-full border border-gray-300 px-3 py-2 text-xs uppercase tracking-widest2 hover:bg-cream disabled:opacity-50"
-          >
-            {busy ? "Refreshing…" : "↻ Refresh from SignWell"}
-          </button>
+          <div className="space-y-1">
+            <button
+              onClick={refreshFromSignWell}
+              disabled={busy}
+              className="w-full border border-gray-300 px-3 py-2 text-xs uppercase tracking-widest2 hover:bg-cream disabled:opacity-50"
+            >
+              {busy ? "Refreshing…" : "↻ Refresh from SignWell"}
+            </button>
+            {refreshInfo && (
+              <p className="rounded-md border border-emerald-200 bg-emerald-50 p-2 text-[11px] leading-relaxed text-emerald-900">
+                {refreshInfo}
+              </p>
+            )}
+          </div>
         )}
 
         {/* Manual override — super admin only. Use when SignWell's dispatch-
