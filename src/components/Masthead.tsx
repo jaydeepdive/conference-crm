@@ -4,6 +4,7 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import type { Profile } from "@/lib/types";
+import { APP_VERSION } from "@/lib/version";
 
 const TDD_LOGO = "https://thedeepdive.ca/wp-content/uploads/2025/04/thedeepdive_full.png";
 
@@ -45,7 +46,7 @@ export function Masthead({
             {showAdminLink && profile.is_super_admin && (
               <Link href="/admin" className="text-brand-accent hover:underline">Admin</Link>
             )}
-            <span>Mining Summit CRM · internal</span>
+            <span>Mining Summit CRM · internal · {APP_VERSION}</span>
           </span>
         </div>
       </div>
