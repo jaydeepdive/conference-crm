@@ -235,9 +235,12 @@ export function AgreementPanel({
         )}
 
         {/* Send a reminder — anyone with access, no super admin required.
-            Available while the agreement is in-flight. Doesn't touch the
-            existing document. */}
-        {(status === "sent" || status === "viewed") && !showPrep && (
+            Shown whenever a SignWell document exists (i.e. an agreement has
+            been sent at least once). The API refuses gracefully when the doc
+            is already signed / declined / voided / expired, so it's fine to
+            surface the button unconditionally rather than hide it based on
+            possibly-stale CRM status. */}
+        {company.agreement_document_id && !showPrep && (
           <button
             onClick={sendReminder}
             disabled={busy}
