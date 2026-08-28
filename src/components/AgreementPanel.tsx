@@ -102,6 +102,20 @@ export function AgreementPanel({
   }
 
   const [refreshInfo, setRefreshInfo] = useState<string | null>(null);
+  async function sendReminder() {
+    if (!confirm(`Send a SignWell reminder to ${company.agreement_signer_email ?? "the signer"}? The existing document + signing link stay unchanged.`)) return;
+    setBusy(true); setError(null);
+    const res = await fetch("/api/signwell/remind", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ company_id: company.id }),
+    });
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) { setError(data.error ?? "Reminder failed"); return; }
+    setRefreshInfo("Reminder email sent via SignWell.");
+    router.refresh();
+  }
+
   async function refreshFromSignWell() {
     setBusy(true); setError(null); setRefreshInfo(null);
     const res = await fetch("/api/signwell/refresh", {
@@ -220,6 +234,21 @@ export function AgreementPanel({
           </a>
         )}
 
+        {/* Send a reminder — anyone with access, no super admin required.
+            Available while the agreement is in-flight. Doesn't touch the
+            existing document. */}
+        {(status === "sent" || status === "viewed") && !showPrep && (
+          <button
+            onClick={sendReminder}
+            disabled={busy}
+            style={{ backgroundColor: "#C8102E", color: "#FFFFFF" }}
+            className="w-full px-3 py-2 text-xs font-semibold uppercase tracking-widest2 hover:opacity-90 disabled:opacity-50"
+          >
+            {busy ? "Working…" : "Send reminder"}
+          </button>
+        )}
+
+        {/* Void + start over — nuclear option, super admin only. */}
         {(status === "sent" || status === "viewed" || status === "signed") && isSuperAdmin && !showPrep && (
           <button
             onClick={voidAndResend}

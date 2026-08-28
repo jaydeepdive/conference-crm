@@ -256,6 +256,17 @@ export async function deleteDocument(documentId: string): Promise<void> {
   await call("DELETE", `/documents/${encodeURIComponent(documentId)}`);
 }
 
+/**
+ * Re-send the signing email to any recipients who haven't signed yet.
+ * Doesn't create a new document or invalidate existing links — same doc,
+ * same signing URL, fresh email nudge.
+ *
+ * SignWell endpoint: POST /documents/{id}/remind
+ */
+export async function sendReminder(documentId: string): Promise<void> {
+  await call("POST", `/documents/${encodeURIComponent(documentId)}/remind`, {});
+}
+
 // ---------------------------------------------------------------------------
 // Webhook payload → normalized status
 // ---------------------------------------------------------------------------
