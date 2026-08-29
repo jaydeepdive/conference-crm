@@ -1,17 +1,47 @@
-import { renderToBuffer, Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { renderToBuffer, Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
 import React from "react";
 
+// ---------------------------------------------------------------------------
+// Font registration.
+//
+// @react-pdf/renderer ships with "Helvetica" as a built-in Standard-14 font,
+// but on Vercel's serverless runtime the AFM metric files for those built-in
+// fonts don't always get bundled with the deployed function. Result: at
+// PDF-render time the textkit layer looks up the font descriptor, gets
+// `undefined`, and blows up with
+//   `Cannot read properties of undefined (reading 'unitsPerEm')`.
+//
+// Fix: explicitly register a real TTF from a reliable CDN. We use Roboto
+// (metrically compatible with Helvetica for our purposes). Registered once
+// at module load — subsequent renders reuse the cached font.
+//
+// The @fontsource CDN paths served by jsDelivr are stable and CORS-safe;
+// they've been in production use for @react-pdf/renderer workarounds since
+// v3. Fallback network hiccups will still surface via the /api/invoices/pdf
+// try/catch as a clear error rather than a silent hang.
+//
+// Also disable hyphenation, which is another common source of textkit-layer
+// crashes when a word can't be split cleanly.
+Font.register({
+  family: "Roboto",
+  fonts: [
+    { src: "https://cdn.jsdelivr.net/npm/@fontsource/roboto@5.0.13/files/roboto-latin-400-normal.ttf", fontWeight: 400 },
+    { src: "https://cdn.jsdelivr.net/npm/@fontsource/roboto@5.0.13/files/roboto-latin-700-normal.ttf", fontWeight: 700 },
+  ],
+});
+Font.registerHyphenationCallback(word => [word]);
+
 const styles = StyleSheet.create({
-  page: { padding: 48, fontSize: 10, fontFamily: "Helvetica", color: "#0E0E0E" },
+  page: { padding: 48, fontSize: 10, fontFamily: "Roboto", color: "#0E0E0E" },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 32 },
-  brand: { fontSize: 20, fontFamily: "Helvetica-Bold", letterSpacing: 0.5 },
+  brand: { fontSize: 20, fontFamily: "Roboto", fontWeight: 700, letterSpacing: 0.5 },
   brandSub: { fontSize: 9, color: "#666", marginTop: 4 },
   brandAddressLine: { fontSize: 9, color: "#444", marginTop: 2 },
   invoiceMeta: { textAlign: "right", fontSize: 10 },
-  invoiceNumber: { fontSize: 18, fontFamily: "Helvetica-Bold" },
+  invoiceNumber: { fontSize: 18, fontFamily: "Roboto", fontWeight: 700 },
   section: { marginBottom: 18 },
   sectionLabel: { fontSize: 8, color: "#666", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 },
-  to: { fontSize: 11, fontFamily: "Helvetica-Bold" },
+  to: { fontSize: 11, fontFamily: "Roboto", fontWeight: 700 },
   toLine: { marginTop: 2 },
   table: { borderTop: "1pt solid #0E0E0E", borderBottom: "1pt solid #0E0E0E", marginTop: 12 },
   tableHeader: { flexDirection: "row", paddingVertical: 6, borderBottom: "0.5pt solid #999", fontSize: 8, color: "#666", textTransform: "uppercase", letterSpacing: 1 },
@@ -26,8 +56,8 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 10 },
   totalValue: { fontSize: 10, textAlign: "right" },
   grandRow: { borderTop: "1pt solid #0E0E0E", paddingTop: 6, marginTop: 6 },
-  grandLabel: { fontSize: 12, fontFamily: "Helvetica-Bold" },
-  grandValue: { fontSize: 12, fontFamily: "Helvetica-Bold", textAlign: "right" },
+  grandLabel: { fontSize: 12, fontFamily: "Roboto", fontWeight: 700 },
+  grandValue: { fontSize: 12, fontFamily: "Roboto", fontWeight: 700, textAlign: "right" },
   payBlock: { marginTop: 22, padding: 12, backgroundColor: "#F5F5F5", border: "0.5pt solid #ddd" },
   payLine: { marginTop: 2, fontSize: 10 },
   footer: { marginTop: 22, paddingTop: 14, borderTop: "0.5pt solid #ddd", fontSize: 8, color: "#666" },
