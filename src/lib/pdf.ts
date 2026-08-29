@@ -201,7 +201,9 @@ export async function renderInvoicePdf(args: InvoicePdfArgs): Promise<Buffer> {
 }
 
 function fmt(n: number, currency: string): string {
-  return `${currency} ${n.toFixed(2)}`;
+  // Thousand separators on all money on the invoice — line items, subtotals,
+  // discounts, taxes, totals. Always 2 decimal places so cents line up.
+  return `${currency} ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** HTML invoice for the email body (renders inline in Gmail/Outlook). */
