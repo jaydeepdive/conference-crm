@@ -21,16 +21,22 @@ import path from "node:path";
 // function that touches /api/**, so fs.readFileSync always finds them.
 //
 // Font data is read once at module init and cached in memory.
-function loadFont(filename: string): Buffer {
+function loadFontAsDataUrl(filename: string): string {
   // process.cwd() is the project root in Node runtime — /var/task on Vercel.
-  return fs.readFileSync(path.join(process.cwd(), "public", "fonts", filename));
+  // @react-pdf's Font.register src field only accepts strings (URLs or data
+  // URLs) — passing a Buffer trips `isDataUrl(src).split(...)`. So we read
+  // the TTF once at module init and inline it as a base64 data URL. Adds
+  // ~30% to the string size but is decoded once and cached in memory across
+  // renders. Total for Regular + Bold is ~420 KB in RAM — fine.
+  const buf = fs.readFileSync(path.join(process.cwd(), "public", "fonts", filename));
+  return `data:font/ttf;base64,${buf.toString("base64")}`;
 }
 
 Font.register({
   family: "Roboto",
   fonts: [
-    { src: loadFont("Roboto-Regular.ttf") as unknown as string, fontWeight: 400 },
-    { src: loadFont("Roboto-Bold.ttf")    as unknown as string, fontWeight: 700 },
+    { src: loadFontAsDataUrl("Roboto-Regular.ttf"), fontWeight: 400 },
+    { src: loadFontAsDataUrl("Roboto-Bold.ttf"),    fontWeight: 700 },
   ],
 });
 // Also disable hyphenation — another common textkit crash source.
