@@ -1,34 +1,39 @@
 import { renderToBuffer, Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
 import React from "react";
+import fs from "node:fs";
+import path from "node:path";
 
 // ---------------------------------------------------------------------------
 // Font registration.
 //
 // @react-pdf/renderer ships with "Helvetica" as a built-in Standard-14 font,
 // but on Vercel's serverless runtime the AFM metric files for those built-in
-// fonts don't always get bundled with the deployed function. Result: at
-// PDF-render time the textkit layer looks up the font descriptor, gets
-// `undefined`, and blows up with
+// fonts don't always get bundled with the deployed function — the textkit
+// layer then blows up with:
 //   `Cannot read properties of undefined (reading 'unitsPerEm')`.
 //
-// Fix: explicitly register a real TTF from a reliable CDN. We use Roboto
-// (metrically compatible with Helvetica for our purposes). Registered once
-// at module load — subsequent renders reuse the cached font.
+// CDN-hosted TTFs were unreliable (jsdelivr's @fontsource package only ships
+// woff/woff2, not TTF, and fontkit rejects those as "Unknown font format").
 //
-// The @fontsource CDN paths served by jsDelivr are stable and CORS-safe;
-// they've been in production use for @react-pdf/renderer workarounds since
-// v3. Fallback network hiccups will still surface via the /api/invoices/pdf
-// try/catch as a clear error rather than a silent hang.
+// So we bundle Roboto Regular + Bold as TTF files inside /public/fonts/ and
+// load them from the local filesystem at PDF-render time. next.config.mjs's
+// `outputFileTracingIncludes` ensures they're packed into every serverless
+// function that touches /api/**, so fs.readFileSync always finds them.
 //
-// Also disable hyphenation, which is another common source of textkit-layer
-// crashes when a word can't be split cleanly.
+// Font data is read once at module init and cached in memory.
+function loadFont(filename: string): Buffer {
+  // process.cwd() is the project root in Node runtime — /var/task on Vercel.
+  return fs.readFileSync(path.join(process.cwd(), "public", "fonts", filename));
+}
+
 Font.register({
   family: "Roboto",
   fonts: [
-    { src: "https://cdn.jsdelivr.net/npm/@fontsource/roboto@5.0.13/files/roboto-latin-400-normal.ttf", fontWeight: 400 },
-    { src: "https://cdn.jsdelivr.net/npm/@fontsource/roboto@5.0.13/files/roboto-latin-700-normal.ttf", fontWeight: 700 },
+    { src: loadFont("Roboto-Regular.ttf") as unknown as string, fontWeight: 400 },
+    { src: loadFont("Roboto-Bold.ttf")    as unknown as string, fontWeight: 700 },
   ],
 });
+// Also disable hyphenation — another common textkit crash source.
 Font.registerHyphenationCallback(word => [word]);
 
 const styles = StyleSheet.create({
