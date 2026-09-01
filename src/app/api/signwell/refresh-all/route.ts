@@ -123,11 +123,13 @@ export async function POST(request: Request) {
         continue;
       }
 
-      if (nextStatus === row.agreement_status) {
-        result.current = nextStatus;
-        results.push(result);
-        continue;
-      }
+      // NOTE: we deliberately do NOT `continue` when nextStatus matches the
+      // CRM's current agreement_status. The stage-promotion side effect
+      // (signed → registered) must still fire for pre-existing signed rows
+      // whose stage never got bumped, and any timestamp backfill below
+      // needs to run too. The DB trigger from 0017 handles most of this
+      // now, but the redundant write is cheap and keeps the code self-
+      // healing if the trigger ever regresses.
 
       // Backfill missing timestamps so history reads cleanly.
       const now = new Date().toISOString();
