@@ -119,6 +119,11 @@ export async function POST(request: Request) {
   if ((nextStatus === "signed"  || matchesEvent(eventType, "completed") || matchesEvent(eventType, "signed"))) patch.agreement_completed_at = now;
   if ((nextStatus === "declined" || matchesEvent(eventType, "declined"))) patch.agreement_declined_at = now;
 
+  // Once the agreement is fully signed, move the lead into the "registered"
+  // stage — no reason to keep them in Pending Approval / Verbal Commit /
+  // etc once they've put pen to paper. Only bump forward, never backward.
+  if (nextStatus === "signed") patch.stage = "registered";
+
   if (matchesEvent(eventType, "completed")) {
     try {
       const full = await getDocument(documentId);

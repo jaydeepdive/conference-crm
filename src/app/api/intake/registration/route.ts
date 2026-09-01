@@ -8,20 +8,51 @@ interface Guest { name?: string; email?: string }
 
 interface RegistrationPayload {
   type?: "investor" | "company";
-  name?: string;                 // contact's full name
+  // Contact name — accept a bunch of aliases because different signup forms
+  // use different field names, and dropping the name to "(no name)" is worse
+  // than any inconsistency.
+  name?: string;
+  full_name?: string;
+  contact_name?: string;
+  first_name?: string;
+  last_name?: string;
   email?: string;
   phone?: string;
-  organization?: string;         // firm (investor) or company name
+  // Organization — same story. `firm_name` for investors, `company_name` for
+  // companies, `company` as a generic fallback.
+  organization?: string;
+  firm_name?: string;
+  firm?: string;
+  company_name?: string;
+  company?: string;
   ticker?: string;
-  stage?: string;                // market stage — Explorer, Producer, etc. (company only)
-  title?: string;                // contact's title
+  stage?: string;
+  title?: string;
   commodities?: string[];
   guests?: Guest[];
   special_requests?: string;
   extras?: Record<string, unknown>;
   source?: string;
   submitted_at?: string;
-  conference_id?: string;        // slug — required unless passed as query param
+  conference_id?: string;
+}
+
+/** Pull the contact person's name from whichever field the caller used. */
+function extractContactName(body: RegistrationPayload): string {
+  const first = (body.first_name ?? "").trim();
+  const last  = (body.last_name  ?? "").trim();
+  if (first || last) return `${first} ${last}`.trim();
+  return (body.name ?? body.full_name ?? body.contact_name ?? "").trim();
+}
+
+/** Pull the company/firm name from whichever field the caller used. Falls
+ *  back to the contact name so a row never lands with "(no name)". */
+function extractOrgName(body: RegistrationPayload, contactName: string): string {
+  const org = (
+    body.organization ?? body.firm_name ?? body.firm ??
+    body.company_name ?? body.company ?? ""
+  ).trim();
+  return org || contactName;
 }
 
 /**
@@ -49,15 +80,24 @@ export async function POST(request: Request) {
   if (incomingKey !== expected) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // ---- Parse + validate ----
+  const rawText = await request.text();
+  // Log every intake body to Vercel so silent misses (e.g. names not landing)
+  // can be traced back to the actual payload. Truncated to 2 KB.
+  console.log("[intake/registration] raw:", rawText.slice(0, 2000));
+
   let body: RegistrationPayload;
-  try { body = await request.json(); }
+  try { body = JSON.parse(rawText); }
   catch { return NextResponse.json({ error: "Body must be valid JSON" }, { status: 400 }); }
 
   if (!body.type || !["company", "investor"].includes(body.type)) {
     return NextResponse.json({ error: "type must be 'company' or 'investor'" }, { status: 400 });
   }
-  if (!body.email && !body.organization) {
-    return NextResponse.json({ error: "Either email or organization is required" }, { status: 400 });
+
+  const contactName = extractContactName(body);
+  const orgName     = extractOrgName(body, contactName);
+
+  if (!body.email && !orgName) {
+    return NextResponse.json({ error: "Either email, name, or organization is required" }, { status: 400 });
   }
 
   const { searchParams } = new URL(request.url);
@@ -102,7 +142,6 @@ export async function POST(request: Request) {
   // ---- Look for an existing lead (email or org match within this conference) ----
   const table = body.type === "company" ? "companies" : "investors";
   const nameField = body.type === "company" ? "name" : "firm_name";
-  const orgName = (body.organization ?? body.name ?? "").trim();
 
   let existing: { id: string } | null = null;
   if (body.email) {
@@ -118,8 +157,8 @@ export async function POST(request: Request) {
 
   // ---- Build the payload for insert/update ----
   const fields: Record<string, unknown> = {
-    [nameField]: orgName,
-    contact_name: body.name ?? null,
+    [nameField]: orgName || null,
+    contact_name: contactName || null,
     contact_title: body.title ?? null,
     email: body.email ?? null,
     phone: body.phone ?? null,

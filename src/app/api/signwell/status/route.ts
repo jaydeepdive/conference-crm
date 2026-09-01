@@ -59,6 +59,9 @@ export async function POST(request: Request) {
     patch.agreement_completed_at = null;
     patch.agreement_declined_at = null;
   }
+  // Fully-signed → move lead to Registered stage (also fires on the manual
+  // override path so operator-corrected signed rows land in the right stage).
+  if (next === "signed") patch.stage = "registered";
 
   const { error: upErr } = await admin.from("companies").update(patch).eq("id", company.id);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });

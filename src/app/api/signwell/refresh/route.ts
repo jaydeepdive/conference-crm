@@ -106,6 +106,8 @@ export async function POST(request: Request) {
   if (nextStatus === "viewed"   && !company.agreement_viewed_at)    patch.agreement_viewed_at = now;
   if (nextStatus === "signed"   && !company.agreement_completed_at) patch.agreement_completed_at = now;
   if (nextStatus === "declined" && !company.agreement_declined_at)  patch.agreement_declined_at = now;
+  // Fully-signed → move lead to Registered stage.
+  if (nextStatus === "signed") patch.stage = "registered";
 
   const { error: upErr } = await admin.from("companies").update(patch).eq("id", company.id);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
