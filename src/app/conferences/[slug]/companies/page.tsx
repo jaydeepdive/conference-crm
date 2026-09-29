@@ -57,7 +57,9 @@ export default async function CompaniesPage({ params }: { params: Promise<{ slug
       <LeadTable rows={rows} profiles={profiles ?? []}
         basePath={`/conferences/${slug}/companies`}
         showPayments={canSeePayments(ctx.effectiveRole)}
-        showAgreement />
+        showAgreement
+        leadType="company"
+        canBulkDelete={ctx.effectiveRole === "super_admin"} />
     </div>
   );
 }

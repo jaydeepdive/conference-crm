@@ -45,7 +45,11 @@ export default async function InvestorsPage({ params }: { params: Promise<{ slug
             className="px-4 py-2 text-xs font-semibold uppercase tracking-widest2 hover:opacity-90">+ New investor</Link>
         )}
       </div>
-      <LeadTable rows={rows} profiles={profiles ?? []} basePath={`/conferences/${slug}/investors`} showPayments={canSeePayments(ctx.effectiveRole)} />
+      <LeadTable rows={rows} profiles={profiles ?? []}
+        basePath={`/conferences/${slug}/investors`}
+        showPayments={canSeePayments(ctx.effectiveRole)}
+        leadType="investor"
+        canBulkDelete={ctx.effectiveRole === "super_admin"} />
     </div>
   );
 }

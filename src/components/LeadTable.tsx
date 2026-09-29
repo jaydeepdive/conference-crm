@@ -1,5 +1,6 @@
 "use client";
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { StageBadge, ConfirmedBadge, PaymentBadge } from "./StageBadge";
 import { TddBadge } from "./TddBadge";
@@ -61,17 +62,25 @@ const AGREEMENT_STYLE: Record<AgreementStatus, string> = {
   expired:  "bg-rose-100 text-rose-800",
 };
 
-export function LeadTable({ rows, profiles, basePath, showPayments = true, showAgreement = false }: {
+export function LeadTable({ rows, profiles, basePath, showPayments = true, showAgreement = false, leadType, canBulkDelete = false }: {
   rows: Row[]; profiles: Profile[]; basePath: string;
   showPayments?: boolean;
   /** Companies list only — surfaces the SignWell participation-agreement status. */
   showAgreement?: boolean;
+  /** "company" | "investor" — enables bulk-delete API calls. */
+  leadType?: "company" | "investor";
+  /** Show checkbox column + bulk action bar. Super admin only. */
+  canBulkDelete?: boolean;
 }) {
+  const router = useRouter();
   const [stageFilter, setStageFilter] = useState<Stage | "all">("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey | null>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   const ownerNameOf = (id: string | null) => {
     if (!id) return "";
@@ -137,6 +146,38 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true, showA
   const isOverdue = (d: string | null, s: Stage) =>
     d && new Date(d) < new Date() && s !== "registered" && s !== "declined";
 
+  // Bulk-selection helpers. Selection state is by row id; filtering /
+  // sorting doesn't lose it, so you can multi-select across searches.
+  const visibleIds = sorted.map(r => r.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every(id => selected.has(id));
+  function toggleOne(id: string) {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelected(next);
+  }
+  function toggleAllVisible() {
+    const next = new Set(selected);
+    if (allVisibleSelected) visibleIds.forEach(id => next.delete(id));
+    else visibleIds.forEach(id => next.add(id));
+    setSelected(next);
+  }
+  function clearSelection() { setSelected(new Set()); }
+
+  async function bulkDelete() {
+    if (!leadType || selected.size === 0) return;
+    if (!confirm(`Permanently delete ${selected.size} ${leadType}${selected.size === 1 ? "" : "s"}? This also removes their invoices, notes, comps, activity, attendee invites, and meetings. Cannot be undone.`)) return;
+    setBulkBusy(true); setBulkError(null);
+    const res = await fetch("/api/admin/leads/bulk-delete", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lead_type: leadType, ids: Array.from(selected) }),
+    });
+    const data = await res.json();
+    setBulkBusy(false);
+    if (!res.ok) { setBulkError(data.error ?? "Bulk delete failed"); return; }
+    clearSelection();
+    router.refresh();
+  }
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -161,10 +202,46 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true, showA
         <div className="ml-auto text-xs text-gray-500">{sorted.length} of {rows.length}</div>
       </div>
 
+      {/* Bulk action bar — only visible when at least one row is selected. */}
+      {canBulkDelete && selected.size > 0 && (
+        <div className="flex items-center justify-between rounded-md border border-brand-accent/40 bg-brand-accent/5 px-3 py-2 text-sm">
+          <div>
+            <strong>{selected.size}</strong> selected
+            {bulkError && <span className="ml-3 text-rose-700 text-xs">· {bulkError}</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={clearSelection}
+              className="text-xs text-gray-600 underline hover:text-gray-900"
+            >
+              Clear
+            </button>
+            <button
+              onClick={bulkDelete}
+              disabled={bulkBusy}
+              style={{ backgroundColor: "#C8102E", color: "#FFFFFF" }}
+              className="px-3 py-1.5 text-xs font-semibold uppercase tracking-widest2 hover:opacity-90 disabled:opacity-50"
+            >
+              {bulkBusy ? "Deleting…" : `Delete ${selected.size} selected`}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
             <tr>
+              {canBulkDelete && (
+                <th className="w-8 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleAllVisible}
+                    title={allVisibleSelected ? "Deselect all visible" : "Select all visible"}
+                  />
+                </th>
+              )}
               <SortHeader label="Name" sortKey="name" active={sortKey} dir={sortDir} onClick={clickHeader} />
               <SortHeader label="Contact" sortKey="contact_name" active={sortKey} dir={sortDir} onClick={clickHeader} />
               <SortHeader label="Owner" sortKey="owner" active={sortKey} dir={sortDir} onClick={clickHeader} />
@@ -178,7 +255,17 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true, showA
           </thead>
           <tbody>
             {sorted.map(r => (
-              <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
+              <tr key={r.id} className={`border-t border-gray-100 hover:bg-gray-50 ${selected.has(r.id) ? "bg-brand-accent/5" : ""}`}>
+                {canBulkDelete && (
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(r.id)}
+                      onChange={() => toggleOne(r.id)}
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </td>
+                )}
                 <td className="px-3 py-2 font-medium">
                   <div className="flex items-center gap-2">
                     {/* Fixed-width gutter so the name always aligns whether or not there's a dot */}
@@ -220,7 +307,7 @@ export function LeadTable({ rows, profiles, basePath, showPayments = true, showA
               </tr>
             ))}
             {sorted.length === 0 && (
-              <tr><td colSpan={6 + (showPayments ? 2 : 0) + (showAgreement ? 1 : 0)}
+              <tr><td colSpan={6 + (showPayments ? 2 : 0) + (showAgreement ? 1 : 0) + (canBulkDelete ? 1 : 0)}
                 className="px-3 py-8 text-center text-sm text-gray-500">No leads match your filters.</td></tr>
             )}
           </tbody>
