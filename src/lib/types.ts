@@ -79,6 +79,19 @@ export interface SignWellTemplateConfig {
 export type AgreementStatus =
   | "not_sent" | "sent" | "viewed" | "signed" | "declined" | "voided" | "expired";
 
+export interface CompanyContact {
+  id: string;
+  company_id: string;
+  name: string;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  is_primary: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export type FeeType = "split_only" | "per_company" | "per_investor" | "per_lead" | "flat";
 export type FeeBasis = "signed_up" | "registered" | "paid";
 

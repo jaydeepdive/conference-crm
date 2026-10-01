@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { AgreementStatus, Company, SignWellTemplateConfig } from "@/lib/types";
+import type { AgreementStatus, Company, CompanyContact, SignWellTemplateConfig } from "@/lib/types";
 
 /**
  * Company detail sidebar panel for the SignWell participation agreement.
@@ -41,7 +41,7 @@ const STATUS_STYLE: Record<AgreementStatus, string> = {
 };
 
 export function AgreementPanel({
-  company, templates, isSuperAdmin,
+  company, templates, contacts, isSuperAdmin,
 }: {
   company: Pick<Company,
     | "id" | "name" | "contact_name" | "email" | "agreement_status"
@@ -50,13 +50,31 @@ export function AgreementPanel({
     | "agreement_signer_name" | "agreement_signer_email"
     | "agreement_template_id" | "agreement_template_name">;
   templates: SignWellTemplateConfig[];
+  /** Named contacts for this company. Picker defaults to the primary.
+   *  Falls back to the legacy company.contact_name/email when empty. */
+  contacts: CompanyContact[];
   isSuperAdmin: boolean;
 }) {
   const router = useRouter();
   const [showPrep, setShowPrep] = useState(false);
   const [templateId, setTemplateId] = useState<string>(templates[0]?.id ?? "");
-  const [signerName, setSignerName] = useState(company.contact_name ?? "");
-  const [signerEmail, setSignerEmail] = useState(company.email ?? "");
+
+  // Pick the default contact — primary > first contact > legacy legacy
+  // company.contact_name/email fallback (which is what the UI used to do).
+  const primary = contacts.find(c => c.is_primary) ?? contacts[0] ?? null;
+  const [contactId, setContactId] = useState<string>(primary?.id ?? "");
+  const selectedContact = contacts.find(c => c.id === contactId) ?? primary;
+  const [signerName, setSignerName] = useState(selectedContact?.name ?? company.contact_name ?? "");
+  const [signerEmail, setSignerEmail] = useState(selectedContact?.email ?? company.email ?? "");
+
+  function pickContact(id: string) {
+    setContactId(id);
+    const c = contacts.find(x => x.id === id);
+    if (c) {
+      setSignerName(c.name ?? "");
+      setSignerEmail(c.email ?? "");
+    }
+  }
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -352,6 +370,18 @@ export function AgreementPanel({
             They do <strong>not</strong> pre-fill the Name field on the agreement PDF —
             that&rsquo;s left for the client to type in when they sign.
           </p>
+          {contacts.length > 0 && (
+            <Field label={`Contact (${contacts.length} on file)`}>
+              <select className={input} value={contactId} onChange={e => pickContact(e.target.value)}>
+                <option value="">— custom (type below) —</option>
+                {contacts.map(c => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.is_primary ? " · primary" : ""}{c.title ? ` · ${c.title}` : ""}{c.email ? ` · ${c.email}` : ""}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label="Recipient name (email greeting only)">
             <input className={input} value={signerName} onChange={e => setSignerName(e.target.value)} />
           </Field>
