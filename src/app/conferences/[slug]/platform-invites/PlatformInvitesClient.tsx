@@ -25,13 +25,24 @@ function rowStatus(r: InviteRow): Status {
   return "unsent";
 }
 
-export function PlatformInvitesClient({ rows }: { rows: InviteRow[] }) {
+export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug: string }) {
   const router = useRouter();
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const unsent = useMemo(() => rows.filter(r => rowStatus(r) === "unsent"), [rows]);
+
+  async function viewAs(id: string) {
+    // Set the impersonation cookie, then navigate the admin into the
+    // attendee platform as this person.
+    await fetch("/api/platform/admin/impersonate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ attendee_profile_id: id }),
+    });
+    router.push(`/conferences/${slug}/platform`);
+  }
 
   async function sendMany(ids: string[]) {
     if (ids.length === 0) return;
@@ -91,14 +102,22 @@ export function PlatformInvitesClient({ rows }: { rows: InviteRow[] }) {
                     {st === "unsent" && <span className="text-amber-700">Not sent</span>}
                   </td>
                   <td className="px-3 py-2 text-right">
-                    {st === "accepted" ? (
-                      <span className="text-xs text-slate-400">—</span>
-                    ) : (
-                      <button onClick={() => sendMany([r.id])} disabled={busy}
-                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-800 disabled:opacity-50">
-                        {busy ? "…" : st === "invited" ? "Resend" : "Send invite"}
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => viewAs(r.id)}
+                        disabled={busy}
+                        className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-800 disabled:opacity-50"
+                        title="View the attendee platform as this person"
+                      >
+                        View as
                       </button>
-                    )}
+                      {st !== "accepted" && (
+                        <button onClick={() => sendMany([r.id])} disabled={busy}
+                          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-800 disabled:opacity-50">
+                          {busy ? "…" : st === "invited" ? "Resend" : "Send invite"}
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );

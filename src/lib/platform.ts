@@ -8,7 +8,9 @@
  * so unauth'd users land on the platform login (not /portal/login).
  */
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "./supabase/server";
+import { createServiceClient } from "./supabase/service";
 import type { AttendeeProfile, AttendeeSide, Company, Conference, Investor } from "./types";
 import { generateSlots, type Slot, type SlotConferenceInput } from "./slots";
 
@@ -23,9 +25,23 @@ export interface PlatformContext {
   conference: Conference;
   side: AttendeeSide;
   lead: Company | Investor;
+  /** True when the signed-in user is a super admin — unlocks admin controls
+   *  on the meeting detail page, admin switcher, etc. */
+  isAdmin: boolean;
+  /** True when the viewer is a super admin impersonating an attendee they
+   *  are NOT (i.e. the attendee row belongs to someone else or is synthetic). */
+  isImpersonating: boolean;
 }
 
-/** Resolve the signed-in user's platform context for a conference slug. Non-redirecting. */
+/** Cookie that stores which attendee_profile a super admin is currently
+ *  viewing the platform as. Set/cleared via /api/platform/admin/impersonate. */
+export const IMPERSONATE_COOKIE = "platform_impersonate";
+
+/** Resolve the signed-in user's platform context for a conference slug. Non-redirecting.
+ *  If the user is a super admin WITHOUT an attendee row in this conference, we
+ *  synthesize a context by picking an attendee to impersonate — either the one
+ *  recorded in the `platform_impersonate` cookie, or the first available one
+ *  in this conference. */
 export async function resolvePlatformContext(slug: string): Promise<PlatformContextResult | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -37,15 +53,54 @@ export async function resolvePlatformContext(slug: string): Promise<PlatformCont
 
   if (!user) return { kind: "no-session" };
 
-  const { data: attendeeRow } = await supabase
+  // Is this user a super admin? (Lets us unlock impersonation + admin controls.)
+  const { data: profile } = await supabase
+    .from("profiles").select("is_super_admin").eq("id", user.id).maybeSingle();
+  const isSuperAdmin = !!(profile as { is_super_admin?: boolean } | null)?.is_super_admin;
+
+  // Does this user have their own attendee_profile for this conference?
+  const { data: ownAttendeeRow } = await supabase
     .from("attendee_profiles").select("*")
     .eq("user_id", user.id).eq("conference_id", conf.id).maybeSingle();
-  if (!attendeeRow) return { kind: "not-attendee", conference: conf, userEmail: user.email ?? null };
-  const attendee = attendeeRow as AttendeeProfile;
+
+  // Super admin impersonation: look up the cookie-selected attendee_profile.
+  // Falls back to the first attendee in the conference if the cookie isn't set
+  // (or points at an attendee from a different conference).
+  let impersonatedAttendee: AttendeeProfile | null = null;
+  if (isSuperAdmin) {
+    const admin = createServiceClient();
+    const cookieStore = await cookies();
+    const impId = cookieStore.get(IMPERSONATE_COOKIE)?.value;
+    if (impId) {
+      const { data } = await admin.from("attendee_profiles")
+        .select("*").eq("id", impId).eq("conference_id", conf.id).maybeSingle();
+      if (data) impersonatedAttendee = data as AttendeeProfile;
+    }
+    // No cookie / stale cookie / no own attendee row → pick any attendee as default.
+    if (!impersonatedAttendee && !ownAttendeeRow) {
+      const { data } = await admin.from("attendee_profiles")
+        .select("*").eq("conference_id", conf.id).order("created_at", { ascending: true }).limit(1);
+      if (data && data.length > 0) impersonatedAttendee = data[0] as AttendeeProfile;
+    }
+  }
+
+  const attendee = (impersonatedAttendee ?? ownAttendeeRow) as AttendeeProfile | null;
+
+  if (!attendee) {
+    // Not a super admin with no attendee row → regular rejection.
+    // Super admin with no attendee row AND no attendees exist yet in this
+    // conference → also show the rejection (nothing to view-as).
+    return { kind: "not-attendee", conference: conf, userEmail: user.email ?? null };
+  }
 
   const table = attendee.lead_type === "company" ? "companies" : "investors";
-  const { data: leadRow } = await supabase.from(table).select("*").eq("id", attendee.lead_id).maybeSingle();
+  // Use service client when impersonating — RLS might not let the admin's
+  // auth session see leads they don't belong to.
+  const leadClient = impersonatedAttendee ? createServiceClient() : supabase;
+  const { data: leadRow } = await leadClient.from(table).select("*").eq("id", attendee.lead_id).maybeSingle();
   if (!leadRow) return { kind: "not-attendee", conference: conf, userEmail: user.email ?? null };
+
+  const isImpersonating = !!impersonatedAttendee && impersonatedAttendee.user_id !== user.id;
 
   return {
     kind: "ok",
@@ -55,6 +110,8 @@ export async function resolvePlatformContext(slug: string): Promise<PlatformCont
       conference: conf,
       side: attendee.lead_type,
       lead: leadRow as Company | Investor,
+      isAdmin: isSuperAdmin,
+      isImpersonating,
     },
   };
 }

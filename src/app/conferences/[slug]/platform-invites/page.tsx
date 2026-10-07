@@ -57,7 +57,7 @@ export default async function PlatformInvitesPage({
         hitting &ldquo;Send to all unsent&rdquo;.
       </div>
 
-      <PlatformInvitesClient rows={rows} />
+      <PlatformInvitesClient rows={rows} slug={slug} />
     </div>
   );
 }

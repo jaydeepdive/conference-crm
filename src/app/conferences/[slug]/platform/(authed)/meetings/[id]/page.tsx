@@ -10,6 +10,7 @@ import {
 } from "@/lib/platform";
 import type { Company, Investor, Meeting, MeetingEvent } from "@/lib/types";
 import { MeetingActions } from "./MeetingActions";
+import { AdminMeetingControls } from "./AdminMeetingControls";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +101,14 @@ export default async function PlatformMeetingPage({
           slotOptions={slotOptions}
         />
       </section>
+
+      {ctx.isAdmin && (
+        <AdminMeetingControls
+          meetingId={meeting.id}
+          currentLocation={meeting.location ?? null}
+          slotOptions={slotOptions}
+        />
+      )}
 
       <section className="rounded-md border border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-4 py-3">

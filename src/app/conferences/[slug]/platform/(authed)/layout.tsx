@@ -9,6 +9,7 @@ import Link from "next/link";
 import { resolvePlatformContext, leadDisplayName } from "@/lib/platform";
 import { PlatformNav } from "../PlatformNav";
 import { PlatformSignOut } from "../PlatformSignOut";
+import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -33,11 +34,12 @@ export default async function PlatformAuthedLayout({
           <h1 className="text-xl font-semibold text-slate-900">{conference.name}</h1>
           <p className="mt-4 text-base text-slate-700">
             You&rsquo;re signed in as <span className="font-medium">{userEmail ?? "—"}</span>,
-            but you&rsquo;re not registered as an attendee for this conference.
+            but you&rsquo;re not registered as an attendee for this conference,
+            and there are no attendees to view as yet.
           </p>
           <p className="mt-3 text-sm text-slate-500">
-            If this is wrong, check with the organizers that you were invited with
-            the correct email address.
+            Super admins: add at least one attendee under Platform Invites, then
+            come back here and you&rsquo;ll be able to impersonate.
           </p>
           <div className="mt-6">
             <PlatformSignOut slug={slug} />
@@ -52,6 +54,13 @@ export default async function PlatformAuthedLayout({
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50 pb-20 sm:pb-0">
+      {ctx.isImpersonating && (
+        <PlatformAdminBanner
+          slug={slug}
+          impersonatedName={ctx.attendee.full_name ?? ctx.attendee.email}
+          impersonatedEntity={entity}
+        />
+      )}
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href={`/conferences/${slug}/platform`} className="min-w-0 flex-1">
