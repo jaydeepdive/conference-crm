@@ -25,7 +25,7 @@ export const PAYMENT_STATUSES: { value: PaymentStatus; label: string; color: str
 ];
 
 export const INDUSTRIES = ["SaaS / Software","Fintech","Healthtech","Cleantech / Energy","Consumer","Hardware","AI / ML","Biotech","Marketplace","Mining","Energy","Other"];
-export const INVESTOR_TYPES = ["Broker","Family Office","Hedge Fund","Individual Investor","Institutional Investor","Investor Relations"];
+export const INVESTOR_TYPES = ["Advisor/Broker","Broker","Family Office","Hedge Fund","Individual Investor","Institutional Investor","Investor Relations"];
 export const ACTIVITY_ACTIONS = ["Claimed","Email Sent","Call","Meeting","Follow-up","Invoice Sent","Payment Received","Registered","Declined","Other"];
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [

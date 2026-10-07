@@ -22,6 +22,9 @@ export function ConferenceNav({ profile, conference, role }: {
     { href: `${base}/tasks`, label: "Tasks", show: true },
     { href: `${base}/team`, label: "Team", show: canManageTeam(role) },
     { href: `${base}/duplicates`, label: "Duplicates", show: role === "super_admin" },
+    // v6.51 — attendee /platform surface and bulk-invites admin.
+    { href: `${base}/platform`, label: "Platform", show: role === "super_admin" },
+    { href: `${base}/platform-invites`, label: "Platform invites", show: role === "super_admin" },
     { href: `${base}/settings`, label: "Settings", show: canSeePayments(role) },
   ].filter(n => n.show).map(item => {
     const active = item.href === base ? path === base : path === item.href || path.startsWith(item.href + "/");

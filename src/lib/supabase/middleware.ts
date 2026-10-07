@@ -34,8 +34,21 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
 
+  // Expose the current pathname to server components (layouts/pages read it
+  // via `headers()`). Lets the staff conference layout detect /platform/
+  // sub-routes and skip its auth guard for attendee pages.
+  request.headers.set("x-pathname", path);
+  supabaseResponse = NextResponse.next({ request });
+
   const isPortal = path.startsWith("/portal");
   const isPortalPublic = path === "/portal/login" || path === "/portal/accept";
+
+  // v6.51 — attendee /platform surface lives at /conferences/<slug>/platform/*.
+  // login + accept are the pre-auth entry points.
+  const platformMatch = path.match(/^\/conferences\/([^/]+)\/platform(\/.*)?$/);
+  const isPlatform = !!platformMatch;
+  const platformSub = platformMatch?.[2] ?? "";
+  const isPlatformPublic = isPlatform && (platformSub === "/login" || platformSub === "/accept");
 
   const isPublic =
        path === "/login"
@@ -43,6 +56,7 @@ export async function updateSession(request: NextRequest) {
     || path.startsWith("/_next")
     || path === "/favicon.ico"
     || isPortalPublic
+    || isPlatformPublic
     // Public webhook / intake surface — auth handled per-route via API keys
     // or (for webhooks) via signature verification / metadata routing.
     || path.startsWith("/api/intake")
@@ -52,7 +66,10 @@ export async function updateSession(request: NextRequest) {
     || path === "/api/signwell/refresh-all"
     // Invite-accept flow is pre-auth (the whole point is to create the user).
     || path === "/api/portal/accept"
-    || path.startsWith("/api/portal/invites/preview");
+    || path.startsWith("/api/portal/invites/preview")
+    || path === "/api/platform/accept"
+    || path.startsWith("/api/platform/invites/preview")
+    || path === "/api/platform/invites/resend";
 
   if (!user && !isPublic) {
     // API routes get a 401 (not an HTML redirect) so client fetches don't

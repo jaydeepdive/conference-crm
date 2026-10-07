@@ -59,6 +59,9 @@ export interface Conference {
   meeting_lunch_end: string | null;
   meeting_slot_minutes: number;
   meeting_slot_stride_minutes: number;
+  // v6.51 attendee /platform surface additions.
+  meeting_date: string | null;    // 'YYYY-MM-DD' — single-day 1-on-1 meeting date.
+  farewell_time: string | null;   // 'HH:MM' or 'HH:MM:SS' local — closing announcement.
   // SignWell participation-agreement config (added in 0014, extended in 0015).
   // Legacy single-template columns — kept for backwards compat, superseded
   // by `signwell_templates`.
@@ -203,6 +206,7 @@ export interface Meeting {
   proposed_time: string | null;
   proposed_by: AttendeeSide | null;
   scheduled_time: string | null;
+  location: string | null;     // v6.51 — admin-assigned table/room number.
   notes: string | null;
   created_by: string | null;
   created_at: string;
