@@ -3,6 +3,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "thedeepdive.ca", pathname: "/wp-content/uploads/**" },
+      { protocol: "https", hostname: "abovebeyondsummit.com", pathname: "/**" },
     ],
   },
   // Ensure the invoice-PDF font files ship inside the Vercel serverless

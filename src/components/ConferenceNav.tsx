@@ -22,11 +22,12 @@ export function ConferenceNav({ profile, conference, role }: {
     { href: `${base}/tasks`, label: "Tasks", show: true },
     { href: `${base}/team`, label: "Team", show: canManageTeam(role) },
     { href: `${base}/duplicates`, label: "Duplicates", show: role === "super_admin" },
-    // v6.53 — direct staff-side meetings admin (no impersonation needed).
+    // v6.53+ — admin scheduling lives here. The /platform surface is for
+    // actual attendees; admins never need to view it unless they want to
+    // preview what an attendee sees (reachable via "View as" on Platform
+    // invites rows).
     { href: `${base}/meetings`, label: "Meetings", show: role === "super_admin" },
-    // v6.51 — attendee /platform surface and bulk-invites admin.
-    { href: `${base}/platform`, label: "Platform", show: role === "super_admin" },
-    { href: `${base}/platform-invites`, label: "Platform invites", show: role === "super_admin" },
+    { href: `${base}/platform-invites`, label: "Attendees", show: role === "super_admin" },
     { href: `${base}/settings`, label: "Settings", show: canSeePayments(role) },
   ].filter(n => n.show).map(item => {
     const active = item.href === base ? path === base : path === item.href || path.startsWith(item.href + "/");

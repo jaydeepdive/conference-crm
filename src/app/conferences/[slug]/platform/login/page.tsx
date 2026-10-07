@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { AboveBeyondHeader, BRAND_ACCENT, BRAND_BG } from "../AboveBeyondBrand";
 
 export default function PlatformLoginPage() {
   const params = useParams<{ slug: string }>();
@@ -59,10 +60,11 @@ export default function PlatformLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50">
+    <div className="flex min-h-screen flex-col" style={{ backgroundColor: BRAND_BG }}>
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-10">
-        <h1 className="text-xl font-semibold text-slate-900">Sign in</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <div className="mb-6"><AboveBeyondHeader /></div>
+        <h1 className="font-serif text-2xl font-semibold text-stone-900">Sign in</h1>
+        <p className="mt-1 text-sm text-stone-700">
           Enter the email you registered with.
         </p>
 
@@ -85,8 +87,8 @@ export default function PlatformLoginPage() {
           onKeyDown={e => { if (e.key === "Enter") signIn(); }} />
 
         <button onClick={signIn} disabled={busy}
-          className="mt-6 w-full rounded-md bg-slate-900 py-3 text-base font-medium text-white disabled:opacity-50"
-          style={{ minHeight: 48 }}>
+          className="mt-6 w-full rounded-md py-3 text-base font-medium text-white disabled:opacity-50"
+          style={{ minHeight: 48, backgroundColor: BRAND_ACCENT }}>
           {busy ? "Signing in…" : "Sign in"}
         </button>
 

@@ -63,9 +63,13 @@ export async function resolvePlatformContext(slug: string): Promise<PlatformCont
     .from("attendee_profiles").select("*")
     .eq("user_id", user.id).eq("conference_id", conf.id).maybeSingle();
 
-  // Super admin impersonation: look up the cookie-selected attendee_profile.
-  // Falls back to the first attendee in the conference if the cookie isn't set
-  // (or points at an attendee from a different conference).
+  // Super admin impersonation: ONLY active when the admin explicitly
+  // clicked "View as" on an attendee (which sets the cookie). Previously
+  // we auto-picked the first attendee as a fallback, which pushed the
+  // super admin into unwanted impersonation on every /platform visit —
+  // that behaviour is gone. No cookie set → the super admin either sees
+  // their own attendee profile (if any) or the "not-attendee" screen,
+  // which now surfaces admin links to Meetings / Attendees.
   let impersonatedAttendee: AttendeeProfile | null = null;
   if (isSuperAdmin) {
     const admin = createServiceClient();
@@ -75,12 +79,6 @@ export async function resolvePlatformContext(slug: string): Promise<PlatformCont
       const { data } = await admin.from("attendee_profiles")
         .select("*").eq("id", impId).eq("conference_id", conf.id).maybeSingle();
       if (data) impersonatedAttendee = data as AttendeeProfile;
-    }
-    // No cookie / stale cookie / no own attendee row → pick any attendee as default.
-    if (!impersonatedAttendee && !ownAttendeeRow) {
-      const { data } = await admin.from("attendee_profiles")
-        .select("*").eq("conference_id", conf.id).order("created_at", { ascending: true }).limit(1);
-      if (data && data.length > 0) impersonatedAttendee = data[0] as AttendeeProfile;
     }
   }
 

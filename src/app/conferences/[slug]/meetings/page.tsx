@@ -140,10 +140,16 @@ export default async function MeetingsAdminPage({
     <div className="space-y-6">
       <PageTitle title="Meetings" sub={`${ctx.conference.name} · super admin`} />
 
-      <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-        Direct meetings management. Edits here write via the admin override
-        endpoint and record an audit event, just like the /platform meeting
-        page does — but without impersonation.
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <div>
+          Direct meetings management. Edits here write via the admin override
+          endpoint and record an audit event, just like the /platform meeting
+          page does — but without impersonation.
+        </div>
+        <a href={`/conferences/${slug}/meetings/auto-match`}
+          className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 hover:border-brand-accent">
+          Auto-match meetings →
+        </a>
       </div>
 
       <MeetingsAdminClient

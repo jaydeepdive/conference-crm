@@ -10,6 +10,7 @@ import { resolvePlatformContext, leadDisplayName } from "@/lib/platform";
 import { PlatformNav } from "../PlatformNav";
 import { PlatformSignOut } from "../PlatformSignOut";
 import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
+import { AboveBeyondHeader, BRAND_BG } from "../AboveBeyondBrand";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +40,9 @@ export default async function PlatformAuthedLayout({
       isSuperAdmin = !!(prof as { is_super_admin?: boolean } | null)?.is_super_admin;
     }
     return (
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen" style={{ backgroundColor: BRAND_BG }}>
         <div className="mx-auto max-w-md px-5 py-10">
+          <div className="mb-6"><AboveBeyondHeader /></div>
           <h1 className="text-xl font-semibold text-slate-900">{conference.name}</h1>
           {isSuperAdmin ? (
             <>
@@ -99,7 +101,7 @@ export default async function PlatformAuthedLayout({
   const entity = leadDisplayName(ctx.lead, ctx.side);
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 pb-20 sm:pb-0">
+    <div className="flex min-h-screen flex-col pb-20 sm:pb-0" style={{ backgroundColor: BRAND_BG }}>
       {ctx.isImpersonating && (
         <PlatformAdminBanner
           slug={slug}
@@ -107,13 +109,11 @@ export default async function PlatformAuthedLayout({
           impersonatedEntity={entity}
         />
       )}
-      <header className="border-b border-slate-200 bg-white">
+      <header className="border-b border-stone-300/70" style={{ backgroundColor: "#fcf7ef" }}>
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link href={`/conferences/${slug}/platform`} className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-slate-900">
-              {ctx.conference.name}
-            </div>
-            <div className="truncate text-xs text-slate-500">
+            <AboveBeyondHeader compact />
+            <div className="mt-1 truncate text-xs text-stone-600">
               {ctx.attendee.full_name ?? ctx.attendee.email}
               {entity ? ` · ${entity}` : ""}
             </div>

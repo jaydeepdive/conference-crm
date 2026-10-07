@@ -99,12 +99,22 @@ export default async function PlatformDashboardPage({
   return (
     <div className="space-y-5">
       <section>
-        <h1 className="text-xl font-semibold text-slate-900">
+        <h1 className="font-serif text-2xl font-semibold text-stone-900">
           Hi, {ctx.attendee.full_name ?? "there"}.
         </h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="mt-1 text-sm text-stone-700">
           You&rsquo;re here as {entity}.
         </p>
+      </section>
+
+      <section className="rounded-md border border-stone-300 bg-white/70 p-4"
+        style={{ borderLeft: "4px solid #8B4513" }}>
+        <div className="font-serif text-sm font-semibold text-stone-900">
+          Andaz Scottsdale Resort · Scottsdale, Arizona
+        </div>
+        <div className="mt-1 text-sm text-stone-700">
+          Meeting day is November 24. Doors open at 8 AM.
+        </div>
       </section>
 
       {inboxCount > 0 && (

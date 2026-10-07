@@ -80,7 +80,15 @@ export async function updateSession(request: NextRequest) {
       });
     }
     const url = request.nextUrl.clone();
-    url.pathname = isPortal ? "/portal/login" : "/login";
+    // Route unauth'd attendees hitting /platform/* to the branded
+    // Above & Beyond login — NOT the staff /login screen.
+    if (isPlatform && platformMatch) {
+      url.pathname = `/conferences/${platformMatch[1]}/platform/login`;
+    } else if (isPortal) {
+      url.pathname = "/portal/login";
+    } else {
+      url.pathname = "/login";
+    }
     return NextResponse.redirect(url);
   }
 
