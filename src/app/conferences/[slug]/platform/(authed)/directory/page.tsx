@@ -6,7 +6,7 @@
  */
 import { createClient } from "@/lib/supabase/server";
 import { requirePlatformContext } from "@/lib/platform";
-import type { Company, Investor, Meeting } from "@/lib/types";
+import type { Company, Investor, Meeting, MeetingBlocklistEntry } from "@/lib/types";
 import { DirectoryClient } from "./DirectoryClient";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +35,20 @@ export default async function DirectoryPage({ params }: { params: Promise<{ slug
     meetingByOther.set(key, { id: m.id as string, status: m.status as Meeting["status"] });
   }
 
+  // Blocklist either direction involving me.
+  const { data: blocklistRows } = await supabase.from("meeting_blocklist")
+    .select("*")
+    .eq("conference_id", ctx.conference.id)
+    .or(
+      `and(from_lead_type.eq.${ctx.side},from_lead_id.eq.${ctx.attendee.lead_id}),` +
+      `and(to_lead_type.eq.${ctx.side},to_lead_id.eq.${ctx.attendee.lead_id})`,
+    );
+  const blockedOtherIds = new Set<string>();
+  for (const b of (blocklistRows ?? []) as MeetingBlocklistEntry[]) {
+    const otherId = b.from_lead_id === ctx.attendee.lead_id ? b.to_lead_id : b.from_lead_id;
+    blockedOtherIds.add(otherId);
+  }
+
   type Peer = Company | Investor;
   interface Row {
     id: string;
@@ -42,6 +56,7 @@ export default async function DirectoryPage({ params }: { params: Promise<{ slug
     sub: string | null;
     about: string | null;
     meeting: { id: string; status: Meeting["status"] } | null;
+    blocked: boolean;
   }
   const rows: Row[] = (peers ?? []).map(p => {
     const peer = p as Peer;
@@ -56,6 +71,7 @@ export default async function DirectoryPage({ params }: { params: Promise<{ slug
         ? (peer as Investor).investment_criteria ?? peer.about
         : peer.about,
       meeting: meetingByOther.get(peer.id) ?? null,
+      blocked: blockedOtherIds.has(peer.id),
     };
   });
 

@@ -224,6 +224,29 @@ export interface MeetingEvent {
   created_at: string;
 }
 
+export interface AttendeeBlockedSlot {
+  id: string;
+  conference_id: string;
+  lead_type: AttendeeSide;
+  lead_id: string;
+  slot_time: string;   // ISO
+  reason: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface MeetingBlocklistEntry {
+  id: string;
+  conference_id: string;
+  from_lead_type: AttendeeSide;
+  from_lead_id: string;
+  to_lead_type: AttendeeSide;
+  to_lead_id: string;
+  reason: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
 export interface ActivityEntry {
   id: string; conference_id: string;
   user_id: string | null;

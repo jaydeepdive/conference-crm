@@ -13,6 +13,7 @@ interface Row {
   sub: string | null;
   about: string | null;
   meeting: { id: string; status: MeetingStatus } | null;
+  blocked?: boolean;
 }
 
 export function DirectoryClient({
@@ -58,6 +59,21 @@ export function DirectoryClient({
       ) : (
         <ul className="divide-y divide-slate-100 rounded-md border border-slate-200 bg-white">
           {filtered.map(r => {
+            if (r.blocked) {
+              return (
+                <li key={r.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium text-slate-900">{r.name}</div>
+                      {r.sub && <div className="truncate text-xs text-slate-500">{r.sub}</div>}
+                    </div>
+                    <span className="shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-800">
+                      ✕ not matched
+                    </span>
+                  </div>
+                </li>
+              );
+            }
             const activeMeeting = r.meeting && !isTerminal(r.meeting.status);
             if (activeMeeting && r.meeting) {
               // Hide active meetings per spec — but spec also says to show

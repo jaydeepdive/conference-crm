@@ -29,8 +29,11 @@ const STATUS_PILL: Record<MeetingStatus, string> = {
   cancelled: "bg-rose-100 text-rose-800",
 };
 
+export interface BlocklistInfo { reason: string | null }
+
 export function MeetingsAdminClient({
   slug, rows, companies, investors, slotOptions, busyByCompany, busyByInvestor,
+  blocklist,
 }: {
   slug: string;
   rows: MeetingRow[];
@@ -39,6 +42,7 @@ export function MeetingsAdminClient({
   slotOptions: SlotOption[];
   busyByCompany: Record<string, string[]>;
   busyByInvestor: Record<string, string[]>;
+  blocklist?: Record<string, BlocklistInfo>;
 }) {
   const router = useRouter();
   const [q, setQ] = useState("");
@@ -190,6 +194,7 @@ export function MeetingsAdminClient({
           slotOptions={slotOptions}
           busyByCompany={busyByCompany}
           busyByInvestor={busyByInvestor}
+          blocklist={blocklist ?? {}}
           onClose={() => setShowCreate(false)}
           onCreated={() => { setShowCreate(false); router.refresh(); }}
         />
@@ -406,7 +411,8 @@ function EditPanel(p: RowProps) {
 // Create modal
 
 function CreateModal({
-  slug, companies, investors, slotOptions, busyByCompany, busyByInvestor, onClose, onCreated,
+  slug, companies, investors, slotOptions, busyByCompany, busyByInvestor,
+  blocklist, onClose, onCreated,
 }: {
   slug: string;
   companies: LeadLite[];
@@ -414,6 +420,7 @@ function CreateModal({
   slotOptions: SlotOption[];
   busyByCompany: Record<string, string[]>;
   busyByInvestor: Record<string, string[]>;
+  blocklist: Record<string, BlocklistInfo>;
   onClose: () => void;
   onCreated: () => void;
 }) {
@@ -427,6 +434,12 @@ function CreateModal({
 
   const busyA = new Set(companyId ? busyByCompany[companyId] ?? [] : []);
   const busyB = new Set(investorId ? busyByInvestor[investorId] ?? [] : []);
+
+  const blockWarning: BlocklistInfo | null = (() => {
+    if (!companyId || !investorId) return null;
+    const k = `company:${companyId}|investor:${investorId}`;
+    return blocklist[k] ?? null;
+  })();
 
   async function submit() {
     setErr(null);
@@ -468,6 +481,18 @@ function CreateModal({
           <button type="button" onClick={onClose} className="text-sm text-muted hover:underline">Close</button>
         </div>
         {err && <div className="mb-3 rounded border border-rose-300 bg-rose-50 p-2 text-sm text-rose-900">{err}</div>}
+        {blockWarning && (
+          <div className="mb-3 rounded border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
+            <div className="font-semibold">⚠ Blocklist</div>
+            <div className="mt-0.5">
+              One of these parties has marked the other as &ldquo;do not pair&rdquo;.
+              Reason: {blockWarning.reason ? blockWarning.reason : "(no reason)"}.
+            </div>
+            <div className="mt-1 text-xs text-amber-800">
+              You can still create this meeting as an admin override.
+            </div>
+          </div>
+        )}
         <div className="space-y-3">
           <label className="block text-sm">
             <span className="text-xs font-medium uppercase tracking-wide text-muted">Company</span>

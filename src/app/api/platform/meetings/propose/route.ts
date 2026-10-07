@@ -60,6 +60,38 @@ export async function POST(request: Request) {
   const companyId = mySide === "company" ? attendee.lead_id : body.other_lead_id;
   const investorId = mySide === "investor" ? attendee.lead_id : body.other_lead_id;
 
+  // Block-check #1: mutual-pair blocklist (either direction).
+  const otherType = body.other_lead_type;
+  const otherId = body.other_lead_id;
+  const myType = mySide;
+  const myLead = attendee.lead_id;
+  const { data: bl } = await supabase.from("meeting_blocklist").select("id")
+    .eq("conference_id", attendee.conference_id)
+    .or(
+      `and(from_lead_type.eq.${myType},from_lead_id.eq.${myLead},to_lead_type.eq.${otherType},to_lead_id.eq.${otherId}),` +
+      `and(from_lead_type.eq.${otherType},from_lead_id.eq.${otherId},to_lead_type.eq.${myType},to_lead_id.eq.${myLead})`,
+    )
+    .limit(1);
+  if (bl && bl.length > 0) {
+    return NextResponse.json(
+      { error: "You and this attendee are blocked from being paired." },
+      { status: 409 },
+    );
+  }
+
+  // Block-check #2: either party has marked this slot unavailable.
+  const { data: slotBlocks } = await supabase.from("attendee_blocked_slots").select("id")
+    .eq("conference_id", attendee.conference_id)
+    .eq("slot_time", proposedIso.toISOString())
+    .or(
+      `and(lead_type.eq.${myType},lead_id.eq.${myLead}),` +
+      `and(lead_type.eq.${otherType},lead_id.eq.${otherId})`,
+    )
+    .limit(1);
+  if (slotBlocks && slotBlocks.length > 0) {
+    return NextResponse.json({ error: "That slot is unavailable." }, { status: 409 });
+  }
+
   // Existing row? (unique index enforces one per pair)
   const { data: existing } = await supabase.from("meetings").select("id, status")
     .eq("conference_id", attendee.conference_id)
