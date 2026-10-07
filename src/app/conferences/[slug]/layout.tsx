@@ -12,7 +12,10 @@ export default async function ConferenceLayout({
   // but has its own guard and shell (mobile-first). Skip the staff shell for it.
   const hdrs = await headers();
   const path = hdrs.get("x-pathname") ?? "";
-  if (path.startsWith(`/conferences/${slug}/platform`)) {
+  // Exact segment match — `/platform-invites` is a STAFF page and must keep
+  // the staff shell; only `/platform` and `/platform/...` are attendee pages.
+  const platformBase = `/conferences/${slug}/platform`;
+  if (path === platformBase || path.startsWith(`${platformBase}/`)) {
     return <>{children}</>;
   }
 

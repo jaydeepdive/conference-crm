@@ -1,10 +1,10 @@
 /**
- * /conferences/[slug]/meetings — super-admin direct meetings admin.
+ * /conferences/[slug]/meetings — super-admin meetings schedule.
  *
- * Lets a super admin manage every meeting in the conference without going
- * through the attendee /platform surface. Reads/writes delegate to the
- * existing /api/platform/meetings/[id]/admin-edit endpoint (for edits) and
- * the new /api/admin/meetings/create endpoint (for new rows).
+ * Loads every meeting, company, investor, self-blocked slot and do-not-pair
+ * entry for the conference and hands it to MeetingsAdminClient, which renders
+ * the schedule grid / list. Writes go through /api/admin/meetings/create and
+ * /api/platform/meetings/[id]/admin-edit.
  */
 import { requireConferenceRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -13,7 +13,9 @@ import type {
   AttendeeBlockedSlot, Company, Investor, Meeting, MeetingBlocklistEntry,
 } from "@/lib/types";
 import { PageTitle } from "@/components/SectionHeader";
-import { MeetingsAdminClient, type MeetingRow, type LeadLite, type SlotOption } from "./MeetingsAdminClient";
+import {
+  MeetingsAdminClient, type MeetingRow, type LeadLite, type SlotOption, type BlocklistInfo,
+} from "./MeetingsAdminClient";
 
 export const dynamic = "force-dynamic";
 
@@ -23,85 +25,112 @@ export default async function MeetingsAdminPage({
   const { slug } = await params;
   const ctx = await requireConferenceRole(slug, ["super_admin"]);
   const supabase = await createClient();
+  const tz = ctx.conference.timezone;
 
   const [
     { data: meetingsRaw }, { data: cosRaw }, { data: invsRaw },
-    { data: blocklistRaw }, { data: blockedSlotsRaw },
+    { data: blocklistRaw }, { data: blockedSlotsRaw }, { data: profilesRaw },
   ] = await Promise.all([
     supabase.from("meetings").select("*")
       .eq("conference_id", ctx.conference.id)
       .order("scheduled_time", { ascending: true, nullsFirst: false }),
-    supabase.from("companies").select("id, name")
+    supabase.from("companies").select("id, name, stage")
       .eq("conference_id", ctx.conference.id)
       .order("name", { ascending: true }),
-    supabase.from("investors").select("id, firm_name")
+    supabase.from("investors").select("id, firm_name, stage")
       .eq("conference_id", ctx.conference.id)
       .order("firm_name", { ascending: true }),
     supabase.from("meeting_blocklist").select("*")
       .eq("conference_id", ctx.conference.id),
     supabase.from("attendee_blocked_slots").select("*")
       .eq("conference_id", ctx.conference.id),
+    supabase.from("attendee_profiles").select("lead_type, lead_id")
+      .eq("conference_id", ctx.conference.id),
   ]);
 
   const meetings = (meetingsRaw ?? []) as Meeting[];
-  const companies: LeadLite[] = ((cosRaw ?? []) as Pick<Company, "id" | "name">[])
-    .map(c => ({ id: c.id, name: c.name || "—" }));
-  const investors: LeadLite[] = ((invsRaw ?? []) as Pick<Investor, "id" | "firm_name">[])
-    .map(i => ({ id: i.id, name: i.firm_name || "—" }));
+  const coRows = (cosRaw ?? []) as Pick<Company, "id" | "name" | "stage">[];
+  const invRows = (invsRaw ?? []) as Pick<Investor, "id" | "firm_name" | "stage">[];
+  const byName = (a: LeadLite, b: LeadLite) => a.name.localeCompare(b.name, "en", { sensitivity: "base" });
+
+  // "Participants" = leads that are actually at the meeting day: registered,
+  // or already have an attendee login, or already have a meeting. These are
+  // the grid rows; the pickers still list every lead.
+  const activeCo = new Set<string>();
+  const activeInv = new Set<string>();
+  for (const c of coRows) if (c.stage === "registered") activeCo.add(c.id);
+  for (const i of invRows) if (i.stage === "registered") activeInv.add(i.id);
+  for (const p of (profilesRaw ?? []) as { lead_type: string; lead_id: string }[]) {
+    (p.lead_type === "company" ? activeCo : activeInv).add(p.lead_id);
+  }
+  for (const m of meetings) {
+    if (m.status === "declined" || m.status === "cancelled") continue;
+    activeCo.add(m.company_id);
+    activeInv.add(m.investor_id);
+  }
+
+  const companies: LeadLite[] = coRows
+    .map(c => ({ id: c.id, name: c.name?.trim() || "(no name)", active: activeCo.has(c.id) }))
+    .sort(byName);
+  const investors: LeadLite[] = invRows
+    .map(i => ({ id: i.id, name: i.firm_name?.trim() || "(no name)", active: activeInv.has(i.id) }))
+    .sort(byName);
 
   const coById = new Map(companies.map(c => [c.id, c.name]));
   const invById = new Map(investors.map(i => [i.id, i.name]));
 
-  // Pre-compute slot options (14 slots in a typical conference).
+  // The 14 meeting slots (lunch excluded).
   const slots = slotsForPlatform(ctx.conference).filter(s => !s.isLunch);
+  const shortFmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz, hour: "numeric", minute: "2-digit", hour12: true,
+  });
   const slotOptions: SlotOption[] = slots.map(s => ({
     iso: s.start.toISOString(),
-    label: formatSlotRange(s.start, s.end, ctx.conference.timezone),
+    label: formatSlotRange(s.start, s.end, tz),
+    short: shortFmt.format(s.start).replace(/\s?(AM|PM)$/i, ""),
   }));
 
+  function slotIsoFor(iso: string | null): string | null {
+    if (!iso) return null;
+    const t = new Date(iso).getTime();
+    for (const s of slots) {
+      if (t >= s.start.getTime() && t < s.end.getTime()) return s.start.toISOString();
+    }
+    return null;
+  }
   function labelForTime(iso: string | null): string | null {
     if (!iso) return null;
     const t = new Date(iso).getTime();
     for (const s of slots) {
-      if (t >= s.start.getTime() && t < s.end.getTime()) {
-        return formatSlotRange(s.start, s.end, ctx.conference.timezone);
-      }
+      if (t >= s.start.getTime() && t < s.end.getTime()) return formatSlotRange(s.start, s.end, tz);
     }
     return new Intl.DateTimeFormat("en-US", {
-      timeZone: ctx.conference.timezone, dateStyle: "medium", timeStyle: "short",
+      timeZone: tz, dateStyle: "medium", timeStyle: "short",
     }).format(new Date(iso));
   }
 
-  // Build "busy slots per lead" from accepted meetings — the create modal uses
-  // this to flag collisions on either side.
+  // Slots each side has booked (confirmed meetings only).
   const busyByCompany: Record<string, string[]> = {};
   const busyByInvestor: Record<string, string[]> = {};
   for (const m of meetings) {
-    if (m.status !== "accepted" || !m.scheduled_time) continue;
-    const t = new Date(m.scheduled_time).getTime();
-    let slotIso: string | null = null;
-    for (const s of slots) {
-      if (t >= s.start.getTime() && t < s.end.getTime()) { slotIso = s.start.toISOString(); break; }
-    }
+    if (m.status !== "accepted") continue;
+    const slotIso = slotIsoFor(m.scheduled_time);
     if (!slotIso) continue;
     (busyByCompany[m.company_id] ??= []).push(slotIso);
     (busyByInvestor[m.investor_id] ??= []).push(slotIso);
   }
 
-  // Merge in attendee-self-blocked slots so the create picker can flag them.
+  // Slots each side has blocked themselves.
+  const blockedByCompany: Record<string, string[]> = {};
+  const blockedByInvestor: Record<string, string[]> = {};
   for (const bs of (blockedSlotsRaw ?? []) as AttendeeBlockedSlot[]) {
-    const t = new Date(bs.slot_time).getTime();
-    let slotIso: string | null = null;
-    for (const s of slots) {
-      if (t >= s.start.getTime() && t < s.end.getTime()) { slotIso = s.start.toISOString(); break; }
-    }
+    const slotIso = slotIsoFor(bs.slot_time);
     if (!slotIso) continue;
-    if (bs.lead_type === "company") (busyByCompany[bs.lead_id] ??= []).push(slotIso);
-    else (busyByInvestor[bs.lead_id] ??= []).push(slotIso);
+    if (bs.lead_type === "company") (blockedByCompany[bs.lead_id] ??= []).push(slotIso);
+    else (blockedByInvestor[bs.lead_id] ??= []).push(slotIso);
   }
 
-  // Blocklist as a bidirectional lookup keyed "ltype:lid|rtype:rid".
-  interface BlocklistInfo { reason: string | null }
+  // Do-not-pair list as a bidirectional lookup keyed "ltype:lid|rtype:rid".
   const blocklistMap: Record<string, BlocklistInfo> = {};
   for (const b of (blocklistRaw ?? []) as MeetingBlocklistEntry[]) {
     const k1 = `${b.from_lead_type}:${b.from_lead_id}|${b.to_lead_type}:${b.to_lead_id}`;
@@ -112,16 +141,7 @@ export default async function MeetingsAdminPage({
 
   const rows: MeetingRow[] = meetings.map(m => {
     const useProposed = !m.scheduled_time && !!m.proposed_time;
-    const t = useProposed ? m.proposed_time : m.scheduled_time;
-    const slotLabel = labelForTime(t);
-    const currentIso = m.scheduled_time ?? null;
-    let currentSlotIso: string | null = null;
-    if (currentIso) {
-      const ms = new Date(currentIso).getTime();
-      for (const s of slots) {
-        if (ms >= s.start.getTime() && ms < s.end.getTime()) { currentSlotIso = s.start.toISOString(); break; }
-      }
-    }
+    const slotLabel = labelForTime(useProposed ? m.proposed_time : m.scheduled_time);
     return {
       id: m.id,
       company_id: m.company_id,
@@ -130,38 +150,33 @@ export default async function MeetingsAdminPage({
       investor_name: invById.get(m.investor_id) ?? "—",
       status: m.status,
       slot_label: slotLabel ? (useProposed ? `${slotLabel} (proposed)` : slotLabel) : null,
-      current_slot_iso: currentSlotIso,
+      current_slot_iso: slotIsoFor(m.scheduled_time),
       location: m.location,
       notes: m.notes,
     };
   });
 
+  const day = ctx.conference.meeting_date ?? ctx.conference.date_start;
+  let dayLabel = "";
+  if (day) {
+    const [y, mo, d] = day.split("-").map(Number);
+    dayLabel = new Intl.DateTimeFormat("en-US", { timeZone: tz, month: "long", day: "numeric" })
+      .format(new Date(Date.UTC(y, mo - 1, d, 12)));
+  }
+
   return (
-    <div className="space-y-6">
-      <PageTitle title="Meetings" sub={`${ctx.conference.name} · super admin`} />
-
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-        <div>
-          Direct meetings management. Edits here write via the admin override
-          endpoint and record an audit event, just like the /platform meeting
-          page does — but without impersonation.
-        </div>
-        <a href={`/conferences/${slug}/meetings/auto-match`}
-          className="shrink-0 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 hover:border-brand-accent">
-          Auto-match meetings →
-        </a>
-      </div>
-
-      <MeetingsAdminClient
+    <MeetingsAdminClient
         slug={slug}
+        header={<PageTitle title="Meetings" sub={dayLabel ? `${dayLabel} · 1-on-1 schedule` : "1-on-1 schedule"} />}
         rows={rows}
         companies={companies}
         investors={investors}
         slotOptions={slotOptions}
         busyByCompany={busyByCompany}
         busyByInvestor={busyByInvestor}
+        blockedByCompany={blockedByCompany}
+        blockedByInvestor={blockedByInvestor}
         blocklist={blocklistMap}
       />
-    </div>
   );
 }

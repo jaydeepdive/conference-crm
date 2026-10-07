@@ -1,14 +1,14 @@
 /**
- * /conferences/[slug]/platform-invites — super-admin surface for sending
- * attendee invites in bulk. One row per attendee_profile in the conference,
- * joined to its lead for a lead name. Buttons post to
- * /api/platform/invites/send.
+ * /conferences/[slug]/platform-invites — "Attendees" (super admin).
+ *
+ * One row per person who can sign in to the attendee portal, joined to their
+ * company / investor for display. Invite sends go through
+ * /api/platform/invites/send; nothing is emailed automatically.
  */
 import { requireConferenceAccess } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { AttendeeProfile, Company, Investor } from "@/lib/types";
-import Link from "next/link";
 import { PageTitle } from "@/components/SectionHeader";
 import { PlatformInvitesClient, type InviteRow } from "./PlatformInvitesClient";
 
@@ -38,36 +38,25 @@ export default async function PlatformInvitesPage({
   const coById = new Map((cos ?? []).map(c => [c.id, c.name]));
   const invById = new Map((invs ?? []).map(i => [i.id, i.firm_name]));
 
-  const rows: InviteRow[] = list.map(p => ({
-    id: p.id,
-    lead_name: (p.lead_type === "company" ? coById.get(p.lead_id) : invById.get(p.lead_id)) ?? "—",
-    full_name: p.full_name,
-    email: p.email,
-    invite_sent_at: p.invite_sent_at,
-    accepted_at: p.accepted_at,
-    user_id: p.user_id,
-  }));
+  const rows: InviteRow[] = list
+    .map(p => ({
+      id: p.id,
+      lead_type: p.lead_type,
+      lead_id: p.lead_id,
+      lead_name: ((p.lead_type === "company" ? coById.get(p.lead_id) : invById.get(p.lead_id)) ?? "").trim() || "(no name)",
+      full_name: p.full_name,
+      email: p.email,
+      invite_sent_at: p.invite_sent_at,
+      accepted_at: p.accepted_at,
+      user_id: p.user_id,
+    }))
+    .sort((a, b) =>
+      a.lead_name.localeCompare(b.lead_name, "en", { sensitivity: "base" }) ||
+      (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email, "en", { sensitivity: "base" }));
 
   return (
     <div className="space-y-6">
-      <PageTitle title="Platform invites" sub={`${ctx.conference.name} · super admin`} />
-
-      <div className="flex items-center justify-between rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
-        <span>Need to edit meetings directly? Skip impersonation.</span>
-        <Link
-          href={`/conferences/${slug}/meetings`}
-          className="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800"
-        >
-          Go to meetings admin
-        </Link>
-      </div>
-
-      <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        Sending here is the ONLY way an invite email goes out. Nothing is sent
-        automatically on attendee creation. Review the list carefully before
-        hitting &ldquo;Send to all unsent&rdquo;.
-      </div>
-
+      <PageTitle title="Attendees" sub="People who can sign in to the Above & Beyond attendee portal" />
       <PlatformInvitesClient rows={rows} slug={slug} />
     </div>
   );
