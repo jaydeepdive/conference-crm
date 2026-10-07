@@ -1,13 +1,17 @@
 /**
- * /conferences/[slug]/platform/login — minimal mobile-first email+password
- * form plus a "need a login link?" resend action for attendees who've lost
- * their invite email. Styled plainly (no CRM branding).
+ * /conferences/[slug]/platform/login — Above & Beyond branded sign-in.
+ * Dark hero mirrors the public abovebeyondsummit.com home page; the
+ * sign-in form sits in the ivory card below the logo lockup. No Google
+ * sign-in — email + password only.
  */
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { AboveBeyondHeader, BRAND_ACCENT, BRAND_BG } from "../AboveBeyondBrand";
+import {
+  AboveBeyondHero,
+  BRAND_GOLD, BRAND_GOLD_L, BRAND_GOLD_D, BRAND_IVORY, BRAND_GREY, BRAND_BORDER,
+} from "../AboveBeyondBrand";
 
 export default function PlatformLoginPage() {
   const params = useParams<{ slug: string }>();
@@ -22,7 +26,6 @@ export default function PlatformLoginPage() {
   const [info, setInfo] = useState<string | null>(null);
 
   useEffect(() => {
-    // If already signed in, bounce in. Guard still runs server-side.
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) router.push(`/conferences/${slug}/platform`);
@@ -50,8 +53,6 @@ export default function PlatformLoginPage() {
       body: JSON.stringify({ email: email.trim(), slug }),
     });
     setResendBusy(false);
-    // Always render a soft success — the API intentionally doesn't leak
-    // whether the email is registered.
     if (!res.ok) {
       try { const j = await res.json(); setError(j.error ?? "Could not send link."); return; }
       catch { setError("Could not send link."); return; }
@@ -59,52 +60,83 @@ export default function PlatformLoginPage() {
     setInfo("If that email is registered for this conference, we just sent a link.");
   }
 
+  const inputStyle: React.CSSProperties = {
+    backgroundColor: "transparent",
+    borderColor: BRAND_BORDER,
+    color: BRAND_IVORY,
+    fontSize: 16,
+  };
+  const labelStyle: React.CSSProperties = {
+    color: BRAND_GOLD_L,
+    letterSpacing: "0.14em",
+  };
+
   return (
-    <div className="flex min-h-screen flex-col" style={{ backgroundColor: BRAND_BG }}>
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-10">
-        <div className="mb-6"><AboveBeyondHeader /></div>
-        <h1 className="font-serif text-2xl font-semibold text-stone-900">Sign in</h1>
-        <p className="mt-1 text-sm text-stone-700">
-          Enter the email you registered with.
-        </p>
+    <AboveBeyondHero>
+      <h1 className="font-serif text-3xl font-medium tracking-wide" style={{ color: BRAND_IVORY }}>
+        Attendee sign-in
+      </h1>
+      <p className="mt-1 text-sm" style={{ color: BRAND_GREY }}>
+        Enter the email you registered with.
+      </p>
 
-        {error && <div className="mt-4 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</div>}
-        {info && <div className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{info}</div>}
-
-        <label className="mt-5 block text-sm font-medium text-slate-700">Email</label>
-        <input className="mt-1 w-full rounded-md border border-slate-300 px-3 py-3 text-base"
-          style={{ fontSize: 16 }}
-          type="email" autoComplete="email"
-          value={email} onChange={e => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          onKeyDown={e => { if (e.key === "Enter") signIn(); }} />
-
-        <label className="mt-4 block text-sm font-medium text-slate-700">Password</label>
-        <input className="mt-1 w-full rounded-md border border-slate-300 px-3 py-3 text-base"
-          style={{ fontSize: 16 }}
-          type="password" autoComplete="current-password"
-          value={password} onChange={e => setPassword(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") signIn(); }} />
-
-        <button onClick={signIn} disabled={busy}
-          className="mt-6 w-full rounded-md py-3 text-base font-medium text-white disabled:opacity-50"
-          style={{ minHeight: 48, backgroundColor: BRAND_ACCENT }}>
-          {busy ? "Signing in…" : "Sign in"}
-        </button>
-
-        <div className="mt-6 border-t border-slate-200 pt-4 text-sm text-slate-600">
-          <p>Need a login link?</p>
-          <button onClick={resend} disabled={resendBusy}
-            className="mt-2 text-slate-900 underline disabled:opacity-50"
-            style={{ minHeight: 32 }}>
-            {resendBusy ? "Sending…" : "Email me a link"}
-          </button>
-          <p className="mt-2 text-xs text-slate-500">
-            We&rsquo;ll either send you a password-reset link (if you&rsquo;ve already set a
-            password) or a fresh invite to pick one.
-          </p>
+      {error && (
+        <div className="mt-4 rounded-sm border px-3 py-2 text-sm"
+          style={{ borderColor: "#5a2a2a", backgroundColor: "#2a1414", color: "#f5c5c5" }}>
+          {error}
         </div>
-      </main>
-    </div>
+      )}
+      {info && (
+        <div className="mt-4 rounded-sm border px-3 py-2 text-sm"
+          style={{ borderColor: BRAND_GOLD_D, backgroundColor: "rgba(201,162,75,0.08)", color: BRAND_IVORY }}>
+          {info}
+        </div>
+      )}
+
+      <label className="mt-5 block text-[11px] font-medium uppercase" style={labelStyle}>Email</label>
+      <input className="mt-1 w-full rounded-sm border px-3 py-3 focus:outline-none"
+        style={inputStyle}
+        type="email" autoComplete="email"
+        value={email} onChange={e => setEmail(e.target.value)}
+        placeholder="you@example.com"
+        onKeyDown={e => { if (e.key === "Enter") signIn(); }} />
+
+      <label className="mt-4 block text-[11px] font-medium uppercase" style={labelStyle}>Password</label>
+      <input className="mt-1 w-full rounded-sm border px-3 py-3 focus:outline-none"
+        style={inputStyle}
+        type="password" autoComplete="current-password"
+        value={password} onChange={e => setPassword(e.target.value)}
+        onKeyDown={e => { if (e.key === "Enter") signIn(); }} />
+
+      <button
+        onClick={signIn}
+        disabled={busy}
+        className="mt-6 w-full rounded-sm py-3 text-sm font-semibold uppercase tracking-[0.22em] transition-opacity hover:opacity-90 disabled:opacity-50"
+        style={{ backgroundColor: BRAND_GOLD, color: BRAND_BLACK_CONTRAST }}
+      >
+        {busy ? "Signing in…" : "Sign in"}
+      </button>
+
+      <div className="mt-6 border-t pt-5" style={{ borderColor: BRAND_BORDER }}>
+        <div className="text-[11px] uppercase tracking-[0.22em]" style={{ color: BRAND_GREY }}>
+          Need a login link?
+        </div>
+        <button
+          onClick={resend}
+          disabled={resendBusy}
+          className="mt-2 w-full rounded-sm border py-2.5 text-xs font-semibold uppercase tracking-[0.22em] transition-colors hover:bg-black/40 disabled:opacity-50"
+          style={{ borderColor: BRAND_GOLD, color: BRAND_GOLD }}
+        >
+          {resendBusy ? "Sending…" : "Email me a link"}
+        </button>
+        <p className="mt-3 text-xs" style={{ color: BRAND_GREY }}>
+          If you&rsquo;ve already set a password you&rsquo;ll get a reset link; otherwise a fresh invite.
+        </p>
+      </div>
+    </AboveBeyondHero>
   );
 }
+
+// Deep black for text sitting on the gold button. Kept inline rather than
+// exported from AboveBeyondBrand to avoid growing that surface.
+const BRAND_BLACK_CONTRAST = "#0a0a0a";
