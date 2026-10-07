@@ -8,6 +8,7 @@
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { AttendeeSide } from "@/lib/types";
+import { SetPasswordDialog } from "@/components/SetPasswordDialog";
 
 export interface InviteRow {
   id: string;
@@ -91,6 +92,7 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [pwFor, setPwFor] = useState<InviteRow | null>(null);
 
   const stats = useMemo(() => {
     const orgs = (side: AttendeeSide) => new Set(rows.filter(r => r.lead_type === side).map(r => r.lead_id)).size;
@@ -289,6 +291,10 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
                           className={BTN_COMPACT} title="Open the attendee portal as this person sees it">
                           {previewBusy === r.id ? "Opening…" : "Preview"}
                         </button>
+                        <button type="button" onClick={() => setPwFor(r)} className={BTN_COMPACT}
+                          title="Set a password directly — no email">
+                          Password
+                        </button>
                         {st !== "signed_in" && (
                           <button type="button" onClick={() => sendOne(r)} disabled={busy} className={BTN_COMPACT}>
                             {busy ? "Sending…" : st === "invited" ? "Resend" : "Send"}
@@ -329,9 +335,12 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
                 <span className="text-ink">{r.lead_name}</span>
                 <SidePill side={r.lead_type} />
               </div>
-              <div className={`mt-3 grid gap-2 ${st === "signed_in" ? "grid-cols-1" : "grid-cols-2"}`}>
+              <div className={`mt-3 grid gap-2 ${st === "signed_in" ? "grid-cols-2" : "grid-cols-3"}`}>
                 <button type="button" onClick={() => preview(r.id)} disabled={previewBusy !== null} className={BTN_SECONDARY}>
                   {previewBusy === r.id ? "Opening…" : "Preview"}
+                </button>
+                <button type="button" onClick={() => setPwFor(r)} className={BTN_SECONDARY}>
+                  Password
                 </button>
                 {st !== "signed_in" && (
                   <button type="button" onClick={() => sendOne(r)} disabled={busy}
@@ -351,6 +360,14 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
           </div>
         )}
       </div>
+      <SetPasswordDialog
+        open={pwFor !== null}
+        onClose={() => { setPwFor(null); router.refresh(); }}
+        who={pwFor?.full_name ?? pwFor?.email ?? ""}
+        email={pwFor?.email ?? ""}
+        endpoint="/api/platform/admin/set-password"
+        body={{ attendee_profile_id: pwFor?.id }}
+      />
     </div>
   );
 }

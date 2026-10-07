@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
   // User already exists → password reset flow.
   if (attendee.user_id) {
-    const redirectTo = `${origin}/conferences/${confSlug}/platform/login`;
+    const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(`/conferences/${confSlug}/platform/reset`)}`;
     const { error } = await svc.auth.resetPasswordForEmail(attendee.email, { redirectTo });
     if (!error) {
       await svc.from("attendee_profiles").update({ invite_sent_at: new Date().toISOString() })

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile, Entity } from "@/lib/types";
+import { SetPasswordDialog } from "@/components/SetPasswordDialog";
 
 export function UsersAdmin({ profiles, entities, currentUserId }: {
   profiles: Profile[]; entities: Entity[]; currentUserId: string;
@@ -10,6 +11,7 @@ export function UsersAdmin({ profiles, entities, currentUserId }: {
   const router = useRouter();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pwFor, setPwFor] = useState<Profile | null>(null);
 
   async function toggleSuperAdmin(p: Profile) {
     const supabase = createClient();
@@ -84,22 +86,33 @@ export function UsersAdmin({ profiles, entities, currentUserId }: {
                   </button>
                 </td>
                 <td className="px-3 py-2 text-xs text-gray-500">{new Date(p.created_at).toLocaleDateString()}</td>
-                <td className="px-3 py-2 text-right">
-                  {p.id === currentUserId ? (
-                    <span className="text-[10px] uppercase tracking-widest2 text-muted">—</span>
-                  ) : (
-                    <button onClick={() => deleteUser(p)} disabled={deletingId === p.id}
-                      className="text-xs font-semibold uppercase tracking-widest2 disabled:opacity-50"
-                      style={{ color: "#C8102E" }}>
-                      {deletingId === p.id ? "Deleting…" : "Delete"}
+                <td className="whitespace-nowrap px-3 py-2 text-right">
+                  <div className="inline-flex items-center gap-4">
+                    <button onClick={() => setPwFor(p)}
+                      className="text-xs font-semibold uppercase tracking-widest2 text-ink hover:underline">
+                      Set password
                     </button>
-                  )}
+                    {p.id !== currentUserId && (
+                      <button onClick={() => deleteUser(p)} disabled={deletingId === p.id}
+                        className="text-xs font-semibold uppercase tracking-widest2 disabled:opacity-50"
+                        style={{ color: "#C8102E" }}>
+                        {deletingId === p.id ? "Deleting…" : "Delete"}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      <SetPasswordDialog
+        open={pwFor !== null}
+        onClose={() => setPwFor(null)}
+        who={pwFor?.full_name || pwFor?.email || ""}
+        email={pwFor?.email ?? ""}
+        endpoint={pwFor ? `/api/admin/users/${encodeURIComponent(pwFor.id)}/password` : ""}
+      />
     </div>
   );
 }
