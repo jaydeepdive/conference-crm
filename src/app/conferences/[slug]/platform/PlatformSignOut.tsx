@@ -1,6 +1,7 @@
 /**
  * Sign-out button for the /platform surface. Calls supabase.auth.signOut()
  * and bounces to the platform login page for THIS conference.
+ * Styled for the dark Above & Beyond header (light text).
  */
 "use client";
 import { useRouter } from "next/navigation";
@@ -16,8 +17,8 @@ export function PlatformSignOut({ slug, compact }: { slug: string; compact?: boo
   }
   return (
     <button onClick={signOut}
-      className={`shrink-0 text-xs text-slate-500 hover:text-slate-900 ${compact ? "" : "underline"}`}
-      style={{ minHeight: compact ? undefined : 44 }}>
+      className={`shrink-0 text-xs uppercase tracking-[0.18em] hover:opacity-80 ${compact ? "" : "underline"}`}
+      style={{ minHeight: compact ? undefined : 44, color: "#e8cf8f" }}>
       Sign out
     </button>
   );
