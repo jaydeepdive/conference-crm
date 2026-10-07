@@ -8,6 +8,7 @@ import { requireConferenceAccess } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { AttendeeProfile, Company, Investor } from "@/lib/types";
+import Link from "next/link";
 import { PageTitle } from "@/components/SectionHeader";
 import { PlatformInvitesClient, type InviteRow } from "./PlatformInvitesClient";
 
@@ -50,6 +51,16 @@ export default async function PlatformInvitesPage({
   return (
     <div className="space-y-6">
       <PageTitle title="Platform invites" sub={`${ctx.conference.name} · super admin`} />
+
+      <div className="flex items-center justify-between rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+        <span>Need to edit meetings directly? Skip impersonation.</span>
+        <Link
+          href={`/conferences/${slug}/meetings`}
+          className="rounded bg-sky-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-sky-800"
+        >
+          Go to meetings admin
+        </Link>
+      </div>
 
       <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
         Sending here is the ONLY way an invite email goes out. Nothing is sent

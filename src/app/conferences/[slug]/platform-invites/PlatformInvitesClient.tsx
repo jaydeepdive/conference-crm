@@ -44,6 +44,20 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
     router.push(`/conferences/${slug}/platform`);
   }
 
+  const [syncBusy, setSyncBusy] = useState(false);
+  async function syncFromRegistered() {
+    setSyncBusy(true); setError(null); setResult(null);
+    const res = await fetch("/api/platform/invites/sync-from-registered", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug }),
+    });
+    const j = await res.json();
+    setSyncBusy(false);
+    if (!res.ok) { setError(j.error ?? "Sync failed"); return; }
+    setResult(`Synced from registered leads: ${j.created} new attendee${j.created === 1 ? "" : "s"} (${j.after} total). No emails sent.`);
+    router.refresh();
+  }
+
   async function sendMany(ids: string[]) {
     if (ids.length === 0) return;
     setError(null); setResult(null);
@@ -67,6 +81,12 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
           disabled={unsent.length === 0 || busyIds.size > 0}
           className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
           Send to all unsent ({unsent.length})
+        </button>
+        <button onClick={syncFromRegistered}
+          disabled={syncBusy}
+          title="Pull every registered lead (and their contacts) into the attendee list. No emails sent."
+          className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 disabled:opacity-50">
+          {syncBusy ? "Syncing…" : "↻ Sync registered leads"}
         </button>
         {result && <span className="text-sm text-emerald-700">{result}</span>}
         {error && <span className="text-sm text-rose-700">{error}</span>}

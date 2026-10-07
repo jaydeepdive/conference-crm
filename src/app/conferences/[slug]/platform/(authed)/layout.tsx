@@ -28,22 +28,68 @@ export default async function PlatformAuthedLayout({
   if (result.kind === "not-attendee") {
     const conference = result.conference;
     const userEmail = result.userEmail;
+    // Check whether this user is a super admin — if so, don't bounce them
+    // into a dead end; link them directly to the staff admin tools.
+    const { createClient } = await import("@/lib/supabase/server");
+    const sb = await createClient();
+    const { data: { user: u2 } } = await sb.auth.getUser();
+    let isSuperAdmin = false;
+    if (u2) {
+      const { data: prof } = await sb.from("profiles").select("is_super_admin").eq("id", u2.id).maybeSingle();
+      isSuperAdmin = !!(prof as { is_super_admin?: boolean } | null)?.is_super_admin;
+    }
     return (
       <div className="min-h-screen bg-slate-50">
         <div className="mx-auto max-w-md px-5 py-10">
           <h1 className="text-xl font-semibold text-slate-900">{conference.name}</h1>
-          <p className="mt-4 text-base text-slate-700">
-            You&rsquo;re signed in as <span className="font-medium">{userEmail ?? "—"}</span>,
-            but you&rsquo;re not registered as an attendee for this conference,
-            and there are no attendees to view as yet.
-          </p>
-          <p className="mt-3 text-sm text-slate-500">
-            Super admins: add at least one attendee under Platform Invites, then
-            come back here and you&rsquo;ll be able to impersonate.
-          </p>
-          <div className="mt-6">
-            <PlatformSignOut slug={slug} />
-          </div>
+          {isSuperAdmin ? (
+            <>
+              <div className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <strong>Admin:</strong> no attendees exist in this conference yet. The attendee
+                /platform surface needs at least one attendee_profile to render.
+              </div>
+              <p className="mt-4 text-sm text-slate-700">
+                You can manage the whole schedule directly from the staff CRM — no attendee login required:
+              </p>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li>
+                  <Link href={`/conferences/${slug}/meetings`}
+                    className="block rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 hover:border-brand-accent">
+                    → Open Meetings admin (create, edit, assign tables)
+                  </Link>
+                </li>
+                <li>
+                  <Link href={`/conferences/${slug}/platform-invites`}
+                    className="block rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 hover:border-brand-accent">
+                    → Add attendees + send invite emails
+                  </Link>
+                </li>
+                <li>
+                  <Link href={`/conferences/${slug}`}
+                    className="block rounded-md border border-slate-300 bg-white px-3 py-2 font-medium text-slate-900 hover:border-brand-accent">
+                    → Back to the conference dashboard
+                  </Link>
+                </li>
+              </ul>
+              <div className="mt-6">
+                <PlatformSignOut slug={slug} />
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="mt-4 text-base text-slate-700">
+                You&rsquo;re signed in as <span className="font-medium">{userEmail ?? "—"}</span>,
+                but you&rsquo;re not registered as an attendee for this conference.
+              </p>
+              <p className="mt-3 text-sm text-slate-500">
+                If this is wrong, check with the organizers that you were invited
+                with the correct email address.
+              </p>
+              <div className="mt-6">
+                <PlatformSignOut slug={slug} />
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
