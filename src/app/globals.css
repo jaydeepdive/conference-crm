@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme tokens (RGB triples) — Tailwind ink/muted/line/utility/accent read these. */
+:root {
+  --c-ink: 14 14 14;
+  --c-muted: 107 107 107;
+  --c-line: 229 229 229;
+  --c-utility: 245 245 245;
+  --c-accent: 200 16 46;
+}
+
+/* Above & Beyond admin console — warm ivory / gold, Cormorant + Jost. */
+.ab-admin {
+  --c-ink: 20 18 14;
+  --c-muted: 110 102 86;
+  --c-line: 226 216 196;
+  --c-utility: 245 240 230;
+  --c-accent: 143 111 42;
+}
+.ab-admin .font-display,
+.ab-admin .font-serif { font-family: var(--font-ab-serif), "Cormorant Garamond", Georgia, serif; }
+.ab-admin .font-sans,
+.ab-admin .font-body { font-family: var(--font-ab-sans), Jost, "Segoe UI", sans-serif; }
+.ab-admin .section-rule { border-bottom-color: #c9a24b; }
+
 html, body { height: 100%; }
 body {
   @apply bg-white text-ink antialiased font-sans;

@@ -5,15 +5,17 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Theme tokens are CSS variables (see globals.css) so the Above &
+        // Beyond admin console (.ab-admin) can re-skin the shared components.
         brand: {
-          DEFAULT: "#0E0E0E",
-          accent: "#C8102E",
-          light: "#F5F5F5",
+          DEFAULT: "rgb(var(--c-ink) / <alpha-value>)",
+          accent: "rgb(var(--c-accent) / <alpha-value>)",
+          light: "rgb(var(--c-utility) / <alpha-value>)",
         },
-        ink: "#0E0E0E",
-        muted: "#6B6B6B",
-        line: "#E5E5E5",
-        utility: "#F5F5F5",
+        ink: "rgb(var(--c-ink) / <alpha-value>)",
+        muted: "rgb(var(--c-muted) / <alpha-value>)",
+        line: "rgb(var(--c-line) / <alpha-value>)",
+        utility: "rgb(var(--c-utility) / <alpha-value>)",
         // Legacy alias — older buttons reference text-cream / bg-cream. Map to white.
         cream: "#FFFFFF",
       },

@@ -239,7 +239,7 @@ export function MeetingsAdminClient({
         {header}
         <div className="grid grid-cols-2 gap-2 md:flex md:gap-3">
           <button type="button" onClick={() => openCreate()} className={BTN_PRIMARY}>+ New meeting</button>
-          <Link href={`/conferences/${slug}/meetings/auto-match`} className={BTN_SECONDARY}>Auto-match</Link>
+          <Link href={`/conferences/${slug}/platform/admin/meetings/auto-match`} className={BTN_SECONDARY}>Auto-match</Link>
         </div>
       </div>
 
@@ -266,7 +266,7 @@ export function MeetingsAdminClient({
           </div>
           <div className="grid grid-cols-2 gap-2 md:flex md:shrink-0 md:gap-3">
             <button type="button" onClick={() => openCreate()} className={BTN_PRIMARY}>+ New meeting</button>
-            <Link href={`/conferences/${slug}/meetings/auto-match`} className={BTN_SECONDARY}>Auto-match</Link>
+            <Link href={`/conferences/${slug}/platform/admin/meetings/auto-match`} className={BTN_SECONDARY}>Auto-match</Link>
           </div>
         </div>
       )}

@@ -97,8 +97,7 @@ export function SetPasswordDialog({
 
             <div className="mt-5 flex gap-2">
               <button onClick={submit} disabled={busy}
-                className="flex-1 whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-widest2 text-white disabled:opacity-50"
-                style={{ backgroundColor: "#C8102E" }}>
+                className="flex-1 whitespace-nowrap bg-brand-accent px-4 py-3 text-xs font-semibold uppercase tracking-widest2 text-white disabled:opacity-50">
                 {busy ? "Setting…" : "Set password"}
               </button>
               <button onClick={close}
@@ -123,8 +122,7 @@ export function SetPasswordDialog({
                 {copied ? "Copied ✓" : "Copy"}
               </button>
               <button onClick={close}
-                className="flex-1 whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-widest2 text-white"
-                style={{ backgroundColor: "#0E0E0E" }}>
+                className="flex-1 whitespace-nowrap bg-ink px-4 py-3 text-xs font-semibold uppercase tracking-widest2 text-white">
                 Done
               </button>
             </div>

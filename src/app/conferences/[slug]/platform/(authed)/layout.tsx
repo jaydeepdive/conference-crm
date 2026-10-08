@@ -53,81 +53,15 @@ export default async function PlatformAuthedLayout({
       isSuperAdmin = !!(prof as { is_super_admin?: boolean } | null)?.is_super_admin;
     }
 
-    // Live counts straight from the CRM so the admin can see the platform
-    // IS populated — it's just that the admin isn't one of the attendees.
-    let stats = { attendees: 0, companies: 0, investors: 0, accepted: 0, meetings: 0 };
-    if (isSuperAdmin) {
-      const admin = createServiceClient();
-      const [att, comp, inv, acc, mtg] = await Promise.all([
-        admin.from("attendee_profiles").select("*", { count: "exact", head: true }).eq("conference_id", conference.id),
-        admin.from("attendee_profiles").select("lead_id").eq("conference_id", conference.id).eq("lead_type", "company"),
-        admin.from("attendee_profiles").select("lead_id").eq("conference_id", conference.id).eq("lead_type", "investor"),
-        admin.from("attendee_profiles").select("*", { count: "exact", head: true }).eq("conference_id", conference.id).not("user_id", "is", null),
-        admin.from("meetings").select("*", { count: "exact", head: true }).eq("conference_id", conference.id).eq("status", "accepted"),
-      ]);
-      stats = {
-        attendees: att.count ?? 0,
-        companies: new Set((comp.data ?? []).map(r => r.lead_id)).size,
-        investors: new Set((inv.data ?? []).map(r => r.lead_id)).size,
-        accepted: acc.count ?? 0,
-        meetings: mtg.count ?? 0,
-      };
-    }
-
-    const linkCard = "block rounded-sm border px-4 py-3 text-sm font-medium transition-colors hover:border-[#c9a24b]";
+    // Organizers who aren't attendees go to the Above & Beyond admin console.
+    if (isSuperAdmin) { redirect(`/conferences/${slug}/platform/admin`); throw new Error("unreachable"); }
 
     return (
       <div className="min-h-screen" style={{ backgroundColor: BRAND_BLACK, color: BRAND_IVORY }}>
         <div className="mx-auto max-w-md px-5 py-10">
           <div className="mb-8"><AboveBeyondHeader /></div>
+          {(
 
-          {isSuperAdmin ? (
-            <>
-              <div className="text-[11px] uppercase tracking-[0.22em]" style={{ color: BRAND_GOLD }}>
-                Admin
-              </div>
-              <h1 className="mt-1 font-serif text-3xl font-medium" style={{ color: BRAND_IVORY }}>
-                {conference.public_name ?? conference.name}
-              </h1>
-              <p className="mt-3 text-sm leading-relaxed" style={{ color: TEXT_MUTED }}>
-                You&rsquo;re signed in as an organizer, not an attendee, so there&rsquo;s no
-                personal schedule to show here. Everything below is pulled live from the CRM.
-              </p>
-
-              <div className="mt-6 grid grid-cols-2 gap-3">
-                <Stat label="Attendees" value={stats.attendees} />
-                <Stat label="Logged in" value={stats.accepted} />
-                <Stat label="Companies" value={stats.companies} />
-                <Stat label="Investors" value={stats.investors} />
-                <div className="col-span-2">
-                  <Stat label="Confirmed meetings" value={stats.meetings} />
-                </div>
-              </div>
-
-              <ul className="mt-6 space-y-2">
-                <li>
-                  <Link href={`/conferences/${slug}/meetings`} className={linkCard}
-                    style={{ backgroundColor: BRAND_CARD, borderColor: BRAND_BORDER, color: BRAND_IVORY }}>
-                    <span style={{ color: BRAND_GOLD }}>→</span> Meetings admin — create, edit, auto-match, assign tables
-                  </Link>
-                </li>
-                <li>
-                  <Link href={`/conferences/${slug}/platform-invites`} className={linkCard}
-                    style={{ backgroundColor: BRAND_CARD, borderColor: BRAND_BORDER, color: BRAND_IVORY }}>
-                    <span style={{ color: BRAND_GOLD }}>→</span> Attendees — invites, and &ldquo;View as&rdquo; to preview any attendee
-                  </Link>
-                </li>
-                <li>
-                  <Link href={`/conferences/${slug}`} className={linkCard}
-                    style={{ backgroundColor: BRAND_CARD, borderColor: BRAND_BORDER, color: BRAND_IVORY }}>
-                    <span style={{ color: BRAND_GOLD }}>→</span> Back to the CRM dashboard
-                  </Link>
-                </li>
-              </ul>
-
-              <div className="mt-8"><PlatformSignOut slug={slug} /></div>
-            </>
-          ) : (
             <>
               <h1 className="font-serif text-3xl font-medium" style={{ color: BRAND_IVORY }}>
                 {conference.public_name ?? conference.name}
@@ -168,7 +102,15 @@ export default async function PlatformAuthedLayout({
               {entity ? ` · ${entity}` : ""}
             </div>
           </Link>
-          <PlatformSignOut slug={slug} compact />
+          <div className="flex shrink-0 items-center gap-4">
+            {ctx.isAdmin && (
+              <Link href={`/conferences/${slug}/platform/admin`}
+                className="text-xs uppercase tracking-[0.18em] hover:opacity-80" style={{ color: BRAND_GOLD }}>
+                Admin
+              </Link>
+            )}
+            <PlatformSignOut slug={slug} compact />
+          </div>
         </div>
         <PlatformNav slug={slug} />
       </header>

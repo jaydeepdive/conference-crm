@@ -26,8 +26,8 @@ export function ConferenceNav({ profile, conference, role }: {
     // actual attendees; admins never need to view it unless they want to
     // preview what an attendee sees (reachable via "View as" on Platform
     // invites rows).
-    { href: `${base}/meetings`, label: "Meetings", show: role === "super_admin" },
-    { href: `${base}/platform-invites`, label: "Attendees", show: role === "super_admin" },
+    { href: `${base}/platform/admin/meetings`, label: "Meetings", show: role === "super_admin" },
+    { href: `${base}/platform/admin/attendees`, label: "Attendees", show: role === "super_admin" },
     { href: `${base}/settings`, label: "Settings", show: canSeePayments(role) },
   ].filter(n => n.show).map(item => {
     const active = item.href === base ? path === base : path === item.href || path.startsWith(item.href + "/");

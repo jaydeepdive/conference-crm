@@ -100,7 +100,7 @@ export default async function AutoMatchPage({
 
   return (
     <div className="space-y-5">
-      <PageTitle title="Auto-match meetings" sub={`${ctx.conference.name} · super admin`} />
+      <PageTitle title="Auto-match meetings" sub="Fill open slots automatically, then review before saving" />
       <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
         Proposes meeting assignments for every unmatched (company, investor) pair.
         Review the preview, then <strong>Confirm all</strong> to write them as accepted

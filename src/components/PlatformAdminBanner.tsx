@@ -26,6 +26,7 @@ export function PlatformAdminBanner({
       body: JSON.stringify({ clear: true }),
     });
     setBusy(false);
+    router.push(`/conferences/${slug}/platform/admin`);
     router.refresh();
   }
 
@@ -33,15 +34,15 @@ export function PlatformAdminBanner({
     <div className="bg-amber-500 text-black">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs sm:px-6">
         <div className="min-w-0 flex-1 truncate">
-          <span className="font-semibold uppercase tracking-wide">Admin view</span>
+          <span className="font-semibold uppercase tracking-wide">Previewing</span>
           <span className="ml-2">
-            Impersonating <strong>{impersonatedName}</strong>{" "}
+            as <strong>{impersonatedName}</strong>{" "}
             <span className="opacity-70">({impersonatedEntity})</span>
           </span>
         </div>
         <div className="flex items-center gap-3">
           <Link
-            href={`/conferences/${slug}/platform/admin-switch`}
+            href={`/conferences/${slug}/platform/admin/attendees`}
             className="rounded border border-black/20 bg-white/80 px-2 py-1 font-semibold uppercase tracking-wide hover:bg-white"
           >
             Switch
@@ -51,7 +52,7 @@ export function PlatformAdminBanner({
             disabled={busy}
             className="rounded border border-black/20 bg-white/80 px-2 py-1 font-semibold uppercase tracking-wide hover:bg-white disabled:opacity-50"
           >
-            {busy ? "…" : "Exit admin view"}
+            {busy ? "…" : "← Back to admin"}
           </button>
         </div>
       </div>
