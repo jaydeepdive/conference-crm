@@ -35,10 +35,11 @@ function LoginForm() {
     const supabase = createClient();
 
     if (mode === "reset") {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const res = await fetch("/api/auth/forgot", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
       });
-      if (error) { setError(error.message); setLoading(false); return; }
+      if (!res.ok) { setError("Could not send the reset email. Try again in a minute."); setLoading(false); return; }
       setInfo("If that email is registered, a reset link has been sent.");
       setLoading(false);
       return;

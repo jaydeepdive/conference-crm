@@ -4,13 +4,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/service";
+import { MeetingEmailsToggle } from "./MeetingEmailsToggle";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlatformAdminOverview({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const admin = createServiceClient();
-  const { data: conference } = await admin.from("conferences").select("id, name, public_name").eq("slug", slug).maybeSingle();
+  const { data: conference } = await admin.from("conferences").select("id, name, public_name, meeting_emails_enabled").eq("slug", slug).maybeSingle();
   if (!conference) { notFound(); throw new Error("unreachable"); }
 
   const [att, comp, inv, acc, mtg, pend] = await Promise.all([
@@ -47,7 +48,11 @@ export default async function PlatformAdminOverview({ params }: { params: Promis
         ))}
       </div>
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+      <div className="mt-6">
+        <MeetingEmailsToggle slug={slug} enabled={!!conference.meeting_emails_enabled} />
+      </div>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <Link href={`${base}/meetings`} className={card}>
           <div className="font-display text-xl">Meetings →</div>
           <div className="mt-1 text-sm text-muted">Schedule grid, create / edit / cancel, assign tables, auto-match.</div>

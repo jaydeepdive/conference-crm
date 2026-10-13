@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { loadMeetingCaller } from "@/lib/portal-api";
+import { notifyMeeting } from "@/lib/meetingEmails";
 
 export const runtime = "nodejs";
 
@@ -72,5 +73,9 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     meeting_id: meeting.id, actor_profile_id: attendee.id, actor_side: mySide,
     kind: "counter", proposed_time: t.toISOString(), body: body.notes ?? null,
   });
-  return NextResponse.json({ ok: true });
+  const notified = await notifyMeeting({
+    meetingId: meeting.id, kind: "counter", actorAttendeeId: attendee.id,
+    origin: new URL(request.url).origin, note: body.notes ?? null,
+  });
+  return NextResponse.json({ ok: true, notified: notified.sent });
 }

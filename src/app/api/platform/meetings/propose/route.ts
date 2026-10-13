@@ -11,6 +11,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { AttendeeSide } from "@/lib/types";
+import { notifyMeeting } from "@/lib/meetingEmails";
 
 export const runtime = "nodejs";
 
@@ -138,5 +139,10 @@ export async function POST(request: Request) {
     body: body.notes ?? null,
   });
 
-  return NextResponse.json({ meeting_id: meetingId });
+  const notified = await notifyMeeting({
+    meetingId, kind: "request", actorAttendeeId: attendee.id,
+    origin: new URL(request.url).origin, note: body.notes ?? null,
+  });
+
+  return NextResponse.json({ meeting_id: meetingId, notified: notified.sent });
 }
