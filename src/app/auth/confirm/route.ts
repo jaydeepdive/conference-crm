@@ -11,7 +11,12 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const token_hash = searchParams.get("token_hash");
   const type = (searchParams.get("type") ?? "recovery") as EmailOtpType;
-  const rawNext = searchParams.get("next") ?? "/reset-password";
+  let rawNext = searchParams.get("next") ?? "/reset-password";
+  // Supabase email templates pass {{ .RedirectTo }} (absolute URL) — keep only
+  // the path so we never redirect off-site.
+  if (/^https?:\/\//i.test(rawNext)) {
+    try { const u = new URL(rawNext); rawNext = u.pathname + u.search; } catch { rawNext = "/reset-password"; }
+  }
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/reset-password";
   if (token_hash) {
     const supabase = await createClient();

@@ -7,15 +7,13 @@
  *   - If attendee_profiles[email] exists and already has user_id → send a
  *     Supabase password-reset link.
  *   - Otherwise → generate a fresh invite_token and send the invite email
- *     via Gmail (using whichever admin last sent for this conference —
- *     unavailable here, so we fall through to attempting the first staff
- *     user with a Gmail token).
+ *     via Resend (no-reply@abovebeyondsummit.com).
  *   - Rate-limit: if invite_sent_at was within 2 min, return 429.
  *   - Always return 200 to callers to avoid email-existence leaks.
  */
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { getValidGmailAccessToken, sendGmail } from "@/lib/gmail";
+import { sendResend, brandedEmail } from "@/lib/resend";
 import { generateInviteToken } from "@/lib/platform";
 
 export const runtime = "nodejs";
@@ -56,19 +54,31 @@ export async function POST(request: Request) {
   }
 
   const origin = new URL(request.url).origin;
-  const { data: conf } = await svc.from("conferences").select("slug, name")
+  const { data: conf } = await svc.from("conferences").select("slug, name, public_name")
     .eq("id", attendee.conference_id).maybeSingle();
   const confSlug = conf?.slug ?? slug;
-  const confName = conf?.name ?? "the conference";
+  const confName = conf?.public_name ?? "the Above & Beyond Mining Summit";
 
-  // User already exists → password reset flow.
+  const first = attendee.full_name ? String(attendee.full_name).split(" ")[0] : "";
+  const greeting = first ? `Hi ${first},` : "Hello,";
+
+  // User already exists → one-time password-reset link (no Supabase mailer;
+  // token_hash is verified by /auth/confirm, works on any device/browser).
   if (attendee.user_id) {
-    const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent(`/conferences/${confSlug}/platform/reset`)}`;
-    const { error } = await svc.auth.resetPasswordForEmail(attendee.email, { redirectTo });
-    if (!error) {
-      await svc.from("attendee_profiles").update({ invite_sent_at: new Date().toISOString() })
-        .eq("id", attendee.id);
-    }
+    const { data: link, error } = await svc.auth.admin.generateLink({ type: "recovery", email: attendee.email });
+    const hashed = link?.properties?.hashed_token;
+    if (error || !hashed) return NextResponse.json({ ok: true });
+    const url = `${origin}/auth/confirm?token_hash=${encodeURIComponent(hashed)}&type=recovery&next=${encodeURIComponent(`/conferences/${confSlug}/platform/reset`)}`;
+    const { html, text } = brandedEmail({
+      origin, heading: "Reset your password", greeting,
+      paragraphs: [`Tap below to choose a new password for the <strong>${escapeHtml(confName)}</strong> attendee portal.`],
+      buttonLabel: "Choose a new password", url,
+      footnote: "This link works once and expires in about an hour. If you didn&rsquo;t ask for it, you can ignore this email.",
+    });
+    try {
+      await sendResend({ to: attendee.email, subject: `Reset your password: ${confName}`, html, text });
+      await svc.from("attendee_profiles").update({ invite_sent_at: new Date().toISOString() }).eq("id", attendee.id);
+    } catch { /* always 200 */ }
     return NextResponse.json({ ok: true });
   }
 
@@ -79,36 +89,17 @@ export async function POST(request: Request) {
   }).eq("id", attendee.id);
 
   const acceptUrl = `${origin}/conferences/${confSlug}/platform/accept?token=${encodeURIComponent(token)}`;
-
-  // Try to send via Gmail using any staff user who has a valid token. We
-  // pick the first available token holder — the operator can also just
-  // use the admin UI from the staff CRM, which uses their own token.
-  const { data: tokens } = await svc.from("gmail_tokens").select("profile_id").limit(5);
+  const { html, text } = brandedEmail({
+    origin, heading: "Your login link", greeting,
+    paragraphs: [`Here&rsquo;s your link to the <strong>${escapeHtml(confName)}</strong> attendee portal. Tap below to set your password.`],
+    buttonLabel: "Set my password", url: acceptUrl,
+    footnote: "This link is personal to you. Please don&rsquo;t forward it.",
+  });
   let sent = false;
-  for (const t of tokens ?? []) {
-    const at = await getValidGmailAccessToken((t as { profile_id: string }).profile_id);
-    if (!at) continue;
-    try {
-      const salutation = attendee.full_name ? `Hi ${attendee.full_name.split(" ")[0]},` : "Hello,";
-      await sendGmail({
-        accessToken: at,
-        to: [{ email: attendee.email, name: attendee.full_name ?? undefined }],
-        subject: `Your login link — ${confName}`,
-        bodyHtml: `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; color:#111; line-height:1.55;">
-            <p>${salutation}</p>
-            <p>Here's your login link for <strong>${escapeHtml(confName)}</strong>.
-            Tap the button to set your password:</p>
-            <p><a href="${acceptUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;text-decoration:none;border-radius:6px;font-weight:600;">Set my password</a></p>
-            <p style="font-size:12px;color:#666;">Or paste this URL:<br>${acceptUrl}</p>
-          </div>`,
-      });
-      sent = true;
-      break;
-    } catch {
-      // Try next token holder.
-    }
-  }
+  try {
+    await sendResend({ to: attendee.email, subject: `Your login link: ${confName}`, html, text });
+    sent = true;
+  } catch { /* always 200 */ }
 
   return NextResponse.json({ ok: true, sent });
 }

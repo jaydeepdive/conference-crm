@@ -6,7 +6,8 @@
  * Super-admin-only operator-gated send. For each attendee_profile:
  *   - If user_id is already set (previously accepted), skip.
  *   - Otherwise ensure invite_token is set (generate if missing).
- *   - Send the invite email via the caller's Gmail token.
+ *   - Send the invite email via Resend from no-reply@abovebeyondsummit.com
+ *     (Reply-To = the admin who pressed Send).
  *   - On success, stamp invite_sent_at.
  *
  * This is the ONLY code path that sends attendee invite emails. No other
@@ -15,7 +16,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { getValidGmailAccessToken, sendGmail } from "@/lib/gmail";
+import { sendResend, brandedEmail, resendConfigured } from "@/lib/resend";
 import { generateInviteToken } from "@/lib/platform";
 
 export const runtime = "nodejs";
@@ -46,7 +47,9 @@ export async function POST(request: Request) {
   const ids = body.profile_ids ?? (body.profile_id ? [body.profile_id] : []);
   if (ids.length === 0) return NextResponse.json({ error: "No profile_ids provided" }, { status: 400 });
 
-  const accessToken = await getValidGmailAccessToken(user.id);
+  if (!(await resendConfigured())) {
+    return NextResponse.json({ error: "Email sending (Resend) is not configured" }, { status: 500 });
+  }
 
   const svc = createServiceClient();
   const { data: profiles, error: pErr } = await svc.from("attendee_profiles")
@@ -72,38 +75,31 @@ export async function POST(request: Request) {
     }
 
     const { data: conf } = await svc.from("conferences")
-      .select("slug, name").eq("id", p.conference_id).maybeSingle();
+      .select("slug, name, public_name").eq("id", p.conference_id).maybeSingle();
     const confSlug = conf?.slug ?? "";
-    const confName = conf?.name ?? "the conference";
+    const confName = conf?.public_name ?? "the Above & Beyond Mining Summit";
     const acceptUrl = `${origin}/conferences/${confSlug}/platform/accept?token=${encodeURIComponent(token)}`;
     res.accept_url = acceptUrl;
 
-    if (!accessToken) {
-      res.error = "No Gmail token on your account. Paste the link manually from the row.";
-      results.push(res);
-      continue;
-    }
-
-    const salutation = p.full_name ? `Hi ${p.full_name.split(" ")[0]},` : "Hello,";
-    const bodyHtml = `
-      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#111;line-height:1.55;">
-        <p>${salutation}</p>
-        <p>You&rsquo;re invited to the attendee app for <strong>${escapeHtml(confName)}</strong>.
-        Set your password and we&rsquo;ll take you straight into the schedule.</p>
-        <p><a href="${acceptUrl}" style="display:inline-block;background:#111;color:#fff;padding:12px 20px;text-decoration:none;border-radius:6px;font-weight:600;">Set my password</a></p>
-        <p style="font-size:12px;color:#666;">Or paste this URL into your browser:<br>${acceptUrl}</p>
-      </div>`;
+    const first = p.full_name ? String(p.full_name).split(" ")[0] : "";
+    const { html, text } = brandedEmail({
+      origin,
+      heading: "Your 1-on-1 meeting portal",
+      greeting: first ? `Hi ${first},` : "Hello,",
+      paragraphs: [
+        `You&rsquo;re invited to the attendee portal for <strong>${escapeHtml(confName)}</strong> in Scottsdale, Arizona.`,
+        "Set your password to view the attendee directory, request 1-on-1 meetings for November 24, and manage your schedule.",
+      ],
+      buttonLabel: "Set my password",
+      url: acceptUrl,
+      footnote: "This link is personal to you. Please don&rsquo;t forward it.",
+    });
     try {
-      await sendGmail({
-        accessToken,
-        to: [{ email: p.email, name: p.full_name ?? undefined }],
-        subject: `Your invite — ${confName}`,
-        bodyHtml,
-      });
+      await sendResend({ to: p.email, subject: `Your invite: ${confName}`, html, text, replyTo: user.email ?? null });
       await svc.from("attendee_profiles").update({ invite_sent_at: new Date().toISOString() }).eq("id", p.id);
       res.sent = true;
     } catch (e) {
-      res.error = e instanceof Error ? e.message : "Gmail send failed";
+      res.error = e instanceof Error ? e.message : "Email send failed";
     }
     results.push(res);
   }
