@@ -53,16 +53,16 @@ export function AboveBeyondMark({ className = "h-10 w-10" }: { className?: strin
 
 /**
  * The full centered logo-wordmark lockup used in the public hero. Larger
- * JPEG with the AB mountain + "ABOVE & BEYOND SUMMIT" + "MINING |
+ * transparent PNG (background removed so it blends into any dark page) with the AB mountain + "ABOVE & BEYOND SUMMIT" + "MINING |
  * INVESTMENTS | OPPORTUNITIES" tag. Use on login / accept hero sections.
  */
 export function AboveBeyondLogoLockup({ className = "h-48 w-auto" }: { className?: string }) {
   return (
     <Image
-      src="/brand/logo-official.jpg"
+      src="/brand/logo-transparent.png"
       alt="Above & Beyond Summit — Mining, Investments, Opportunities"
-      width={990}
-      height={667}
+      width={887}
+      height={608}
       className={className}
       priority
       unoptimized
@@ -104,13 +104,13 @@ export function AboveBeyondHero({ children }: { children: React.ReactNode }) {
         <div className="mb-6 flex justify-center">
           <AboveBeyondLogoLockup className="h-40 w-auto sm:h-48" />
         </div>
-        <div className="mb-8 flex items-center justify-center gap-3 text-center text-[11px] uppercase tracking-[0.22em]"
+        <div className="mb-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[11px] uppercase tracking-[0.2em]"
           style={{ color: BRAND_GOLD_L }}>
-          <span>November 22–24</span>
+          <span className="whitespace-nowrap">November 22–24</span>
           <span style={{ color: BRAND_GOLD }}>|</span>
-          <span>Andaz Scottsdale</span>
+          <span className="whitespace-nowrap">Andaz Scottsdale</span>
           <span style={{ color: BRAND_GOLD }}>|</span>
-          <span>Scottsdale, AZ</span>
+          <span className="whitespace-nowrap">Scottsdale, AZ</span>
         </div>
         <div className="w-full rounded-sm border px-6 py-8"
           style={{ backgroundColor: BRAND_CARD, borderColor: BRAND_BORDER }}>

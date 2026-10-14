@@ -88,7 +88,7 @@ export function brandedEmail(opts: {
   <tr><td align="center" style="padding:32px 12px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #e6dfcf;">
       <tr><td align="center" style="background:#000000;padding:20px 24px 14px;">
-        <img src="${EMAIL_ASSET_ORIGIN}/brand/logo-official.jpg" width="240" alt="Above &amp; Beyond Summit" style="display:block;width:240px;max-width:80%;height:auto;border:0;">
+        <img src="${EMAIL_ASSET_ORIGIN}/brand/logo-transparent.png" width="240" alt="Above &amp; Beyond Summit" style="display:block;width:240px;max-width:80%;height:auto;border:0;">
       </td></tr>
       <tr><td style="background:#000000;padding:0 24px 16px;" align="center">
         <div style="font:500 11px/1.4 ${font};letter-spacing:3px;text-transform:uppercase;color:#c9a24b;">November 22&ndash;24, 2026 &nbsp;&middot;&nbsp; Scottsdale, Arizona</div>

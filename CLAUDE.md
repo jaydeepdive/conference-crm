@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.66** · 72 commits on `main`
+> Last updated: 2026-10-14 · Live version: **v6.67** · 72 commits on `main`
 
 ---
 
@@ -150,7 +150,7 @@ in `src/app/globals.css`). Default = TDD red theme. Wrapping element
 `.ab-admin` re-skins to Above & Beyond (ivory/gold, Cormorant/Jost). A&B
 palette: black #0a0a0a, charcoal #141414, card #1a1a1a, gold #c9a24b,
 gold-light #e8cf8f, gold-dark #8f6f2a, ivory #f5f0e6, grey #9a9a9a, border
-#2a2a2a. Brand assets: `public/brand/logo-official.jpg` (black-bg full logo),
+#2a2a2a. Brand assets: `public/brand/logo-transparent.png` (full logo, background removed — use this; logo-official.jpg is the original with baked-in black),
 `public/brand/mark.svg`; components in
 `src/app/conferences/[slug]/platform/AboveBeyondBrand.tsx`.
 
