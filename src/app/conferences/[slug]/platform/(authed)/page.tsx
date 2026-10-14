@@ -193,6 +193,10 @@ function ScheduleRow({
     let label: string;
     let tone: string;
     if (m.status === "accepted") { label = name; tone = "text-slate-900 font-medium"; }
+    else if (m.reschedule_from) {
+      label = `${name} — new time requested`;
+      tone = "text-amber-800";
+    }
     else if (m.status === "proposed" || m.status === "countered") {
       label = `${name} — pending`;
       tone = "text-amber-800";

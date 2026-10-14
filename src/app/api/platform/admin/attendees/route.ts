@@ -43,6 +43,11 @@ export async function POST(request: Request) {
     if (!body.conference_id || !body.lead_id || !["company", "investor"].includes(body.lead_type ?? ""))
       return NextResponse.json({ error: "Pick a company or investor." }, { status: 400 });
     if (!EMAIL_RE.test(email)) return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
+    if (body.lead_type === "investor") {
+      const { count } = await svc.from("attendee_profiles").select("id", { count: "exact", head: true })
+        .eq("lead_type", "investor").eq("lead_id", body.lead_id);
+      if ((count ?? 0) > 0) return NextResponse.json({ error: "Investors are one person each — only companies can have extra people." }, { status: 400 });
+    }
     const clash = await emailInUse(svc, body.conference_id, email);
     if (clash) return NextResponse.json({ error: clash }, { status: 409 });
     const { data, error } = await svc.from("attendee_profiles").insert({

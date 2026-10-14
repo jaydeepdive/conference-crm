@@ -24,14 +24,19 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   try { body = await request.json(); } catch { /* body optional */ }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("meetings").update({
+  const reverting = !!meeting.reschedule_from;
+  const { error } = await supabase.from("meetings").update(reverting ? {
+    // Declining a reschedule keeps the meeting at its original time.
+    status: "accepted", scheduled_time: meeting.reschedule_from,
+    proposed_time: meeting.reschedule_from, reschedule_from: null,
+  } : {
     status: "declined", scheduled_time: null,
   }).eq("id", meeting.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await supabase.from("meeting_events").insert({
     meeting_id: meeting.id, actor_profile_id: attendee.id, actor_side: mySide,
-    kind: "decline", body: body.notes ?? null,
+    kind: reverting ? "keep" : "decline", proposed_time: reverting ? meeting.reschedule_from : null, body: body.notes ?? null,
   });
   return NextResponse.json({ ok: true });
 }

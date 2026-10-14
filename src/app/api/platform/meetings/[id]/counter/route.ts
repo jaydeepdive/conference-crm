@@ -25,10 +25,14 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   const t = new Date(body.proposed_time);
   if (isNaN(t.getTime())) return NextResponse.json({ error: "Invalid proposed_time" }, { status: 400 });
 
-  if (meeting.status !== "proposed" && meeting.status !== "countered")
+  // Rescheduling a CONFIRMED meeting: either side may propose a new time.
+  const isReschedule = meeting.status === "accepted";
+  if (!isReschedule && meeting.status !== "proposed" && meeting.status !== "countered")
     return NextResponse.json({ error: `Meeting is ${meeting.status}` }, { status: 409 });
-  if (meeting.proposed_by === mySide)
+  if (!isReschedule && meeting.proposed_by === mySide)
     return NextResponse.json({ error: "You already have an open proposal." }, { status: 409 });
+  if (isReschedule && meeting.scheduled_time && new Date(meeting.scheduled_time).getTime() === t.getTime())
+    return NextResponse.json({ error: "That's already the meeting time." }, { status: 400 });
 
   const supabase = await createClient();
 
@@ -62,17 +66,33 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     return NextResponse.json({ error: "That slot is unavailable." }, { status: 409 });
   }
 
-  const { error } = await supabase.from("meetings").update({
+  // Busy check (other confirmed meetings on either side) — server-side truth.
+  {
+    const { createServiceClient } = await import("@/lib/supabase/service");
+    const { data: clash } = await createServiceClient().from("meetings").select("id")
+      .eq("conference_id", meeting.conference_id).neq("id", meeting.id)
+      .eq("scheduled_time", t.toISOString()).not("status", "in", "(declined,cancelled)")
+      .or(`company_id.eq.${meeting.company_id},investor_id.eq.${meeting.investor_id}`).limit(1);
+    if (clash && clash.length > 0) return NextResponse.json({ error: "One of you already has a meeting at that time." }, { status: 409 });
+  }
+
+  const { error } = await supabase.from("meetings").update(isReschedule ? {
+    // Keep the original time booked until the other side accepts.
     status: "countered",
     proposed_time: t.toISOString(),
     proposed_by: mySide,
-    scheduled_time: null,
+    reschedule_from: meeting.scheduled_time,
+  } : {
+    status: "countered",
+    proposed_time: t.toISOString(),
+    proposed_by: mySide,
+    scheduled_time: meeting.reschedule_from ?? null,
   }).eq("id", meeting.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await supabase.from("meeting_events").insert({
     meeting_id: meeting.id, actor_profile_id: attendee.id, actor_side: mySide,
-    kind: "counter", proposed_time: t.toISOString(), body: body.notes ?? null,
+    kind: isReschedule ? "reschedule" : "counter", proposed_time: t.toISOString(), body: body.notes ?? null,
   });
   const notified = await notifyMeeting({
     meetingId: meeting.id, kind: "counter", actorAttendeeId: attendee.id,

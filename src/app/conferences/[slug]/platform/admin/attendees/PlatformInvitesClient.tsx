@@ -99,7 +99,8 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads }: {
   const [person, setPerson] = useState<PersonDraft | null>(null);
 
   function addPerson(r?: InviteRow) {
-    setPerson({ lead_type: r?.lead_type ?? "company", lead_id: r?.lead_id ?? "", full_name: "", email: "" });
+    // Only companies can have extra people; investors are one person each.
+    setPerson({ lead_type: "company", lead_id: r?.lead_type === "company" ? r.lead_id : "", full_name: "", email: "" });
   }
   function editPerson(r: InviteRow) {
     setPerson({ id: r.id, lead_type: r.lead_type, lead_id: r.lead_id, full_name: r.full_name ?? "", email: r.email, signed_in: rowStatus(r) === "signed_in" });
@@ -247,7 +248,7 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads }: {
           />
           <div className="grid grid-cols-2 gap-2 sm:flex lg:ml-auto [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
             <button type="button" onClick={() => addPerson()} className={BTN_SECONDARY}
-              title="Add another person (email) to a company or investor. No email is sent.">
+              title="Add another person (email) to a company. No email is sent.">
               + Add person
             </button>
             <button type="button" onClick={syncFromRegistered} disabled={syncBusy} className={BTN_SECONDARY}
@@ -307,10 +308,12 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads }: {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-ink">{r.lead_name}</span>
                           <SidePill side={r.lead_type} />
-                          <button type="button" onClick={() => addPerson(r)}
-                            className="text-[11px] font-semibold uppercase tracking-widest2 text-brand-accent hover:underline">
-                            + Add person
-                          </button>
+                          {r.lead_type === "company" && (
+                            <button type="button" onClick={() => addPerson(r)}
+                              className="text-[11px] font-semibold uppercase tracking-widest2 text-brand-accent hover:underline">
+                              + Add person
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <span className="sr-only">{r.lead_name}</span>
@@ -369,8 +372,10 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads }: {
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-ink">{r.lead_name}</span>
                 <SidePill side={r.lead_type} />
-                <button type="button" onClick={() => addPerson(r)}
-                  className="ml-auto text-[11px] font-semibold uppercase tracking-widest2 text-brand-accent">+ Add person</button>
+                {r.lead_type === "company" && (
+                  <button type="button" onClick={() => addPerson(r)}
+                    className="ml-auto text-[11px] font-semibold uppercase tracking-widest2 text-brand-accent">+ Add person</button>
+                )}
               </div>
               <div className={`mt-3 grid gap-2 ${st === "signed_in" ? "grid-cols-2" : "grid-cols-3"}`}>
                 <button type="button" onClick={() => preview(r.id)} disabled={previewBusy !== null} className={BTN_SECONDARY}>

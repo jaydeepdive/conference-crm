@@ -34,7 +34,7 @@ function Inner({ onClose, onSaved, conferenceId, leads, initial }: {
   onClose: () => void; onSaved: (msg: string) => void; conferenceId: string; leads: LeadOption[]; initial: PersonDraft;
 }) {
   const editing = !!initial.id;
-  const [side, setSide] = useState<"company" | "investor">(initial.lead_type);
+  const side = initial.lead_type;
   const [leadId, setLeadId] = useState(initial.lead_id);
   const [search, setSearch] = useState("");
   const [name, setName] = useState(initial.full_name);
@@ -71,19 +71,11 @@ function Inner({ onClose, onSaved, conferenceId, leads, initial }: {
         onClick={e => e.stopPropagation()}>
         <div className={LABEL}>{editing ? "Edit person" : "Add person"}</div>
         <div className="mt-1 font-display text-2xl text-ink">
-          {editing ? (initial.full_name || initial.email) : "Add someone to a company or investor"}
+          {editing ? (initial.full_name || initial.email) : "Add someone to a company"}
         </div>
 
         {!editing && (
           <>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {(["company", "investor"] as const).map(s => (
-                <button key={s} type="button" onClick={() => { setSide(s); setLeadId(""); }}
-                  className={`border px-3 py-2.5 text-xs font-semibold uppercase tracking-widest2 ${side === s ? "border-ink bg-ink text-white" : "border-ink/20 bg-white text-ink"}`}>
-                  {s === "company" ? "Company" : "Investor"}
-                </button>
-              ))}
-            </div>
             <label className={`mt-4 block ${LABEL}`}>{side === "company" ? "Company" : "Investor"}</label>
             {chosen && chosen.type === side ? (
               <div className="mt-1 flex items-center justify-between border border-ink/20 bg-utility px-3 py-2.5 text-sm">

@@ -24,10 +24,12 @@ export function MeetingActions({
   const [counterSlot, setCounterSlot] = useState<SlotOpt | null>(null);
   const [counterNotes, setCounterNotes] = useState("");
 
+  const isReschedule = !!meeting.reschedule_from;
+
   async function act(kind: "accept" | "decline" | "cancel", body?: Record<string, unknown>) {
-    if (kind === "decline" && !confirm("Decline this request?")) return;
-    if (kind === "cancel" && !confirm(meeting.status === "accepted"
-      ? "Cancel this confirmed meeting?"
+    if (kind === "decline" && !confirm(isReschedule ? "Keep the original time and decline the new one?" : "Decline this request?")) return;
+    if (kind === "cancel" && !body?.keep_original && !confirm(meeting.status === "accepted" || isReschedule
+      ? "Cancel this confirmed meeting entirely?"
       : "Withdraw this proposal?")) return;
     setBusy(kind); setError(null);
     const res = await fetch(`/api/platform/meetings/${meeting.id}/${kind}`, {
@@ -66,38 +68,54 @@ export function MeetingActions({
           <button onClick={() => act("accept")} disabled={busy !== null}
             className="flex-1 rounded-md bg-emerald-600 py-3 text-base font-medium text-white disabled:opacity-50"
             style={{ minHeight: 48 }}>
-            {busy === "accept" ? "…" : "Accept"}
+            {busy === "accept" ? "…" : isReschedule ? "Accept new time" : "Accept"}
           </button>
           <button onClick={() => setShowCounter(true)} disabled={busy !== null}
             className="flex-1 rounded-md border border-slate-300 py-3 text-base font-medium text-slate-900"
             style={{ minHeight: 48 }}>
-            Counter
+            {isReschedule ? "Suggest another" : "Counter"}
           </button>
           <button onClick={() => act("decline")} disabled={busy !== null}
             className="flex-1 rounded-md border border-rose-300 py-3 text-base font-medium text-rose-700"
             style={{ minHeight: 48 }}>
-            {busy === "decline" ? "…" : "Decline"}
+            {busy === "decline" ? "…" : isReschedule ? "Keep original" : "Decline"}
           </button>
         </div>
       )}
 
       {isPending && isMine && (
         <div>
-          <p className="text-sm text-slate-500">Waiting for them to respond.</p>
-          <button onClick={() => act("cancel")} disabled={busy !== null}
-            className="mt-3 w-full rounded-md border border-rose-300 py-3 text-base font-medium text-rose-700 sm:w-auto sm:px-6"
-            style={{ minHeight: 48 }}>
-            {busy === "cancel" ? "…" : "Withdraw request"}
-          </button>
+          {!isReschedule && <p className="text-sm text-slate-500">Waiting for them to respond.</p>}
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <button onClick={() => act("cancel", isReschedule ? { keep_original: true } : undefined)} disabled={busy !== null}
+              className="w-full rounded-md border border-slate-300 py-3 text-base font-medium text-slate-900 sm:w-auto sm:px-6"
+              style={{ minHeight: 48 }}>
+              {busy === "cancel" ? "…" : isReschedule ? "Withdraw — keep original time" : "Withdraw request"}
+            </button>
+            {isReschedule && (
+              <button onClick={() => act("cancel")} disabled={busy !== null}
+                className="w-full rounded-md border border-rose-300 py-3 text-base font-medium text-rose-700 sm:w-auto sm:px-6"
+                style={{ minHeight: 48 }}>
+                Cancel meeting
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {meeting.status === "accepted" && (
-        <button onClick={() => act("cancel")} disabled={busy !== null}
-          className="w-full rounded-md border border-rose-300 py-3 text-base font-medium text-rose-700 sm:w-auto sm:px-6"
-          style={{ minHeight: 48 }}>
-          {busy === "cancel" ? "…" : "Cancel meeting"}
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button onClick={() => setShowCounter(true)} disabled={busy !== null}
+            className="w-full rounded-md border border-slate-300 py-3 text-base font-medium text-slate-900 sm:w-auto sm:px-6"
+            style={{ minHeight: 48 }}>
+            Reschedule
+          </button>
+          <button onClick={() => act("cancel")} disabled={busy !== null}
+            className="w-full rounded-md border border-rose-300 py-3 text-base font-medium text-rose-700 sm:w-auto sm:px-6"
+            style={{ minHeight: 48 }}>
+            {busy === "cancel" ? "…" : "Cancel meeting"}
+          </button>
+        </div>
       )}
 
       {error && <div className="mt-3 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-800">{error}</div>}
@@ -105,13 +123,16 @@ export function MeetingActions({
       {showCounter && (
         <div className="fixed inset-0 z-30 flex items-end justify-center bg-slate-900/40 sm:items-center">
           <div className="w-full max-w-md rounded-t-xl bg-white p-5 sm:rounded-xl">
-            <h3 className="text-base font-semibold text-slate-900">Counter with a new time</h3>
+            <h3 className="text-base font-semibold text-slate-900">
+              {meeting.status === "accepted" ? "Reschedule to a new time" : "Counter with a new time"}
+            </h3>
             <p className="mt-1 text-xs text-slate-500">
               Only slots open for both of you are shown.
+              {meeting.status === "accepted" && " Your current time stays booked until they accept the new one."}
             </p>
 
             <ul className="mt-3 max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-md border border-slate-200">
-              {slotOptions.filter(s => !s.busy).map(s => (
+              {slotOptions.filter(s => !s.busy && new Date(s.iso).getTime() !== (meeting.scheduled_time ? new Date(meeting.scheduled_time).getTime() : -1)).map(s => (
                 <li key={s.iso}>
                   <button type="button"
                     onClick={() => setCounterSlot(s)}
@@ -144,7 +165,7 @@ export function MeetingActions({
               <button onClick={submitCounter} disabled={!counterSlot || busy !== null}
                 className="flex-1 rounded-md bg-slate-900 py-3 text-base font-medium text-white disabled:opacity-50"
                 style={{ minHeight: 48 }}>
-                {busy === "counter" ? "Sending…" : "Send counter"}
+                {busy === "counter" ? "Sending…" : meeting.status === "accepted" ? "Request new time" : "Send counter"}
               </button>
             </div>
           </div>

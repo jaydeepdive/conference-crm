@@ -8,7 +8,7 @@ import { loadMeetingCaller } from "@/lib/portal-api";
 
 export const runtime = "nodejs";
 
-interface Body { notes?: string }
+interface Body { notes?: string; keep_original?: boolean }
 
 export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -23,8 +23,21 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   try { body = await request.json(); } catch { /* body optional */ }
 
   const supabase = await createClient();
+  if (meeting.reschedule_from && body.keep_original) {
+    // Withdraw a pending reschedule → back to the original confirmed time.
+    const { error: e2 } = await supabase.from("meetings").update({
+      status: "accepted", scheduled_time: meeting.reschedule_from,
+      proposed_time: meeting.reschedule_from, reschedule_from: null,
+    }).eq("id", meeting.id);
+    if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
+    await supabase.from("meeting_events").insert({
+      meeting_id: meeting.id, actor_profile_id: attendee.id, actor_side: mySide,
+      kind: "keep", proposed_time: meeting.reschedule_from,
+    });
+    return NextResponse.json({ ok: true });
+  }
   const { error } = await supabase.from("meetings").update({
-    status: "cancelled", scheduled_time: null,
+    status: "cancelled", scheduled_time: null, reschedule_from: null,
   }).eq("id", meeting.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

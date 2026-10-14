@@ -63,8 +63,7 @@ export function LeadAttendees({ conferenceId, leadType, leadId, attendees, confe
     <div className="rounded-none border border-line bg-white p-5">
       <h3 className="font-display text-lg font-bold text-ink">Portal attendees</h3>
       <p className="mt-1 text-xs text-muted">
-        Everyone who can sign in to the Above &amp; Beyond portal for this {leadType}. Add as many people as you need —
-        they share one meeting schedule. Adding someone does <strong>not</strong> email them; send invites from the{" "}
+        Everyone who can sign in to the Above &amp; Beyond portal for this {leadType}. {leadType === "company" ? "Add as many people as you need — they share one meeting schedule." : "Investors are one person each."} Adding someone does <strong>not</strong> email them; send invites from the{" "}
         <a className="underline" target="_blank" rel="noopener"
           href={`${PORTAL_ORIGIN}/conferences/${conferenceSlug}/platform/admin/attendees`}>admin console</a>.
       </p>
@@ -112,6 +111,7 @@ export function LeadAttendees({ conferenceId, leadType, leadId, attendees, confe
         </ul>
       )}
 
+      {(leadType === "company" || attendees.length === 0) && (
       <div className="mt-4 border-t border-line pt-3">
         <h4 className="text-[11px] font-semibold uppercase tracking-widest2 text-muted">Add a person</h4>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -125,6 +125,7 @@ export function LeadAttendees({ conferenceId, leadType, leadId, attendees, confe
           </button>
         </div>
       </div>
+      )}
     </div>
   );
 }

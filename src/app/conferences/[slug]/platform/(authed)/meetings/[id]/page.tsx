@@ -40,21 +40,31 @@ export default async function PlatformMeetingPage({
   const log = (events ?? []) as MeetingEvent[];
 
   // Busy times on both sides, so the Counter picker can hide them.
-  const [{ data: otherBusy }, { data: myBusy }] = await Promise.all([
-    supabase.from("meetings").select("scheduled_time")
+  // Service client: attendees can't see the other party's other meetings via RLS.
+  const svcB = createServiceClient();
+  const [{ data: otherBusy }, { data: myBusy }, { data: blockedRows }] = await Promise.all([
+    svcB.from("meetings").select("scheduled_time")
       .eq("conference_id", ctx.conference.id)
-      .eq("status", "accepted").neq("id", meeting.id)
+      .not("scheduled_time", "is", null).not("status", "in", "(declined,cancelled)").neq("id", meeting.id)
       .eq(otherSide === "company" ? "company_id" : "investor_id", otherId),
-    supabase.from("meetings").select("scheduled_time")
+    svcB.from("meetings").select("scheduled_time")
       .eq("conference_id", ctx.conference.id)
-      .eq("status", "accepted").neq("id", meeting.id)
+      .not("scheduled_time", "is", null).not("status", "in", "(declined,cancelled)").neq("id", meeting.id)
       .eq(ctx.side === "company" ? "company_id" : "investor_id", ctx.attendee.lead_id),
+    svcB.from("attendee_blocked_slots").select("slot_time")
+      .eq("conference_id", ctx.conference.id)
+      .or(`and(lead_type.eq.${otherSide},lead_id.eq.${otherId}),and(lead_type.eq.${ctx.side},lead_id.eq.${ctx.attendee.lead_id})`),
   ]);
   const busyIsoSet = new Set<string>();
   const slots = slotsForPlatform(ctx.conference);
-  for (const b of [...(otherBusy ?? []), ...(myBusy ?? [])] as Pick<Meeting, "scheduled_time">[]) {
-    if (!b.scheduled_time) continue;
-    const t = new Date(b.scheduled_time).getTime();
+  const busyTimes = [
+    ...((otherBusy ?? []) as Pick<Meeting, "scheduled_time">[]).map(b => b.scheduled_time),
+    ...((myBusy ?? []) as Pick<Meeting, "scheduled_time">[]).map(b => b.scheduled_time),
+    ...((blockedRows ?? []) as { slot_time: string }[]).map(b => b.slot_time),
+  ];
+  for (const bt of busyTimes) {
+    if (!bt) continue;
+    const t = new Date(bt).getTime();
     for (const s of slots) {
       if (t >= s.start.getTime() && t < s.end.getTime()) { busyIsoSet.add(s.start.toISOString()); break; }
     }
@@ -168,6 +178,19 @@ function StatusLine({
   if (meeting.status === "cancelled") {
     return <div className="text-sm text-slate-700">This meeting was cancelled.</div>;
   }
+  if (meeting.reschedule_from) {
+    return (
+      <div>
+        <div className="text-sm text-slate-500">Confirmed for</div>
+        <div className="mt-1 text-lg font-semibold text-slate-900">{slotLabel(meeting.reschedule_from)}</div>
+        <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {isMine ? "You asked to move it to " : "They asked to move it to "}
+          <strong>{slotLabel(meeting.proposed_time)}</strong>.
+          {isMine ? " Waiting for them to respond — the original time stays booked until then." : " The original time stays booked unless you accept."}
+        </div>
+      </div>
+    );
+  }
   // proposed / countered
   return (
     <div>
@@ -188,5 +211,7 @@ function eventLabel(k: MeetingEvent["kind"]): string {
     : k === "accept"   ? "Accepted"
     : k === "decline"  ? "Declined"
     : k === "cancel"   ? "Cancelled"
+    : k === "reschedule" ? "Asked to reschedule"
+    : k === "keep"     ? "Kept the original time"
     : "Note";
 }

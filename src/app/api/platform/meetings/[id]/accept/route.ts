@@ -23,7 +23,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
 
   const supabase = await createClient();
   const { error } = await supabase.from("meetings").update({
-    status: "accepted", scheduled_time: meeting.proposed_time,
+    status: "accepted", scheduled_time: meeting.proposed_time, reschedule_from: null,
   }).eq("id", meeting.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

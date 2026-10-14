@@ -274,7 +274,8 @@ export async function busySlotsByLead(
   };
   const col = side === "company" ? "company_id" : "investor_id";
   const [{ data: ms }, { data: bs }] = await Promise.all([
-    svc.from("meetings").select(`${col}, scheduled_time`).eq("conference_id", conference.id).eq("status", "accepted"),
+    svc.from("meetings").select(`${col}, scheduled_time`).eq("conference_id", conference.id)
+      .not("scheduled_time", "is", null).not("status", "in", "(declined,cancelled)"),
     svc.from("attendee_blocked_slots").select("lead_id, slot_time").eq("conference_id", conference.id).eq("lead_type", side),
   ]);
   const out = new Map<string, Set<string>>();

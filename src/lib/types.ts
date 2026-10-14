@@ -180,7 +180,7 @@ export interface Investor extends LeadBase {
 
 export type AttendeeSide = "company" | "investor";
 export type MeetingStatus = "proposed" | "countered" | "accepted" | "declined" | "cancelled";
-export type MeetingEventKind = "propose" | "counter" | "accept" | "decline" | "cancel" | "note";
+export type MeetingEventKind = "propose" | "counter" | "accept" | "decline" | "cancel" | "note" | "reschedule" | "keep";
 
 export interface AttendeeProfile {
   id: string;
@@ -209,6 +209,8 @@ export interface Meeting {
   proposed_time: string | null;
   proposed_by: AttendeeSide | null;
   scheduled_time: string | null;
+  /** v6.71 — original confirmed time while a reschedule is pending. */
+  reschedule_from?: string | null;
   location: string | null;     // v6.51 — admin-assigned table/room number.
   notes: string | null;
   created_by: string | null;
