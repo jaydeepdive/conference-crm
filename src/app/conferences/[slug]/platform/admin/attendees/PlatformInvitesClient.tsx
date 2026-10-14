@@ -9,6 +9,7 @@ import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { AttendeeSide } from "@/lib/types";
 import { SetPasswordDialog } from "@/components/SetPasswordDialog";
+import { PersonDialog, type LeadOption, type PersonDraft } from "./PersonDialog";
 
 export interface InviteRow {
   id: string;
@@ -83,7 +84,9 @@ function StatCard({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug: string }) {
+export function PlatformInvitesClient({ rows, slug, conferenceId, leads }: {
+  rows: InviteRow[]; slug: string; conferenceId: string; leads: LeadOption[];
+}) {
   const router = useRouter();
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [syncBusy, setSyncBusy] = useState(false);
@@ -93,6 +96,27 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [pwFor, setPwFor] = useState<InviteRow | null>(null);
+  const [person, setPerson] = useState<PersonDraft | null>(null);
+
+  function addPerson(r?: InviteRow) {
+    setPerson({ lead_type: r?.lead_type ?? "company", lead_id: r?.lead_id ?? "", full_name: "", email: "" });
+  }
+  function editPerson(r: InviteRow) {
+    setPerson({ id: r.id, lead_type: r.lead_type, lead_id: r.lead_id, full_name: r.full_name ?? "", email: r.email, signed_in: rowStatus(r) === "signed_in" });
+  }
+  async function removePerson(r: InviteRow) {
+    const who = r.full_name ? `${r.full_name} (${r.email})` : r.email;
+    if (!confirm(`Remove ${who} from ${r.lead_name}?\n\nThey lose access to the attendee portal. ${r.lead_name}'s meetings are not affected.`)) return;
+    setError(null); setResult(null);
+    const res = await fetch("/api/platform/admin/attendees", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "remove", id: r.id }),
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) { setError(j.error ?? "Could not remove."); return; }
+    setResult(`Removed ${who}.`);
+    router.refresh();
+  }
 
   const stats = useMemo(() => {
     const orgs = (side: AttendeeSide) => new Set(rows.filter(r => r.lead_type === side).map(r => r.lead_id)).size;
@@ -221,7 +245,11 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
             placeholder="Search name, email or company"
             className="block w-full min-h-[44px] rounded-sm border border-ink/20 bg-white px-3 py-2 text-base text-ink focus:border-ink focus:outline-none md:min-h-0 md:text-sm lg:max-w-sm"
           />
-          <div className="grid grid-cols-2 gap-2 sm:flex lg:ml-auto">
+          <div className="grid grid-cols-2 gap-2 sm:flex lg:ml-auto [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1">
+            <button type="button" onClick={() => addPerson()} className={BTN_SECONDARY}
+              title="Add another person (email) to a company or investor. No email is sent.">
+              + Add person
+            </button>
             <button type="button" onClick={syncFromRegistered} disabled={syncBusy} className={BTN_SECONDARY}
               title="Add every registered lead and their contacts. No emails are sent.">
               {syncBusy ? "Syncing…" : "↻ Sync registered leads"}
@@ -279,6 +307,10 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-ink">{r.lead_name}</span>
                           <SidePill side={r.lead_type} />
+                          <button type="button" onClick={() => addPerson(r)}
+                            className="text-[11px] font-semibold uppercase tracking-widest2 text-brand-accent hover:underline">
+                            + Add person
+                          </button>
                         </div>
                       ) : (
                         <span className="sr-only">{r.lead_name}</span>
@@ -295,6 +327,9 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
                           title="Set a password directly — no email">
                           Password
                         </button>
+                        <button type="button" onClick={() => editPerson(r)} className={BTN_COMPACT}>Edit</button>
+                        <button type="button" onClick={() => removePerson(r)}
+                          className={`${BTN_COMPACT} !text-rose-700 hover:!border-rose-700`}>Remove</button>
                         {st !== "signed_in" && (
                           <button type="button" onClick={() => sendOne(r)} disabled={busy} className={BTN_COMPACT}>
                             {busy ? "Sending…" : st === "invited" ? "Resend" : "Send"}
@@ -334,6 +369,8 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-ink">{r.lead_name}</span>
                 <SidePill side={r.lead_type} />
+                <button type="button" onClick={() => addPerson(r)}
+                  className="ml-auto text-[11px] font-semibold uppercase tracking-widest2 text-brand-accent">+ Add person</button>
               </div>
               <div className={`mt-3 grid gap-2 ${st === "signed_in" ? "grid-cols-2" : "grid-cols-3"}`}>
                 <button type="button" onClick={() => preview(r.id)} disabled={previewBusy !== null} className={BTN_SECONDARY}>
@@ -349,6 +386,10 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
                   </button>
                 )}
               </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => editPerson(r)} className={BTN_SECONDARY}>Edit</button>
+                <button type="button" onClick={() => removePerson(r)} className={`${BTN_SECONDARY} !text-rose-700`}>Remove</button>
+              </div>
             </div>
           );
         })}
@@ -360,6 +401,14 @@ export function PlatformInvitesClient({ rows, slug }: { rows: InviteRow[]; slug:
           </div>
         )}
       </div>
+      <PersonDialog
+        open={person !== null}
+        initial={person}
+        conferenceId={conferenceId}
+        leads={leads}
+        onClose={() => setPerson(null)}
+        onSaved={msg => { setPerson(null); setResult(msg); setError(null); router.refresh(); }}
+      />
       <SetPasswordDialog
         open={pwFor !== null}
         onClose={() => { setPwFor(null); router.refresh(); }}

@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { AttendeeProfile, Company, Investor } from "@/lib/types";
 import { PageTitle } from "@/components/SectionHeader";
 import { PlatformInvitesClient, type InviteRow } from "./PlatformInvitesClient";
+import type { LeadOption } from "./PersonDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,16 @@ export default async function PlatformInvitesPage({
   const coById = new Map((cos ?? []).map(c => [c.id, c.name]));
   const invById = new Map((invs ?? []).map(i => [i.id, i.firm_name]));
 
+  // Every company / investor in the conference, for the "Add person" picker.
+  const [{ data: allCos }, { data: allInvs }] = await Promise.all([
+    supabase.from("companies").select("id, name").eq("conference_id", ctx.conference.id),
+    supabase.from("investors").select("id, firm_name, contact_name").eq("conference_id", ctx.conference.id),
+  ]);
+  const leads: LeadOption[] = [
+    ...(allCos ?? []).map(c => ({ id: c.id as string, type: "company" as const, name: ((c.name as string) || "(no name)").trim() })),
+    ...(allInvs ?? []).map(i => ({ id: i.id as string, type: "investor" as const, name: ((i.firm_name || i.contact_name || "(no name)") as string).trim() })),
+  ].sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
+
   const rows: InviteRow[] = list
     .map(p => ({
       id: p.id,
@@ -56,8 +67,8 @@ export default async function PlatformInvitesPage({
 
   return (
     <div className="space-y-6">
-      <PageTitle title="Attendees" sub="People who can sign in to the Above & Beyond attendee portal" />
-      <PlatformInvitesClient rows={rows} slug={slug} />
+      <PageTitle title="Attendees" sub="People who can sign in to the attendee portal. A company or investor can have as many people as you need." />
+      <PlatformInvitesClient rows={rows} slug={slug} conferenceId={ctx.conference.id} leads={leads} />
     </div>
   );
 }

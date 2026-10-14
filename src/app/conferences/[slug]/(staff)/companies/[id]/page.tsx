@@ -67,7 +67,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             contacts={(contacts ?? []) as CompanyContact[]}
             canEdit={canEditLeads(ctx.effectiveRole)}
           />
-          <LeadAttendees conferenceId={ctx.conference.id} leadType="company" leadId={id}
+          <LeadAttendees conferenceId={ctx.conference.id} leadType="company" leadId={id} conferenceSlug={slug}
             attendees={(attendees ?? []) as AttendeeProfile[]} />
           <AgreementPanel
             company={company}

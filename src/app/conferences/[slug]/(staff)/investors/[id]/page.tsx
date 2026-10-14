@@ -60,7 +60,7 @@ export default async function InvestorDetailPage({ params }: { params: Promise<{
           <LeadComps comps={comps ?? []} compTypes={compTypes ?? []}
             leadType="investor" leadId={id} conferenceId={ctx.conference.id}
             currentUserId={ctx.profile.id} canEdit={canEditLeads(ctx.effectiveRole)} />
-          <LeadAttendees conferenceId={ctx.conference.id} leadType="investor" leadId={id}
+          <LeadAttendees conferenceId={ctx.conference.id} leadType="investor" leadId={id} conferenceSlug={slug}
             attendees={(attendees ?? []) as AttendeeProfile[]} />
           <div>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Activity</h2>
