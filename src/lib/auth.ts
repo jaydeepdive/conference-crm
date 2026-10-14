@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
 import type { Profile, Conference, ConferenceRole } from "./types";
 
-export async function getCurrentProfile(): Promise<Profile> {
+/** Loads the signed-in profile. By default only STAFF (or super admins) may
+ *  pass — attendee-only logins and unapproved sign-ups are sent to /pending. */
+export async function getCurrentProfile(opts: { allowNonStaff?: boolean } = {}): Promise<Profile> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -11,7 +13,11 @@ export async function getCurrentProfile(): Promise<Profile> {
     .from("profiles").select("*").eq("id", user.id).single();
 
   if (!profile) redirect("/login");
-  return profile as Profile;
+  const p = profile as Profile;
+  if (!opts.allowNonStaff && !p.is_super_admin && p.account_type !== "staff") {
+    redirect("/pending");
+  }
+  return p;
 }
 
 export async function requireSuperAdmin(): Promise<Profile> {

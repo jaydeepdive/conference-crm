@@ -69,6 +69,7 @@ export async function POST(request: Request) {
   } else {
     // Fresh user — create.
     const { data, error } = await svc.auth.admin.createUser({
+      app_metadata: { account_type: "attendee" },
       email, password, email_confirm: true,
       user_metadata: { full_name: attendee.full_name ?? null },
     });

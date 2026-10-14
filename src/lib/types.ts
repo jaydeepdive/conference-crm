@@ -19,6 +19,8 @@ export interface Profile {
   avatar_url: string | null;
   role: Role;
   is_super_admin: boolean;
+  /** staff = CRM team · attendee = portal-only login · pending = unapproved sign-up */
+  account_type?: "staff" | "attendee" | "pending";
   entity_id: string | null;
   created_at: string;
   updated_at: string;

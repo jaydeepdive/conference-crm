@@ -20,7 +20,7 @@ export default async function AdminHome() {
       <div className="grid gap-4 sm:grid-cols-3">
         <AdminCard href="/admin/conferences" title="Conferences" count={confCount ?? 0} blurb="Create + configure conferences. Set JV revenue splits." />
         <AdminCard href="/admin/entities" title="Entities" count={entCount ?? 0} blurb="Parent organizations / JV partners. Visible to super admins only." />
-        <AdminCard href="/admin/users" title="Users" count={userCount ?? 0} blurb="Promote super admins, tag entities, manage global access." />
+        <AdminCard href="/admin/users" title="Accounts" count={userCount ?? 0} blurb="Every login: staff, attendees and sign-ups awaiting approval." />
       </div>
     </div>
   );

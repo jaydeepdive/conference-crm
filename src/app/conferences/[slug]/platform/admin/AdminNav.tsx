@@ -12,6 +12,7 @@ export function AdminNav({ slug }: { slug: string }) {
     { href: base, label: "Overview", exact: true },
     { href: `${base}/meetings`, label: "Meetings" },
     { href: `${base}/attendees`, label: "Attendees" },
+    { href: `/admin/users`, label: "Accounts ↗", external: true },
     { href: `/conferences/${slug}`, label: "CRM ↗", external: true },
   ];
   return (

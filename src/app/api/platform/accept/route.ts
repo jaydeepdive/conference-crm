@@ -59,6 +59,7 @@ export async function POST(request: Request) {
   } else {
     const { data, error } = await svc.auth.admin.createUser({
       email, password, email_confirm: true,
+      app_metadata: { account_type: "attendee" },
       user_metadata: { full_name: attendee.full_name ?? null },
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
