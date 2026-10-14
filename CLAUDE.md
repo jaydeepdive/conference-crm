@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.63** · 72 commits on `main`
+> Last updated: 2026-10-14 · Live version: **v6.64** · 72 commits on `main`
 
 ---
 
@@ -132,7 +132,7 @@ not block builds.
 - Bump `src/lib/version.ts` (`APP_VERSION`) on every release; commit message
   `vX.YZ: summary`.
 - Migrations: `supabase/migrations/00NN_name.sql`, idempotent (`if not
-  exists`), apply via API immediately after writing. Next number: **0024**.
+  exists`), apply via API immediately after writing. Next number: **0025**.
 - After `redirect()`/`notFound()` add `throw new Error("unreachable")` for TS
   narrowing.
 - Deleting files in the connected folder may need the Cowork delete permission.
@@ -236,7 +236,7 @@ meetings, profiles, sent_email_recipients, sent_emails.
 - Trigger (0020): any company/investor set to `registered` automatically gets
   attendee_profiles rows — NO email sent.
 - Invoices sync to budget receivables and lead `payment_status` (0010/0011).
-- Migrations 0001–0023 all applied. Notables: 0007 default-allow access +
+- Migrations 0001–0024 all applied. Notables: 0007 default-allow access +
   `hidden` role, 0012 attendee portal, 0014–0016 SignWell + public_name,
   0017 signed→registered, 0018 company_contacts, 0019 platform config, 0020
   auto attendees, 0021 blocked slots + blocklist, 0022 app_secrets, 0023
@@ -245,7 +245,7 @@ meetings, profiles, sent_email_recipients, sent_emails.
 ### Live state (2026-10-14)
 - Conference `mining-summit-2026` (id 7ac8254a-ff16-4b27-a964-2d3d0041174d),
   name "Mining Summit 2026", public_name "Above & Beyond Mining Summit",
-  status planning, visibility public, dates 2026-11-22→24, meeting_date
+  status planning, visibility public, timezone America/Phoenix, dates 2026-11-22→24, meeting_date
   2026-11-24, 08:00–15:30, lunch 12:00–12:30, slot 25 / stride 30, farewell
   16:00, meeting_emails_enabled **false**.
 - 95 companies, 103 investors, 53 attendee profiles (20 company people, 33
@@ -259,12 +259,8 @@ meetings, profiles, sent_email_recipients, sent_emails.
 
 ## 6. OPEN ISSUES / TODO (priority order)
 
-1. **Timezone bug — conference.timezone is `America/Toronto` but the event
-   is in Arizona (`America/Phoenix`, no DST; 3 hours behind Toronto in
-   November).** Slot times are computed from this, so 8:00 is being treated
-   as 8:00 Toronto (= 6:00 AM Arizona). Fix: set timezone to America/Phoenix
-   (0 meetings exist, so safe now) and re-check slot labels + meeting emails
-   ("Arizona time").
+1. ~~Timezone bug~~ FIXED v6.64 (migration 0024): conference timezone is now
+   `America/Phoenix`; slots verified 8:00 AM Arizona = 15:00 UTC.
 2. **Suspicious account** `numa.pentest.1791822865@gmail.com` self-registered
    on the STAFF login 2026-10-12 (role `team`, never signed in). Staff signup
    is open and the access model is default-allow → a confirmed stranger could

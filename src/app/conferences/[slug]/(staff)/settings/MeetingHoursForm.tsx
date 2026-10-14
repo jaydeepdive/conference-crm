@@ -32,7 +32,7 @@ export function MeetingHoursForm({ conference }: { conference: Conference }) {
     setSaving(true); setMsg(null);
     const supabase = createClient();
     const { error } = await supabase.from("conferences").update({
-      timezone: tz.trim() || "America/Toronto",
+      timezone: tz.trim() || "America/Phoenix",
       meeting_start_time: start || "09:00",
       meeting_end_time: end || "16:00",
       meeting_lunch_start: lunchStart || null,
@@ -59,7 +59,7 @@ export function MeetingHoursForm({ conference }: { conference: Conference }) {
         <div className="sm:col-span-2">
           <label className={label}>Timezone (IANA)</label>
           <input className={`${input} w-full`} value={tz} onChange={e => setTz(e.target.value)}
-            placeholder="America/Toronto" />
+            placeholder="America/Phoenix" />
           <p className="mt-1 text-[11px] text-muted">Used for slot display + day headings in the attendee portal.</p>
         </div>
 
