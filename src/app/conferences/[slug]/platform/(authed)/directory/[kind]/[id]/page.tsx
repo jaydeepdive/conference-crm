@@ -26,8 +26,9 @@ import { RequestMeetingForm } from "./RequestMeetingForm";
 export const dynamic = "force-dynamic";
 
 export default async function DirectoryDetailPage({
-  params,
-}: { params: Promise<{ slug: string; kind: string; id: string }> }) {
+  params, searchParams,
+}: { params: Promise<{ slug: string; kind: string; id: string }>; searchParams: Promise<{ slot?: string }> }) {
+  const { slot: initialSlot } = await searchParams;
   const { slug, kind, id } = await params;
   if (kind !== "company" && kind !== "investor") notFound();
   const otherSide = kind as "company" | "investor";
@@ -65,14 +66,15 @@ export default async function DirectoryDetailPage({
   const isBlocked = blocklist.length > 0;
 
   // Busy times: accepted meetings on either side + the other party's self-blocked slots.
+  const svcBusy = createServiceClient();
   const [{ data: otherBusy }, { data: myBusy }, { data: otherBlockedRows }] = await Promise.all([
-    supabase.from("meetings").select("scheduled_time")
+    svcBusy.from("meetings").select("scheduled_time")
       .eq("conference_id", ctx.conference.id).eq("status", "accepted")
       .eq(otherSide === "company" ? "company_id" : "investor_id", id),
-    supabase.from("meetings").select("scheduled_time")
+    svcBusy.from("meetings").select("scheduled_time")
       .eq("conference_id", ctx.conference.id).eq("status", "accepted")
       .eq(ctx.side === "company" ? "company_id" : "investor_id", ctx.attendee.lead_id),
-    supabase.from("attendee_blocked_slots").select("slot_time")
+    svcBusy.from("attendee_blocked_slots").select("slot_time")
       .eq("conference_id", ctx.conference.id)
       .eq("lead_type", otherSide).eq("lead_id", id),
   ]);
@@ -131,6 +133,7 @@ export default async function DirectoryDetailPage({
           otherLeadId={id}
           otherName={otherName}
           slots={slotOptions}
+          initialSlot={initialSlot ?? null}
         />
       )}
     </div>

@@ -63,6 +63,7 @@ export interface Conference {
   meeting_slot_stride_minutes: number;
   // v6.51 attendee /platform surface additions.
   meeting_date: string | null;    // 'YYYY-MM-DD' — single-day 1-on-1 meeting date.
+  doors_open_time?: string | null;
   farewell_time: string | null;   // 'HH:MM' or 'HH:MM:SS' local — closing announcement.
   // SignWell participation-agreement config (added in 0014, extended in 0015).
   // Legacy single-template columns — kept for backwards compat, superseded

@@ -8,8 +8,9 @@ import { useRouter } from "next/navigation";
 interface SlotOpt { iso: string; label: string; busy: boolean }
 
 export function RequestMeetingForm({
-  slug, otherLeadType, otherLeadId, otherName, slots,
+  slug, otherLeadType, otherLeadId, otherName, slots, initialSlot = null,
 }: {
+  initialSlot?: string | null;
   slug: string;
   otherLeadType: "company" | "investor";
   otherLeadId: string;
@@ -17,7 +18,10 @@ export function RequestMeetingForm({
   slots: SlotOpt[];
 }) {
   const router = useRouter();
-  const [pending, setPending] = useState<SlotOpt | null>(null);
+  // Arriving from "see who's free" on Schedule → open straight on that slot.
+  const [pending, setPending] = useState<SlotOpt | null>(
+    () => slots.find(s => s.iso === initialSlot && !s.busy) ?? null,
+  );
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

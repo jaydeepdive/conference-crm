@@ -61,6 +61,8 @@ export default async function PlatformDashboardPage({
   }).length;
 
   const entity = leadDisplayName(ctx.lead, ctx.side);
+  const doorsUtc = conferenceWallClockToUtc(ctx.conference, ctx.conference.doors_open_time ?? ctx.conference.meeting_start_time ?? "08:00");
+  const doorsLine = `Meeting day is ${new Intl.DateTimeFormat("en-US", { timeZone: ctx.conference.timezone, month: "long", day: "numeric" }).format(doorsUtc ?? new Date())}. Doors open at ${doorsUtc ? formatTimeInTz(doorsUtc.toISOString(), ctx.conference.timezone) : "7:45 AM"}.`;
   const dayHeading = formatPlatformDayHeading(ctx.conference);
   const farewellUtc = ctx.conference.farewell_time
     ? conferenceWallClockToUtc(ctx.conference, ctx.conference.farewell_time)
@@ -85,7 +87,9 @@ export default async function PlatformDashboardPage({
   if (lunchSlot) {
     rows.push({
       key: `lunch-${lunchSlot.start.toISOString()}`,
-      label: formatSlotRange(lunchSlot.start, lunchSlot.end, ctx.conference.timezone),
+      label: formatSlotRange(lunchSlot.start,
+        (ctx.conference.meeting_lunch_end && conferenceWallClockToUtc(ctx.conference, ctx.conference.meeting_lunch_end)) || lunchSlot.end,
+        ctx.conference.timezone),
       kind: "lunch", sortKey: lunchSlot.start.getTime(),
     });
   }
@@ -115,7 +119,7 @@ export default async function PlatformDashboardPage({
           Andaz Scottsdale Resort · Scottsdale, Arizona
         </div>
         <div className="mt-1 text-sm text-stone-700">
-          Meeting day is November 24. Doors open at 8 AM.
+          {doorsLine}
         </div>
       </section>
 
@@ -197,8 +201,8 @@ function ScheduleRow({
       return (
         <li className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3">
           <div className="w-28 shrink-0 text-sm tabular-nums text-slate-500">{row.label}</div>
-          <Link href={`/conferences/${slug}/platform/directory`} className="flex-1 text-sm text-slate-500 underline">
-            Open — browse directory →
+          <Link href={`/conferences/${slug}/platform/directory?slot=${encodeURIComponent(row.key)}`} className="flex-1 text-sm text-slate-500 underline">
+            Open — see who&rsquo;s free →
           </Link>
         </li>
       );
@@ -217,11 +221,11 @@ function ScheduleRow({
   }
   return (
     <li className="border-t border-slate-100 first:border-t-0">
-      <Link href={`/conferences/${slug}/platform/directory`}
+      <Link href={`/conferences/${slug}/platform/directory?slot=${encodeURIComponent(row.key)}`}
         className="flex items-center justify-between gap-3 px-4 py-3 active:bg-slate-50"
         style={{ minHeight: 48 }}>
         <div className="w-28 shrink-0 text-sm tabular-nums text-slate-500">{row.label}</div>
-        <div className="flex-1 text-sm text-slate-500">Open — browse directory →</div>
+        <div className="flex-1 text-sm text-slate-500">Open — see who&rsquo;s free →</div>
       </Link>
     </li>
   );

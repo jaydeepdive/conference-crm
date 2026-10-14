@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { AttendeeSide } from "@/lib/types";
 import { notifyMeeting } from "@/lib/meetingEmails";
+import { findActingAttendee } from "@/lib/portal-api";
 
 export const runtime = "nodejs";
 
@@ -43,16 +44,13 @@ export async function POST(request: Request) {
 
   // Resolve my attendee_profile. If slug is passed, scope to that conference;
   // otherwise find the single attendee row for this user.
-  let attendeeQuery = supabase.from("attendee_profiles")
-    .select("id, lead_type, lead_id, conference_id")
-    .eq("user_id", user.id);
+  let confId: string | null = null;
   if (body.slug) {
     const { data: conf } = await createServiceClient().from("conferences").select("id").eq("slug", body.slug).maybeSingle();
     if (!conf) return NextResponse.json({ error: "Unknown conference" }, { status: 404 });
-    attendeeQuery = attendeeQuery.eq("conference_id", conf.id);
+    confId = conf.id as string;
   }
-  const { data: attendees } = await attendeeQuery.limit(1);
-  const attendee = (attendees ?? [])[0];
+  const attendee = await findActingAttendee(supabase, user.id, confId);
   if (!attendee) return NextResponse.json({ error: "Not an attendee of this conference" }, { status: 403 });
   const mySide = attendee.lead_type as AttendeeSide;
 

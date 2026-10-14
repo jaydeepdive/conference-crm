@@ -17,12 +17,14 @@ interface Row {
 }
 
 export function DirectoryClient({
-  slug, otherSide, rows,
+  slug, otherSide, rows, slot = null,
 }: {
   slug: string;
   otherSide: "company" | "investor";
   rows: Row[];
+  slot?: { iso: string; label: string; meBusy: boolean } | null;
 }) {
+  const slotQs = slot ? `?slot=${encodeURIComponent(slot.iso)}` : "";
   const [q, setQ] = useState("");
 
   const filtered = useMemo(() => {
@@ -43,9 +45,20 @@ export function DirectoryClient({
       <div>
         <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Browse and tap to request a meeting.
+          {slot ? `Free at ${slot.label}. Tap one to request that time.` : "Browse and tap to request a meeting."}
         </p>
       </div>
+
+      {slot && (
+        <div className="flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span>
+            {slot.meBusy
+              ? `You already have ${slot.label} booked or blocked.`
+              : `Showing ${title.toLowerCase()} available at ${slot.label}.`}
+          </span>
+          <Link href={`/conferences/${slug}/platform/directory`} className="shrink-0 font-semibold underline">Show all</Link>
+        </div>
+      )}
 
       <input className="w-full rounded-md border border-slate-300 px-3 py-3"
         style={{ fontSize: 16 }}
@@ -54,7 +67,7 @@ export function DirectoryClient({
 
       {filtered.length === 0 ? (
         <div className="rounded-md border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
-          No {title.toLowerCase()} match that search.
+          {slot ? `No ${title.toLowerCase()} are free at ${slot.label}${q ? " that match that search" : ""}.` : `No ${title.toLowerCase()} match that search.`}
         </div>
       ) : (
         <ul className="divide-y divide-slate-100 rounded-md border border-slate-200 bg-white">
@@ -96,7 +109,7 @@ export function DirectoryClient({
             // Open (no meeting, or terminated): show request CTA.
             return (
               <li key={r.id} className="px-4 py-3">
-                <Link href={`/conferences/${slug}/platform/directory/${kind}/${r.id}`}
+                <Link href={`/conferences/${slug}/platform/directory/${kind}/${r.id}${slotQs}`}
                   className="block" style={{ minHeight: 44 }}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">

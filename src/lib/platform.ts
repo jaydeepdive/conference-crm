@@ -256,3 +256,42 @@ export function generateInviteToken(): string {
   crypto.getRandomValues(buf);
   return Array.from(buf).map(b => b.toString(16).padStart(2, "0")).join("");
 }
+
+/**
+ * For one side of the conference, which slot starts (ISO) each lead is busy
+ * in: confirmed meetings + slots they blocked themselves. Server-only
+ * (service client) — exposes nothing but busy/free.
+ */
+export async function busySlotsByLead(
+  conference: Conference, side: AttendeeSide,
+): Promise<Map<string, Set<string>>> {
+  const svc = createServiceClient();
+  const slots = slotsForPlatform(conference);
+  const toSlot = (iso: string): string | null => {
+    const t = new Date(iso).getTime();
+    for (const s of slots) if (t >= s.start.getTime() && t < s.end.getTime()) return s.start.toISOString();
+    return null;
+  };
+  const col = side === "company" ? "company_id" : "investor_id";
+  const [{ data: ms }, { data: bs }] = await Promise.all([
+    svc.from("meetings").select(`${col}, scheduled_time`).eq("conference_id", conference.id).eq("status", "accepted"),
+    svc.from("attendee_blocked_slots").select("lead_id, slot_time").eq("conference_id", conference.id).eq("lead_type", side),
+  ]);
+  const out = new Map<string, Set<string>>();
+  const add = (lead: string, iso: string | null) => {
+    if (!lead || !iso) return;
+    const k = toSlot(iso); if (!k) return;
+    if (!out.has(lead)) out.set(lead, new Set());
+    out.get(lead)!.add(k);
+  };
+  for (const m of (ms ?? []) as Record<string, string | null>[]) add(m[col] as string, m.scheduled_time);
+  for (const b of (bs ?? []) as { lead_id: string; slot_time: string }[]) add(b.lead_id, b.slot_time);
+  return out;
+}
+
+/** Lead ids on one side that actually have people attending (attendee rows). */
+export async function attendingLeadIds(conferenceId: string, side: AttendeeSide): Promise<Set<string>> {
+  const { data } = await createServiceClient().from("attendee_profiles").select("lead_id")
+    .eq("conference_id", conferenceId).eq("lead_type", side);
+  return new Set((data ?? []).map(r => r.lead_id as string));
+}

@@ -9,6 +9,7 @@
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { findActingAttendee } from "@/lib/portal-api";
 
 export const runtime = "nodejs";
 
@@ -37,8 +38,12 @@ export async function POST(request: Request) {
   if (Object.keys(payload).length === 0)
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
+  const acting = await findActingAttendee(supabase, user.id);
+  if (!acting) return NextResponse.json({ error: "Not an attendee" }, { status: 403 });
+  // Own row via user client (RLS: user_id = auth.uid()); previewing super
+  // admins write the impersonated row (ap_update allows super admins).
   const { error } = await supabase.from("attendee_profiles")
-    .update(payload).eq("user_id", user.id);
+    .update(payload).eq("id", acting.id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });

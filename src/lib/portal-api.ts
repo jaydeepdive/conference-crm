@@ -10,7 +10,10 @@
  * Everything below is server-only.
  */
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "./supabase/server";
+import { createServiceClient } from "./supabase/service";
 import type { AttendeeProfile, AttendeeSide, Meeting } from "./types";
 
 export interface MeetingCallerContext {
@@ -37,10 +40,8 @@ export async function loadMeetingCaller(meetingId: string): Promise<MeetingCalle
   if (!meetingRow) return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
   const meeting = meetingRow as Meeting;
 
-  const { data: attendeeRow } = await supabase.from("attendee_profiles")
-    .select("*").eq("user_id", user.id).eq("conference_id", meeting.conference_id).maybeSingle();
-  if (!attendeeRow) return NextResponse.json({ error: "You are not an attendee of this conference." }, { status: 403 });
-  const attendee = attendeeRow as AttendeeProfile;
+  const attendee = await findActingAttendee(supabase, user.id, meeting.conference_id);
+  if (!attendee) return NextResponse.json({ error: "You are not an attendee of this conference." }, { status: 403 });
 
   const mySide: AttendeeSide | null =
     attendee.lead_type === "company" && attendee.lead_id === meeting.company_id ? "company"
@@ -49,4 +50,28 @@ export async function loadMeetingCaller(meetingId: string): Promise<MeetingCalle
   if (!mySide) return NextResponse.json({ error: "You are not a party to this meeting." }, { status: 403 });
 
   return { userId: user.id, attendee, meeting, mySide };
+}
+
+/**
+ * The attendee the current user is acting as:
+ *   1. their own attendee row (optionally scoped to a conference), else
+ *   2. for SUPER ADMINS previewing the portal ("View as"), the attendee in
+ *      the platform_impersonate cookie — so admins can test every action.
+ */
+export async function findActingAttendee(
+  supabase: SupabaseClient, userId: string, conferenceId?: string | null,
+): Promise<AttendeeProfile | null> {
+  let q = supabase.from("attendee_profiles").select("*").eq("user_id", userId);
+  if (conferenceId) q = q.eq("conference_id", conferenceId);
+  const { data: own } = await q.limit(1);
+  if (own && own[0]) return own[0] as AttendeeProfile;
+
+  const { data: prof } = await supabase.from("profiles").select("is_super_admin").eq("id", userId).maybeSingle();
+  if (!(prof as { is_super_admin?: boolean } | null)?.is_super_admin) return null;
+  const impId = (await cookies()).get("platform_impersonate")?.value;
+  if (!impId) return null;
+  let iq = createServiceClient().from("attendee_profiles").select("*").eq("id", impId);
+  if (conferenceId) iq = iq.eq("conference_id", conferenceId);
+  const { data } = await iq.maybeSingle();
+  return (data as AttendeeProfile | null) ?? null;
 }

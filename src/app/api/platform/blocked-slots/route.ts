@@ -13,6 +13,7 @@
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { findActingAttendee } from "@/lib/portal-api";
 import { createServiceClient } from "@/lib/supabase/service";
 import { slotsForPlatform } from "@/lib/platform";
 import type { AttendeeSide, Conference } from "@/lib/types";
@@ -43,12 +44,7 @@ async function resolveActor(slug?: string) {
     conference = conf as Conference;
   }
 
-  let attendeeQ = supabase.from("attendee_profiles")
-    .select("id, lead_type, lead_id, conference_id")
-    .eq("user_id", user.id);
-  if (conference) attendeeQ = attendeeQ.eq("conference_id", conference.id);
-  const { data: attendees } = await attendeeQ.limit(1);
-  const attendee = (attendees ?? [])[0] ?? null;
+  const attendee = await findActingAttendee(supabase, user.id, conference?.id ?? null);
 
   return { supabase, user, isSuperAdmin, conference, attendee };
 }
