@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.67** · 72 commits on `main`
+> Last updated: 2026-10-14 · Live version: **v6.68** · 72 commits on `main`
 
 ---
 
@@ -279,6 +279,10 @@ meetings, profiles, sent_email_recipients, sent_emails.
    any non-/platform page (incl. /login, /conferences, /admin) redirects to
    /conferences/mining-summit-2026/platform. All attendee email links + email
    images use PORTAL_ORIGIN. Staff CRM stays on crm.thedeepdive.ca.
+   Console links to staff CRM pages must be ABSOLUTE `${STAFF_ORIGIN}/…`
+   (target _blank) — relative links bounce on the portal host. Admin console
+   has its own Accounts tab (`/platform/admin/accounts`, shared loader
+   `src/app/admin/users/loadAccounts.ts`).
 5. Meeting emails currently for request + counter only. Possible additions:
    accepted/declined/cancelled notices, day-before schedule email (no cron on
    Hobby — would need a button).

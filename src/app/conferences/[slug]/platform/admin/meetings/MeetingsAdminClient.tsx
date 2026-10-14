@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { STAFF_ORIGIN } from "@/lib/portalDomain";
 import { useRouter } from "next/navigation";
 import type { MeetingStatus } from "@/lib/types";
 
@@ -333,12 +334,11 @@ export function MeetingsAdminClient({
                     <tr key={ent.id} className="group">
                       <th scope="row"
                         className="sticky left-0 z-10 max-w-[240px] border-b border-r border-line bg-white px-3 py-2 text-left font-semibold text-ink group-hover:bg-utility">
-                        <Link
-                          href={`/conferences/${slug}/${axis === "company" ? "companies" : "investors"}/${ent.id}`}
+                        <a target="_blank" rel="noopener" href={`${STAFF_ORIGIN}/conferences/${slug}/${axis === "company" ? "companies" : "investors"}/${ent.id}`}
                           className="block truncate hover:underline" title={ent.name}
                         >
                           {ent.name}
-                        </Link>
+                        </a>
                       </th>
                       {slotOptions.map(s => {
                         const m = map.get(`${ent.id}|${s.iso}`);
@@ -546,10 +546,10 @@ function ListView({
             {filtered.map(r => (
               <tr key={r.id} className="border-t border-line hover:bg-utility/60">
                 <td className="px-3 py-2.5 font-semibold text-ink">
-                  <Link href={`/conferences/${slug}/companies/${r.company_id}`} className="hover:underline">{r.company_name}</Link>
+                  <a target="_blank" rel="noopener" href={`${STAFF_ORIGIN}/conferences/${slug}/companies/${r.company_id}`} className="hover:underline">{r.company_name}</a>
                 </td>
                 <td className="px-3 py-2.5">
-                  <Link href={`/conferences/${slug}/investors/${r.investor_id}`} className="hover:underline">{r.investor_name}</Link>
+                  <a target="_blank" rel="noopener" href={`${STAFF_ORIGIN}/conferences/${slug}/investors/${r.investor_id}`} className="hover:underline">{r.investor_name}</a>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">{r.slot_label ?? <span className="text-muted">Not set</span>}</td>
                 <td className="px-3 py-2.5">{r.location ?? <span className="text-muted">—</span>}</td>
@@ -720,8 +720,8 @@ function EditSheet({
         </div>
       )}
       <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-line pt-4 text-sm">
-        <Link href={`/conferences/${slug}/companies/${row.company_id}`} className="underline hover:text-brand-accent">Company profile</Link>
-        <Link href={`/conferences/${slug}/investors/${row.investor_id}`} className="underline hover:text-brand-accent">Investor profile</Link>
+        <a target="_blank" rel="noopener" href={`${STAFF_ORIGIN}/conferences/${slug}/companies/${row.company_id}`} className="underline hover:text-brand-accent">Company profile in CRM</a>
+        <a target="_blank" rel="noopener" href={`${STAFF_ORIGIN}/conferences/${slug}/investors/${row.investor_id}`} className="underline hover:text-brand-accent">Investor profile in CRM</a>
         <Link href={`/conferences/${slug}/platform/meetings/${row.id}`} className="underline hover:text-brand-accent">Meeting history</Link>
       </div>
     </Sheet>

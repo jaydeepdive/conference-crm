@@ -8,3 +8,4 @@ export const PORTAL_DEFAULT_SLUG = "mining-summit-2026";
 export function isPortalHost(host: string | null | undefined): boolean {
   return !!host && host.toLowerCase().split(":")[0].endsWith("abovebeyondsummit.com");
 }
+export const STAFF_ORIGIN = "https://crm.thedeepdive.ca";

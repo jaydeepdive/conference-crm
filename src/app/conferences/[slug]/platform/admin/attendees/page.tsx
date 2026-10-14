@@ -19,7 +19,7 @@ export default async function PlatformInvitesPage({
 }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const ctx = await requireConferenceAccess(slug);
-  if (ctx.effectiveRole !== "super_admin") redirect(`/conferences/${slug}`);
+  if (ctx.effectiveRole !== "super_admin") redirect(`/conferences/${slug}/platform`);
   const supabase = await createClient();
 
   const { data: profiles } = await supabase.from("attendee_profiles").select("*")
