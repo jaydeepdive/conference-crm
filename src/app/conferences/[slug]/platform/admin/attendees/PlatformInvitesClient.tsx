@@ -152,7 +152,7 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
     const needle = q.trim().toLowerCase();
     return rows.filter(r => {
       if (filter === "company" || filter === "investor") { if (r.lead_type !== filter) return false; }
-      else if (filter === "no_email") { if (r.email) return false; }
+      else if (filter === "no_email") { if (r.email && rows.some(x => !x.email)) return false; }
       else if (filter !== "all" && rowStatus(r) !== filter) return false;
       if (!needle) return true;
       return (
@@ -242,7 +242,7 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className={`grid grid-cols-2 gap-3 sm:grid-cols-3 ${stats.noEmail > 0 ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}>
         <StatCard label="Total" value={stats.total} />
         <StatCard label="Companies" value={stats.companies} />
         <StatCard label="Investors" value={stats.investors} />
@@ -315,7 +315,7 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
           </div>
         </div>
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          {FILTERS.map(f => (
+          {FILTERS.filter(f => f.value !== "no_email" || stats.noEmail > 0).map(f => (
             <button
               key={f.value}
               type="button"
