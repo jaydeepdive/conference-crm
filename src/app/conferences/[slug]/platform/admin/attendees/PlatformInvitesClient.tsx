@@ -23,6 +23,13 @@ export interface InviteRow {
   user_id: string | null;
 }
 
+export interface MissingLead {
+  lead_type: AttendeeSide;
+  lead_id: string;
+  name: string;
+  reason: string;
+}
+
 type Status = "signed_in" | "invited" | "not_invited";
 type Filter = "all" | "company" | "investor" | Status;
 
@@ -84,8 +91,9 @@ function StatCard({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-export function PlatformInvitesClient({ rows, slug, conferenceId, leads }: {
+export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing = [], staffBase }: {
   rows: InviteRow[]; slug: string; conferenceId: string; leads: LeadOption[];
+  missing?: MissingLead[]; staffBase?: string;
 }) {
   const router = useRouter();
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
@@ -230,6 +238,40 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads }: {
         <StatCard label="Invited" value={stats.invited} />
         <StatCard label="Signed in" value={stats.signedIn} />
       </div>
+
+      {missing.length > 0 && (
+        <div className="border border-amber-300 bg-amber-50 p-4">
+          <div className="font-display text-xl text-ink">
+            {missing.length} registered {missing.length === 1 ? "lead can't" : "leads can't"} sign in yet
+          </div>
+          <p className="mt-1 text-sm text-muted">
+            These are marked Registered in the CRM but have no attendee login. Add an email to fix it — no email is sent.
+          </p>
+          <ul className="mt-3 divide-y divide-amber-200 border-y border-amber-200">
+            {missing.map(m => (
+              <li key={`${m.lead_type}:${m.lead_id}`} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-ink">{m.name}</span>
+                    <SidePill side={m.lead_type} />
+                  </div>
+                  <div className="text-xs text-amber-900">{m.reason}</div>
+                </div>
+                <div className="flex gap-2">
+                  {staffBase && (
+                    <a href={`${staffBase}/${m.lead_type === "company" ? "companies" : "investors"}/${m.lead_id}`}
+                      target="_blank" rel="noopener" className={BTN_COMPACT}>Open in CRM</a>
+                  )}
+                  <button type="button" className={BTN_COMPACT}
+                    onClick={() => setPerson({ lead_type: m.lead_type, lead_id: m.lead_id, full_name: "", email: "" })}>
+                    Add email
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Info note */}
       <p className="border-l-2 border-ink/20 pl-3 text-sm text-muted">

@@ -10,7 +10,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { AttendeeProfile, Company, Investor } from "@/lib/types";
 import { PageTitle } from "@/components/SectionHeader";
-import { PlatformInvitesClient, type InviteRow } from "./PlatformInvitesClient";
+import { PlatformInvitesClient, type InviteRow, type MissingLead } from "./PlatformInvitesClient";
 import type { LeadOption } from "./PersonDialog";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +49,33 @@ export default async function PlatformInvitesPage({
     ...(allInvs ?? []).map(i => ({ id: i.id as string, type: "investor" as const, name: ((i.firm_name || i.contact_name || "(no name)") as string).trim() })),
   ].sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" }));
 
+  // Registered companies/investors that have NO attendee row (usually: no
+  // email on file, or their email is already used by another attendee).
+  const { createServiceClient } = await import("@/lib/supabase/service");
+  const svc = createServiceClient();
+  const [{ data: regCos }, { data: regInvs }] = await Promise.all([
+    svc.from("companies").select("id, name, email").eq("conference_id", ctx.conference.id).eq("stage", "registered"),
+    svc.from("investors").select("id, firm_name, contact_name, email").eq("conference_id", ctx.conference.id).eq("stage", "registered"),
+  ]);
+  const hasRow = new Set(list.map(p => `${p.lead_type}:${p.lead_id}`));
+  const emailOwner = new Map(list.map(p => [p.email.toLowerCase(), p]));
+  const missing: MissingLead[] = [];
+  const reasonFor = (email: string | null): string => {
+    const e = (email ?? "").trim().toLowerCase();
+    if (!e) return "No email on file";
+    const owner = emailOwner.get(e);
+    if (owner) {
+      const ownerName = (owner.lead_type === "company" ? coById.get(owner.lead_id) : invById.get(owner.lead_id)) ?? "another attendee";
+      return `Email ${e} is already used by ${ownerName} (${owner.lead_type})`;
+    }
+    return "Not synced yet — press Sync registered leads";
+  };
+  for (const c of regCos ?? []) if (!hasRow.has(`company:${c.id}`))
+    missing.push({ lead_type: "company", lead_id: c.id as string, name: ((c.name as string) || "(no name)").trim(), reason: reasonFor(c.email as string | null) });
+  for (const i of regInvs ?? []) if (!hasRow.has(`investor:${i.id}`))
+    missing.push({ lead_type: "investor", lead_id: i.id as string, name: ((i.firm_name || i.contact_name || "(no name)") as string).trim(), reason: reasonFor(i.email as string | null) });
+  missing.sort((a, b) => a.lead_type.localeCompare(b.lead_type) || a.name.localeCompare(b.name));
+
   const rows: InviteRow[] = list
     .map(p => ({
       id: p.id,
@@ -67,8 +94,8 @@ export default async function PlatformInvitesPage({
 
   return (
     <div className="space-y-6">
-      <PageTitle title="Attendees" sub="People who can sign in to the attendee portal. A company or investor can have as many people as you need." />
-      <PlatformInvitesClient rows={rows} slug={slug} conferenceId={ctx.conference.id} leads={leads} />
+      <PageTitle title="Attendees" sub="People who can sign in to the attendee portal. Companies can have as many people as you need; investors are one person each." />
+      <PlatformInvitesClient rows={rows} slug={slug} conferenceId={ctx.conference.id} leads={leads} missing={missing} staffBase={`https://crm.thedeepdive.ca/conferences/${slug}`} />
     </div>
   );
 }

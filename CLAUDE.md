@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.71** · 72 commits on `main`
+> Last updated: 2026-10-14 · Live version: **v6.72** · 72 commits on `main`
 
 ---
 
@@ -307,6 +307,12 @@ meetings, profiles, sent_email_recipients, sent_emails.
    (event kinds 'reschedule'/'keep', migration 0029). Busy checks count any
    meeting with scheduled_time not declined/cancelled. Only COMPANIES can
    have extra people (UI + API enforce; investors = one person each).
+5d. v6.72: Attendees page shows a "can't sign in yet" panel listing
+   registered leads with no attendee row + reason (no email / email already
+   used by another lead) with Add email + Open in CRM. As of Oct 14: Zang
+   International (co, no email); investors Paige Capital, Claude Drolet,
+   Brian Allesory, Mi3, Steve Yeomans (no email); New Break Resources Ltd.
+   investor shares mfarrant@ email with the New Break company record.
 5. Meeting emails currently for request + counter only. Possible additions:
    accepted/declined/cancelled notices, day-before schedule email (no cron on
    Hobby — would need a button).
