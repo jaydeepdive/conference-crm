@@ -7,3 +7,6 @@ out
 .vercel
 next-env.d.ts
 tsconfig.tsbuildinfo
+
+# Local-only credentials file (NEVER commit)
+LOCAL_SECRETS.md
