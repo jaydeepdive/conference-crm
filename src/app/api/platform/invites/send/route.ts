@@ -14,6 +14,7 @@
  * code path (attendee creation, resend-public, etc.) sends automatically.
  */
 import { NextResponse } from "next/server";
+import { PORTAL_ORIGIN } from "@/lib/portalDomain";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendResend, brandedEmail, resendConfigured } from "@/lib/resend";
@@ -56,7 +57,8 @@ export async function POST(request: Request) {
     .select("*").in("id", ids);
   if (pErr) return NextResponse.json({ error: pErr.message }, { status: 500 });
 
-  const origin = new URL(request.url).origin;
+  // Attendee links always point at the Above & Beyond domain.
+  const origin = PORTAL_ORIGIN;
   const results: SendResult[] = [];
 
   for (const p of profiles ?? []) {

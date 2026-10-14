@@ -5,6 +5,8 @@
  */
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { publicLeadColumns } from "@/lib/platform";
 import {
   requirePlatformContext, leadDisplayName, slotsForPlatform, formatSlotRange,
 } from "@/lib/platform";
@@ -29,7 +31,7 @@ export default async function PlatformMeetingPage({
   const otherId = ctx.side === "company" ? meeting.investor_id : meeting.company_id;
   const otherTable = ctx.side === "company" ? "investors" : "companies";
   const otherSide: "company" | "investor" = ctx.side === "company" ? "investor" : "company";
-  const { data: otherRow } = await supabase.from(otherTable).select("*").eq("id", otherId).maybeSingle();
+  const { data: otherRow } = await createServiceClient().from(otherTable).select(publicLeadColumns(otherSide)).eq("id", otherId).eq("conference_id", ctx.conference.id).maybeSingle();
   const other = (otherRow ?? null) as Company | Investor | null;
   const otherName = other ? leadDisplayName(other, otherSide) : "—";
 

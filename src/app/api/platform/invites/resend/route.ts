@@ -12,6 +12,7 @@
  *   - Always return 200 to callers to avoid email-existence leaks.
  */
 import { NextResponse } from "next/server";
+import { PORTAL_ORIGIN } from "@/lib/portalDomain";
 import { createServiceClient } from "@/lib/supabase/service";
 import { sendResend, brandedEmail } from "@/lib/resend";
 import { generateInviteToken } from "@/lib/platform";
@@ -53,7 +54,8 @@ export async function POST(request: Request) {
     }
   }
 
-  const origin = new URL(request.url).origin;
+  // Attendee links always point at the Above & Beyond domain.
+  const origin = PORTAL_ORIGIN;
   const { data: conf } = await svc.from("conferences").select("slug, name, public_name")
     .eq("id", attendee.conference_id).maybeSingle();
   const confSlug = conf?.slug ?? slug;

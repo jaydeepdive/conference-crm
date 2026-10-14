@@ -38,7 +38,7 @@ async function resolveActor(slug?: string) {
 
   let conference: Conference | null = null;
   if (slug) {
-    const { data: conf } = await supabase.from("conferences").select("*").eq("slug", slug).maybeSingle();
+    const { data: conf } = await createServiceClient().from("conferences").select("*").eq("slug", slug).maybeSingle();
     if (!conf) return { error: NextResponse.json({ error: "Unknown conference" }, { status: 404 }) };
     conference = conf as Conference;
   }
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     overriding = !representsSelf;
     if (!conference) {
       if (!attendee) return NextResponse.json({ error: "No conference context." }, { status: 400 });
-      const { data: conf } = await supabase.from("conferences").select("*").eq("id", attendee.conference_id).maybeSingle();
+      const { data: conf } = await createServiceClient().from("conferences").select("*").eq("id", attendee.conference_id).maybeSingle();
       conference = conf as Conference | null;
     }
     if (!conference) return NextResponse.json({ error: "Unknown conference" }, { status: 404 });
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     leadId = attendee.lead_id;
     conferenceId = attendee.conference_id;
     if (!conference) {
-      const { data: conf } = await supabase.from("conferences").select("*").eq("id", conferenceId).maybeSingle();
+      const { data: conf } = await createServiceClient().from("conferences").select("*").eq("id", conferenceId).maybeSingle();
       conference = conf as Conference | null;
     }
     if (!conference) return NextResponse.json({ error: "Unknown conference" }, { status: 404 });
@@ -175,7 +175,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "No conference context." }, { status: 400 });
     conferenceId = attendee?.conference_id ?? "";
     if (!conferenceId && slug) {
-      const { data: conf } = await supabase.from("conferences").select("id").eq("slug", slug).maybeSingle();
+      const { data: conf } = await createServiceClient().from("conferences").select("id").eq("slug", slug).maybeSingle();
       if (!conf) return NextResponse.json({ error: "Unknown conference" }, { status: 404 });
       conferenceId = conf.id as string;
     }

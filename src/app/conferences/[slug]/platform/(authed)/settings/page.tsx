@@ -5,6 +5,8 @@
  */
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { publicLeadColumns } from "@/lib/platform";
 import {
   requirePlatformContext, leadDisplayName, slotsForPlatform, formatSlotRange,
 } from "@/lib/platform";
@@ -64,7 +66,7 @@ export default async function PlatformSettingsPage({
   // Directory for the OTHER side (name + id).
   const otherTable = otherSide === "company" ? "companies" : "investors";
   const orderCol = otherSide === "company" ? "name" : "firm_name";
-  const { data: peersRaw } = await supabase.from(otherTable)
+  const { data: peersRaw } = await createServiceClient().from(otherTable)
     .select(otherSide === "company" ? "id, name" : "id, firm_name")
     .eq("conference_id", ctx.conference.id)
     .order(orderCol);

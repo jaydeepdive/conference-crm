@@ -5,6 +5,8 @@
  */
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { publicLeadColumns } from "@/lib/platform";
 import { requirePlatformContext, formatSlotRange, slotsForPlatform } from "@/lib/platform";
 import type { Company, Investor, Meeting } from "@/lib/types";
 
@@ -28,7 +30,7 @@ export default async function InboxPage({ params }: { params: Promise<{ slug: st
   const otherIds = waiting.map(m => ctx.side === "company" ? m.investor_id : m.company_id);
   const otherTable = otherSide === "company" ? "companies" : "investors";
   const { data: others } = otherIds.length
-    ? await supabase.from(otherTable).select("id, name, firm_name").in("id", otherIds)
+    ? await createServiceClient().from(otherTable).select(otherSide === "company" ? "id, name" : "id, firm_name").eq("conference_id", ctx.conference.id).in("id", otherIds)
     : { data: [] as Array<Pick<Company, "id" | "name"> | Pick<Investor, "id" | "firm_name">> };
   const byId = new Map((others ?? []).map(o => [o.id as string, o as Pick<Company, "id" | "name"> | Pick<Investor, "id" | "firm_name">]));
 

@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isPortalHost, PORTAL_DEFAULT_SLUG } from "@/lib/portalDomain";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
@@ -31,8 +32,31 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
+
+  // crm.abovebeyondsummit.com = attendee domain. Only the Above & Beyond portal
+  // (and the API / auth plumbing it needs) is reachable; every staff CRM page
+  // (thedeepdive.ca branded: /login, /conferences, /admin, …) is redirected
+  // into the portal. Staff use crm.thedeepdive.ca.
+  if (isPortalHost(request.headers.get("host"))) {
+    const allowed =
+         /^\/conferences\/[^/]+\/platform(\/.*)?$/.test(path)
+      || path.startsWith("/api/")
+      || path === "/auth/confirm"
+      || path.startsWith("/_next")
+      || path.startsWith("/brand/")
+      || path.startsWith("/fonts/")
+      || path === "/favicon.ico"
+      || path === "/robots.txt";
+    if (!allowed) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/conferences/${PORTAL_DEFAULT_SLUG}/platform`;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
 
   // Expose the current pathname to server components (layouts/pages read it
   // via `headers()`). Lets the staff conference layout detect /platform/

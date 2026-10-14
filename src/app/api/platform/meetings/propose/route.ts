@@ -9,7 +9,9 @@
  * exists in a terminal state.
  */
 import { NextResponse } from "next/server";
+import { PORTAL_ORIGIN } from "@/lib/portalDomain";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import type { AttendeeSide } from "@/lib/types";
 import { notifyMeeting } from "@/lib/meetingEmails";
 
@@ -45,7 +47,7 @@ export async function POST(request: Request) {
     .select("id, lead_type, lead_id, conference_id")
     .eq("user_id", user.id);
   if (body.slug) {
-    const { data: conf } = await supabase.from("conferences").select("id").eq("slug", body.slug).maybeSingle();
+    const { data: conf } = await createServiceClient().from("conferences").select("id").eq("slug", body.slug).maybeSingle();
     if (!conf) return NextResponse.json({ error: "Unknown conference" }, { status: 404 });
     attendeeQuery = attendeeQuery.eq("conference_id", conf.id);
   }
@@ -141,7 +143,7 @@ export async function POST(request: Request) {
 
   const notified = await notifyMeeting({
     meetingId, kind: "request", actorAttendeeId: attendee.id,
-    origin: new URL(request.url).origin, note: body.notes ?? null,
+    origin: PORTAL_ORIGIN, note: body.notes ?? null,
   });
 
   return NextResponse.json({ meeting_id: meetingId, notified: notified.sent });

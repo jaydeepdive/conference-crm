@@ -42,11 +42,26 @@ export const IMPERSONATE_COOKIE = "platform_impersonate";
  *  synthesize a context by picking an attendee to impersonate — either the one
  *  recorded in the `platform_impersonate` cookie, or the first available one
  *  in this conference. */
+/**
+ * Columns of companies / investors that attendees are allowed to see. Attendee
+ * pages read these tables with the SERVICE client (RLS no longer lets attendee
+ * logins read them directly) and must only ever select these columns.
+ */
+export const COMPANY_PUBLIC_COLUMNS =
+  "id, conference_id, name, industry, contact_name, contact_title, about, website, ticker, stage";
+export const INVESTOR_PUBLIC_COLUMNS =
+  "id, conference_id, firm_name, investor_type, contact_name, contact_title, about, investment_criteria, sector_focus, website, stage";
+export function publicLeadColumns(side: "company" | "investor"): string {
+  return side === "company" ? COMPANY_PUBLIC_COLUMNS : INVESTOR_PUBLIC_COLUMNS;
+}
+
 export async function resolvePlatformContext(slug: string): Promise<PlatformContextResult | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: conference } = await supabase
+  // Conference config is read server-side with the service client: attendee
+  // logins have no RLS access to the conferences table.
+  const { data: conference } = await createServiceClient()
     .from("conferences").select("*").eq("slug", slug).maybeSingle();
   if (!conference) return null;
   const conf = conference as Conference;
@@ -94,8 +109,9 @@ export async function resolvePlatformContext(slug: string): Promise<PlatformCont
   const table = attendee.lead_type === "company" ? "companies" : "investors";
   // Use service client when impersonating — RLS might not let the admin's
   // auth session see leads they don't belong to.
-  const leadClient = impersonatedAttendee ? createServiceClient() : supabase;
-  const { data: leadRow } = await leadClient.from(table).select("*").eq("id", attendee.lead_id).maybeSingle();
+  // Own lead is read server-side (service client) — attendees have no RLS
+  // access to companies/investors. Never pass this whole row to the browser.
+  const { data: leadRow } = await createServiceClient().from(table).select("*").eq("id", attendee.lead_id).maybeSingle();
   if (!leadRow) return { kind: "not-attendee", conference: conf, userEmail: user.email ?? null };
 
   const isImpersonating = !!impersonatedAttendee && impersonatedAttendee.user_id !== user.id;

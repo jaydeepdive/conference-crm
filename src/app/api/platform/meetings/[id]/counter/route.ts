@@ -3,6 +3,7 @@
  * Only the side that DIDN'T move last may counter.
  */
 import { NextResponse } from "next/server";
+import { PORTAL_ORIGIN } from "@/lib/portalDomain";
 import { createClient } from "@/lib/supabase/server";
 import { loadMeetingCaller } from "@/lib/portal-api";
 import { notifyMeeting } from "@/lib/meetingEmails";
@@ -75,7 +76,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   });
   const notified = await notifyMeeting({
     meetingId: meeting.id, kind: "counter", actorAttendeeId: attendee.id,
-    origin: new URL(request.url).origin, note: body.notes ?? null,
+    origin: PORTAL_ORIGIN, note: body.notes ?? null,
   });
   return NextResponse.json({ ok: true, notified: notified.sent });
 }

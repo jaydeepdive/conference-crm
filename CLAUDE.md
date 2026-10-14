@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.65** · 72 commits on `main`
+> Last updated: 2026-10-14 · Live version: **v6.66** · 72 commits on `main`
 
 ---
 
@@ -65,7 +65,7 @@ things manually. Get it right the first time, verify live, keep replies short.
 | Local folder | `/Users/jordanlutz/Documents/conference-crm-source` |
 | Hosting | Vercel (Hobby plan — NO cron jobs), auto-deploys every push to `main` (~1–2 min) |
 | Prod URL | https://crm.thedeepdive.ca (also conference-crm-rust.vercel.app) |
-| Planned URL | https://crm.abovebeyondsummit.com (pending: Jordan adds domain in Vercel + CNAME `crm` in Cloudflare, DNS-only). Already in Supabase allow-list. |
+| Attendee URL | https://crm.abovebeyondsummit.com — portal ONLY (staff pages redirect into the portal) |
 | Database/Auth | Supabase project ref **zetiaccmsqamqhldjaps** (https://zetiaccmsqamqhldjaps.supabase.co) |
 | Email (attendee + auth) | Resend (partner's account), sender `Above & Beyond Mining Summit <no-reply@abovebeyondsummit.com>`. Key stored in DB table `app_secrets` (key `resend_api_key`) + Supabase SMTP (smtp.resend.com:465 user `resend`). Free plan: 100/day shared with partner. |
 | Email (staff invoices/group email) | Gmail OAuth per staff user (`gmail_tokens` table) |
@@ -132,7 +132,7 @@ not block builds.
 - Bump `src/lib/version.ts` (`APP_VERSION`) on every release; commit message
   `vX.YZ: summary`.
 - Migrations: `supabase/migrations/00NN_name.sql`, idempotent (`if not
-  exists`), apply via API immediately after writing. Next number: **0026**.
+  exists`), apply via API immediately after writing. Next number: **0027**.
 - After `redirect()`/`notFound()` add `throw new Error("unreachable")` for TS
   narrowing.
 - Deleting files in the connected folder may need the Cowork delete permission.
@@ -236,7 +236,7 @@ meetings, profiles, sent_email_recipients, sent_emails.
 - Trigger (0020): any company/investor set to `registered` automatically gets
   attendee_profiles rows — NO email sent.
 - Invoices sync to budget receivables and lead `payment_status` (0010/0011).
-- Migrations 0001–0025 all applied. Notables: 0007 default-allow access +
+- Migrations 0001–0026 all applied. Notables: 0007 default-allow access +
   `hidden` role, 0012 attendee portal, 0014–0016 SignWell + public_name,
   0017 signed→registered, 0018 company_contacts, 0019 platform config, 0020
   auto attendees, 0021 blocked slots + blocklist, 0022 app_secrets, 0023
@@ -268,16 +268,17 @@ meetings, profiles, sent_email_recipients, sent_emails.
    admins can change type (DB trigger guard). `/admin/users` is now
    **Accounts** (all logins, type, last sign-in, Make staff / Revoke).
    `numa.pentest.1791822865@gmail.com` is pending + unconfirmed — Jordan may
-   delete it from Accounts. Remaining exposure to review before invites:
-   attendee RLS policies `companies_attendee_read` / `investors_attendee_read`
-   / `conferences_attendee_read` expose ALL columns of those tables to any
-   attendee via the API (notes, payment status, contact emails).
-   crm.abovebeyondsummit.com was added to the WRONG Vercel project
-   (`investor-crm-nsn5`); must be moved to the conference-crm project.
+   delete it from Accounts. Attendee data lockdown DONE v6.66 (migration 0026): attendee logins
+   have NO RLS read on companies/investors/conferences or other attendees'
+   rows; portal pages read via service client using ONLY
+   COMPANY_PUBLIC_COLUMNS / INVESTOR_PUBLIC_COLUMNS (src/lib/platform.ts).
+   Any new portal page must follow the same pattern.
 3. Jordan adds DMARC TXT record (see §2) — reset email went to junk.
-4. Custom domain crm.abovebeyondsummit.com: after Jordan adds it in Vercel +
-   Cloudflare, make root redirect to the portal and make all attendee email
-   links use that origin even when sent from crm.thedeepdive.ca.
+4. DONE v6.66: crm.abovebeyondsummit.com is live on the conference-crm Vercel
+   project. Middleware (src/lib/portalDomain.ts) makes that host portal-ONLY:
+   any non-/platform page (incl. /login, /conferences, /admin) redirects to
+   /conferences/mining-summit-2026/platform. All attendee email links + email
+   images use PORTAL_ORIGIN. Staff CRM stays on crm.thedeepdive.ca.
 5. Meeting emails currently for request + counter only. Possible additions:
    accepted/declined/cancelled notices, day-before schedule email (no cron on
    Hobby — would need a button).

@@ -34,7 +34,7 @@ async function resolveActor(slug?: string) {
 
   let conferenceId: string | null = null;
   if (slug) {
-    const { data: conf } = await supabase.from("conferences").select("id").eq("slug", slug).maybeSingle();
+    const { data: conf } = await createServiceClient().from("conferences").select("id").eq("slug", slug).maybeSingle();
     if (!conf) return { error: NextResponse.json({ error: "Unknown conference" }, { status: 404 }) };
     conferenceId = conf.id as string;
   }

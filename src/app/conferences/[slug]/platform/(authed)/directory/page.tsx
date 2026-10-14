@@ -5,6 +5,8 @@
  * cancelled meetings show a "Request again" affordance.
  */
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { publicLeadColumns } from "@/lib/platform";
 import { requirePlatformContext } from "@/lib/platform";
 import type { Company, Investor, Meeting, MeetingBlocklistEntry } from "@/lib/types";
 import { DirectoryClient } from "./DirectoryClient";
@@ -21,7 +23,7 @@ export default async function DirectoryPage({ params }: { params: Promise<{ slug
   const otherSide: "company" | "investor" = ctx.side === "company" ? "investor" : "company";
   const orderCol = otherSide === "company" ? "name" : "firm_name";
 
-  const { data: peers } = await supabase.from(otherTable).select("*")
+  const { data: peers } = await createServiceClient().from(otherTable).select(publicLeadColumns(otherSide))
     .eq("conference_id", ctx.conference.id).order(orderCol);
 
   const { data: meetings } = await supabase.from("meetings")
@@ -59,7 +61,7 @@ export default async function DirectoryPage({ params }: { params: Promise<{ slug
     blocked: boolean;
   }
   const rows: Row[] = (peers ?? []).map(p => {
-    const peer = p as Peer;
+    const peer = p as unknown as Peer;
     const isInvestor = otherSide === "investor";
     return {
       id: peer.id,

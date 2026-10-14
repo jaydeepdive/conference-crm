@@ -6,6 +6,7 @@
  * (service-role only table, RLS with no policies).
  */
 import { createServiceClient } from "@/lib/supabase/service";
+import { PORTAL_ORIGIN } from "@/lib/portalDomain";
 
 export const ATTENDEE_FROM = "Above & Beyond Mining Summit <no-reply@abovebeyondsummit.com>";
 
@@ -51,7 +52,7 @@ function esc(s: string): string {
 }
 
 /** Public URL for images in emails (must be reachable by mail clients). */
-const EMAIL_ASSET_ORIGIN = "https://crm.thedeepdive.ca";
+const EMAIL_ASSET_ORIGIN = PORTAL_ORIGIN;
 
 /**
  * Above & Beyond branded email. Light, table-based layout that renders the
