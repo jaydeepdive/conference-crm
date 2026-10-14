@@ -188,7 +188,8 @@ export interface AttendeeProfile {
   lead_type: AttendeeSide;
   lead_id: string;
   user_id: string | null;
-  email: string;
+  /** NULL = "No email on file" (registered but can't sign in / be invited). */
+  email: string | null;
   full_name: string | null;
   title: string | null;
   phone: string | null;

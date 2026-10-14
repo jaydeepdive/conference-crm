@@ -71,7 +71,7 @@ function Inner({ onClose, onSaved, conferenceId, leads, initial }: {
         onClick={e => e.stopPropagation()}>
         <div className={LABEL}>{editing ? "Edit person" : "Add person"}</div>
         <div className="mt-1 font-display text-2xl text-ink">
-          {editing ? (initial.full_name || initial.email) : "Add someone to a company"}
+          {editing ? (initial.full_name || initial.email || "Add email") : "Add someone to a company"}
         </div>
 
         {!editing && (

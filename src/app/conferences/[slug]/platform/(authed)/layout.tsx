@@ -89,7 +89,7 @@ export default async function PlatformAuthedLayout({
       {ctx.isImpersonating && (
         <PlatformAdminBanner
           slug={slug}
-          impersonatedName={ctx.attendee.full_name ?? ctx.attendee.email}
+          impersonatedName={ctx.attendee.full_name ?? ctx.attendee.email ?? "Attendee"}
           impersonatedEntity={entity}
         />
       )}

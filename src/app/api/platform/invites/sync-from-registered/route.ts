@@ -106,6 +106,17 @@ export async function POST(request: Request) {
     .upsert(Array.from(seen.values()), { onConflict: "conference_id,email", ignoreDuplicates: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Registered leads with no usable email still get listed ("No email on
+  // file"); drop such placeholders once the lead has a real-email attendee.
+  await admin.rpc("backfill_attendee_placeholders", { p_conference: conference.id });
+  const { data: withEmail } = await admin.from("attendee_profiles").select("lead_type, lead_id")
+    .eq("conference_id", conference.id).not("email", "is", null);
+  const real = new Set((withEmail ?? []).map(r => `${r.lead_type}:${r.lead_id}`));
+  const { data: placeholders } = await admin.from("attendee_profiles").select("id, lead_type, lead_id")
+    .eq("conference_id", conference.id).is("email", null).is("user_id", null);
+  const stale = (placeholders ?? []).filter(p => real.has(`${p.lead_type}:${p.lead_id}`)).map(p => p.id);
+  if (stale.length) await admin.from("attendee_profiles").delete().in("id", stale);
+
   const { count: afterCount } = await admin.from("attendee_profiles")
     .select("*", { count: "exact", head: true }).eq("conference_id", conference.id);
 

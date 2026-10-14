@@ -58,7 +58,7 @@ export default async function PlatformInvitesPage({
     svc.from("investors").select("id, firm_name, contact_name, email").eq("conference_id", ctx.conference.id).eq("stage", "registered"),
   ]);
   const hasRow = new Set(list.map(p => `${p.lead_type}:${p.lead_id}`));
-  const emailOwner = new Map(list.map(p => [p.email.toLowerCase(), p]));
+  const emailOwner = new Map(list.filter(p => p.email).map(p => [(p.email as string).toLowerCase(), p]));
   const missing: MissingLead[] = [];
   const reasonFor = (email: string | null): string => {
     const e = (email ?? "").trim().toLowerCase();
@@ -90,7 +90,7 @@ export default async function PlatformInvitesPage({
     }))
     .sort((a, b) =>
       a.lead_name.localeCompare(b.lead_name, "en", { sensitivity: "base" }) ||
-      (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email, "en", { sensitivity: "base" }));
+      (a.full_name ?? a.email ?? "").localeCompare(b.full_name ?? b.email ?? "", "en", { sensitivity: "base" }));
 
   return (
     <div className="space-y-6">

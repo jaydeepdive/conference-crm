@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.72** · 72 commits on `main`
+> Last updated: 2026-10-14 · Live version: **v6.73** · 72 commits on `main`
 
 ---
 
@@ -132,7 +132,7 @@ not block builds.
 - Bump `src/lib/version.ts` (`APP_VERSION`) on every release; commit message
   `vX.YZ: summary`.
 - Migrations: `supabase/migrations/00NN_name.sql`, idempotent (`if not
-  exists`), apply via API immediately after writing. Next number: **0030**.
+  exists`), apply via API immediately after writing. Next number: **0031**.
 - After `redirect()`/`notFound()` add `throw new Error("unreachable")` for TS
   narrowing.
 - Deleting files in the connected folder may need the Cowork delete permission.
@@ -236,7 +236,7 @@ meetings, profiles, sent_email_recipients, sent_emails.
 - Trigger (0020): any company/investor set to `registered` automatically gets
   attendee_profiles rows — NO email sent.
 - Invoices sync to budget receivables and lead `payment_status` (0010/0011).
-- Migrations 0001–0029 all applied. Notables: 0007 default-allow access +
+- Migrations 0001–0030 all applied. Notables: 0007 default-allow access +
   `hidden` role, 0012 attendee portal, 0014–0016 SignWell + public_name,
   0017 signed→registered, 0018 company_contacts, 0019 platform config, 0020
   auto attendees, 0021 blocked slots + blocklist, 0022 app_secrets, 0023
@@ -313,6 +313,13 @@ meetings, profiles, sent_email_recipients, sent_emails.
    International (co, no email); investors Paige Capital, Claude Drolet,
    Brian Allesory, Mi3, Steve Yeomans (no email); New Break Resources Ltd.
    investor shares mfarrant@ email with the New Break company record.
+5e. v6.73 (migration 0030): attendee_profiles.email is NULLABLE. Registered
+   leads with no usable email get a placeholder attendee (email NULL, shown
+   "No email on file"): they appear in the directory and can be booked, but
+   can't sign in / get invites / passwords until "Add email". Trigger +
+   backfill_attendee_placeholders(conf) RPC (sync calls it and removes
+   placeholders once a real-email row exists). Always null-guard
+   attendee.email in new code.
 5. Meeting emails currently for request + counter only. Possible additions:
    accepted/declined/cancelled notices, day-before schedule email (no cron on
    Hobby — would need a button).

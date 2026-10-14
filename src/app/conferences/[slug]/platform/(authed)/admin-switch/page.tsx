@@ -38,7 +38,7 @@ export default async function AdminSwitchPage({ params }: { params: Promise<{ sl
   const rows = list.map(a => ({
     id: a.id,
     full_name: a.full_name ?? "(no name)",
-    email: a.email,
+    email: a.email ?? "(no email on file)",
     entity: a.lead_type === "company" ? (companyName.get(a.lead_id) ?? "—") : (investorName.get(a.lead_id) ?? "—"),
     side: a.lead_type as "company" | "investor",
     accepted: a.user_id !== null,

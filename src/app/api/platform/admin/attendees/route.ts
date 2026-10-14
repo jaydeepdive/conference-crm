@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   if (body.action === "update") {
     const patch: Record<string, unknown> = {};
     if (fullName !== undefined) patch.full_name = fullName;
-    if (body.email !== undefined && email !== String(row.email).toLowerCase()) {
+    if (body.email !== undefined && email !== String(row.email ?? "").toLowerCase()) {
       if (!EMAIL_RE.test(email)) return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
       const clash = await emailInUse(svc, row.conference_id as string, email);
       if (clash) return NextResponse.json({ error: clash }, { status: 409 });

@@ -64,6 +64,11 @@ export async function POST(request: Request) {
   for (const p of profiles ?? []) {
     const res: SendResult = { profile_id: p.id, email: p.email, sent: false };
 
+    if (!p.email) {
+      res.skipped = "no-email";
+      results.push(res);
+      continue;
+    }
     if (p.user_id) {
       res.skipped = "already-accepted";
       results.push(res);

@@ -93,13 +93,13 @@ export function LeadAttendees({ conferenceId, leadType, leadId, attendees, confe
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="font-medium text-ink">{a.full_name || "(no name)"}</div>
-                      <div className="text-xs text-muted">{a.email}</div>
+                      {a.email ? <div className="text-xs text-muted">{a.email}</div> : <div className="text-xs font-semibold text-amber-800">No email on file — Edit to add one</div>}
                       <div className="mt-1 text-[10px] uppercase tracking-widest2 text-muted">
                         {signedIn ? "Signed in" : a.invite_sent_at ? `Invited ${new Date(a.invite_sent_at).toLocaleDateString()}` : "Not invited yet"}
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => { setEditId(a.id); setEditName(a.full_name ?? ""); setEditEmail(a.email); }}
+                      <button onClick={() => { setEditId(a.id); setEditName(a.full_name ?? ""); setEditEmail(a.email ?? ""); }}
                         className={`${SMALL} text-ink`}>Edit</button>
                       <button onClick={() => remove(a)} disabled={busy === a.id} className={`${SMALL} text-rose-700 hover:border-rose-700`}>Remove</button>
                     </div>

@@ -39,6 +39,7 @@ export async function POST(request: Request) {
     .select("id, email, full_name, user_id, conference_id").eq("id", body.attendee_profile_id).maybeSingle();
   if (!attendee) return NextResponse.json({ error: "Attendee not found" }, { status: 404 });
 
+  if (!attendee.email) return NextResponse.json({ error: "No email on file — add their email first (Edit → Add email)." }, { status: 400 });
   const email = String(attendee.email);
   let userId: string | null = attendee.user_id as string | null;
 

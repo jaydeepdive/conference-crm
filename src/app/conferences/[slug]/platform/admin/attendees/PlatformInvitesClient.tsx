@@ -17,7 +17,7 @@ export interface InviteRow {
   lead_id: string;
   lead_name: string;
   full_name: string | null;
-  email: string;
+  email: string | null;
   invite_sent_at: string | null;
   accepted_at: string | null;
   user_id: string | null;
@@ -31,7 +31,7 @@ export interface MissingLead {
 }
 
 type Status = "signed_in" | "invited" | "not_invited";
-type Filter = "all" | "company" | "investor" | Status;
+type Filter = "all" | "company" | "investor" | "no_email" | Status;
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
@@ -40,6 +40,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "not_invited", label: "Not invited" },
   { value: "invited", label: "Invited" },
   { value: "signed_in", label: "Signed in" },
+  { value: "no_email", label: "No email" },
 ];
 
 const LABEL = "text-[11px] font-medium uppercase tracking-widest2 text-muted";
@@ -58,6 +59,14 @@ function rowStatus(r: InviteRow): Status {
 
 function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function NoEmailPill() {
+  return (
+    <span className="inline-flex items-center whitespace-nowrap rounded-sm bg-amber-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-amber-900 ring-1 ring-inset ring-amber-300">
+      No email on file
+    </span>
+  );
 }
 
 function StatusPill({ row }: { row: InviteRow }) {
@@ -111,10 +120,10 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
     setPerson({ lead_type: "company", lead_id: r?.lead_type === "company" ? r.lead_id : "", full_name: "", email: "" });
   }
   function editPerson(r: InviteRow) {
-    setPerson({ id: r.id, lead_type: r.lead_type, lead_id: r.lead_id, full_name: r.full_name ?? "", email: r.email, signed_in: rowStatus(r) === "signed_in" });
+    setPerson({ id: r.id, lead_type: r.lead_type, lead_id: r.lead_id, full_name: r.full_name ?? "", email: r.email ?? "", signed_in: rowStatus(r) === "signed_in" });
   }
   async function removePerson(r: InviteRow) {
-    const who = r.full_name ? `${r.full_name} (${r.email})` : r.email;
+    const who = r.full_name ? `${r.full_name}${r.email ? ` (${r.email})` : ""}` : (r.email ?? "this person");
     if (!confirm(`Remove ${who} from ${r.lead_name}?\n\nThey lose access to the attendee portal. ${r.lead_name}'s meetings are not affected.`)) return;
     setError(null); setResult(null);
     const res = await fetch("/api/platform/admin/attendees", {
@@ -135,6 +144,7 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
       investors: orgs("investor"),
       invited: rows.filter(r => rowStatus(r) === "invited").length,
       signedIn: rows.filter(r => rowStatus(r) === "signed_in").length,
+      noEmail: rows.filter(r => !r.email).length,
     };
   }, [rows]);
 
@@ -142,17 +152,18 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
     const needle = q.trim().toLowerCase();
     return rows.filter(r => {
       if (filter === "company" || filter === "investor") { if (r.lead_type !== filter) return false; }
+      else if (filter === "no_email") { if (r.email) return false; }
       else if (filter !== "all" && rowStatus(r) !== filter) return false;
       if (!needle) return true;
       return (
         (r.full_name ?? "").toLowerCase().includes(needle) ||
-        r.email.toLowerCase().includes(needle) ||
+        (r.email ?? "no email on file").toLowerCase().includes(needle) ||
         r.lead_name.toLowerCase().includes(needle)
       );
     });
   }, [rows, q, filter]);
 
-  const toSend = useMemo(() => filtered.filter(r => rowStatus(r) === "not_invited"), [filtered]);
+  const toSend = useMemo(() => filtered.filter(r => rowStatus(r) === "not_invited" && !!r.email), [filtered]);
 
   async function preview(id: string) {
     setPreviewBusy(id);
@@ -237,6 +248,7 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
         <StatCard label="Investors" value={stats.investors} />
         <StatCard label="Invited" value={stats.invited} />
         <StatCard label="Signed in" value={stats.signedIn} />
+        {stats.noEmail > 0 && <StatCard label="No email on file" value={stats.noEmail} />}
       </div>
 
       {missing.length > 0 && (
@@ -343,7 +355,9 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
                   <tr className={`${newOrg ? "border-t border-line" : ""} hover:bg-utility/60`}>
                     <td className="px-4 py-2.5">
                       <div className="font-semibold text-ink">{r.full_name ?? <span className="font-normal italic text-muted">No name</span>}</div>
-                      <div className="text-xs text-muted">{r.email}</div>
+                      {r.email
+                        ? <div className="text-xs text-muted">{r.email}</div>
+                        : <div className="text-xs font-semibold text-amber-800">No email on file</div>}
                     </td>
                     <td className="px-4 py-2.5">
                       {newOrg ? (
@@ -361,21 +375,25 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
                         <span className="sr-only">{r.lead_name}</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5"><StatusPill row={r} /></td>
+                    <td className="px-4 py-2.5">{r.email ? <StatusPill row={r} /> : <NoEmailPill />}</td>
                     <td className="whitespace-nowrap px-4 py-2.5 text-right">
                       <div className="inline-flex items-center gap-2">
                         <button type="button" onClick={() => preview(r.id)} disabled={previewBusy !== null}
                           className={BTN_COMPACT} title="Open the attendee portal as this person sees it">
                           {previewBusy === r.id ? "Opening…" : "Preview"}
                         </button>
-                        <button type="button" onClick={() => setPwFor(r)} className={BTN_COMPACT}
-                          title="Set a password directly — no email">
-                          Password
+                        {r.email && (
+                          <button type="button" onClick={() => setPwFor(r)} className={BTN_COMPACT}
+                            title="Set a password directly — no email">
+                            Password
+                          </button>
+                        )}
+                        <button type="button" onClick={() => editPerson(r)} className={r.email ? BTN_COMPACT : `${BTN_COMPACT} !border-amber-500 !text-amber-900`}>
+                          {r.email ? "Edit" : "Add email"}
                         </button>
-                        <button type="button" onClick={() => editPerson(r)} className={BTN_COMPACT}>Edit</button>
                         <button type="button" onClick={() => removePerson(r)}
                           className={`${BTN_COMPACT} !text-rose-700 hover:!border-rose-700`}>Remove</button>
-                        {st !== "signed_in" && (
+                        {st !== "signed_in" && r.email && (
                           <button type="button" onClick={() => sendOne(r)} disabled={busy} className={BTN_COMPACT}>
                             {busy ? "Sending…" : st === "invited" ? "Resend" : "Send"}
                           </button>
@@ -407,9 +425,9 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="truncate font-semibold text-ink">{r.full_name ?? "No name"}</div>
-                  <div className="truncate text-sm text-muted">{r.email}</div>
+                  <div className={`truncate text-sm ${r.email ? "text-muted" : "font-semibold text-amber-800"}`}>{r.email ?? "No email on file"}</div>
                 </div>
-                <StatusPill row={r} />
+                {r.email ? <StatusPill row={r} /> : <NoEmailPill />}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
                 <span className="text-ink">{r.lead_name}</span>
@@ -419,14 +437,16 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
                     className="ml-auto text-[11px] font-semibold uppercase tracking-widest2 text-brand-accent">+ Add person</button>
                 )}
               </div>
-              <div className={`mt-3 grid gap-2 ${st === "signed_in" ? "grid-cols-2" : "grid-cols-3"}`}>
+              <div className={`mt-3 grid gap-2 ${!r.email ? "grid-cols-1" : st === "signed_in" ? "grid-cols-2" : "grid-cols-3"}`}>
                 <button type="button" onClick={() => preview(r.id)} disabled={previewBusy !== null} className={BTN_SECONDARY}>
                   {previewBusy === r.id ? "Opening…" : "Preview"}
                 </button>
-                <button type="button" onClick={() => setPwFor(r)} className={BTN_SECONDARY}>
-                  Password
-                </button>
-                {st !== "signed_in" && (
+                {r.email && (
+                  <button type="button" onClick={() => setPwFor(r)} className={BTN_SECONDARY}>
+                    Password
+                  </button>
+                )}
+                {st !== "signed_in" && r.email && (
                   <button type="button" onClick={() => sendOne(r)} disabled={busy}
                     className={st === "invited" ? BTN_SECONDARY : BTN_PRIMARY}>
                     {busy ? "Sending…" : st === "invited" ? "Resend" : "Send"}
@@ -434,7 +454,7 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
                 )}
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => editPerson(r)} className={BTN_SECONDARY}>Edit</button>
+                <button type="button" onClick={() => editPerson(r)} className={r.email ? BTN_SECONDARY : `${BTN_SECONDARY} !border-amber-500 !text-amber-900`}>{r.email ? "Edit" : "Add email"}</button>
                 <button type="button" onClick={() => removePerson(r)} className={`${BTN_SECONDARY} !text-rose-700`}>Remove</button>
               </div>
             </div>

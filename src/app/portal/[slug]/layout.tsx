@@ -25,7 +25,7 @@ export default async function PortalConferenceLayout({
         conferenceName={ctx.conference.name}
         slug={slug}
         subtitle={subtitle}
-        viewerLabel={ctx.attendee.full_name ?? ctx.attendee.email}
+        viewerLabel={ctx.attendee.full_name ?? ctx.attendee.email ?? "Attendee"}
       />
       <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">{children}</main>
       <PortalFooter />
