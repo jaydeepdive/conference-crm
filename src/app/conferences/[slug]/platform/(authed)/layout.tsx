@@ -16,6 +16,7 @@ import { resolvePlatformContext, leadDisplayName } from "@/lib/platform";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PlatformNav } from "../PlatformNav";
+import { unreadTotal } from "@/lib/messages";
 import { PlatformSignOut } from "../PlatformSignOut";
 import { PlatformAdminBanner } from "@/components/PlatformAdminBanner";
 import {
@@ -83,6 +84,7 @@ export default async function PlatformAuthedLayout({
 
   const { ctx } = result;
   const entity = leadDisplayName(ctx.lead, ctx.side);
+  const unread = await unreadTotal(ctx.conference.id, ctx.side, ctx.attendee.lead_id, ctx.attendee.id).catch(() => 0);
 
   return (
     <div className="flex min-h-screen flex-col pb-20 sm:pb-0" style={{ backgroundColor: BRAND_IVORY }}>
@@ -112,7 +114,7 @@ export default async function PlatformAuthedLayout({
             <PlatformSignOut slug={slug} compact />
           </div>
         </div>
-        <PlatformNav slug={slug} />
+        <PlatformNav slug={slug} unread={unread} />
       </header>
 
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-5 text-stone-900 sm:px-6">{children}</main>

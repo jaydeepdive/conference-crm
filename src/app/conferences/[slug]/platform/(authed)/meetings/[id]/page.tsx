@@ -3,6 +3,7 @@
  * view. Shows status, actions appropriate to who moved last, and the full
  * event history timeline.
  */
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -102,6 +103,10 @@ export default async function PlatformMeetingPage({
             {other.contact_name}{other.contact_title ? ` · ${other.contact_title}` : ""}
           </div>
         )}
+        <Link href={`/conferences/${slug}/platform/messages/${otherSide}/${otherId}`}
+          className="mt-2 inline-block text-sm font-medium text-slate-900 underline">
+          ✉ Message {otherName}
+        </Link>
       </section>
 
       <section className="rounded-md border border-slate-200 bg-white p-4">

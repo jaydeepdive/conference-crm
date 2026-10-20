@@ -11,6 +11,7 @@
  * If a meeting_blocklist row exists in either direction between viewer and
  * the other party, the picker is replaced with a "Not matched" notice.
  */
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -120,6 +121,14 @@ export default async function DirectoryDetailPage({
           </p>
         )}
       </section>
+
+      {!isBlocked && (
+        <Link href={`/conferences/${slug}/platform/messages/${otherSide}/${id}`}
+          className="block rounded-md border border-slate-300 bg-white px-4 py-3 text-center text-sm font-medium text-slate-900"
+          style={{ minHeight: 44 }}>
+          ✉ Message {otherName}
+        </Link>
+      )}
 
       {isBlocked ? (
         <section className="rounded-md border border-amber-300 bg-amber-50 p-4">

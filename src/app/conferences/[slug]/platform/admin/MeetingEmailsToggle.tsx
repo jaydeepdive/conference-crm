@@ -10,7 +10,7 @@ export function MeetingEmailsToggle({ slug, enabled }: { slug: string; enabled: 
 
   async function flip() {
     const next = !on;
-    if (next && !confirm("Turn ON meeting emails? Attendees will be emailed whenever someone requests a meeting with them or proposes a new time.")) return;
+    if (next && !confirm("Turn ON meeting emails? Attendees will be emailed when someone requests a meeting, proposes a new time, or messages them.")) return;
     setBusy(true); setErr(null);
     const res = await fetch("/api/admin/meeting-emails", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -24,9 +24,9 @@ export function MeetingEmailsToggle({ slug, enabled }: { slug: string; enabled: 
   return (
     <div className="flex flex-col gap-3 border border-line bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <div className="font-display text-xl">Meeting request emails</div>
+        <div className="font-display text-xl">Attendee notification emails</div>
         <div className="mt-1 text-sm text-muted">
-          Emails the other party when someone requests a meeting or proposes a new time.
+          Emails the other party when someone requests a meeting, proposes a new time, or sends them a message (max one message email per conversation every 30 min).
           Sent from no-reply@abovebeyondsummit.com.
         </div>
         {err && <div className="mt-1 text-sm text-rose-700">{err}</div>}
