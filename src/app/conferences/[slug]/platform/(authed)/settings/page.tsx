@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { publicLeadColumns } from "@/lib/platform";
 import {
-  requirePlatformContext, leadDisplayName, slotsForPlatform, formatSlotRange,
+  requirePlatformContext, leadDisplayName, slotsForPlatform, formatSlotRange, attendingLeadIds,
 } from "@/lib/platform";
 import type {
   AttendeeBlockedSlot, AttendeeSide, Company, CompanyContact, Investor,
@@ -71,11 +71,14 @@ export default async function PlatformSettingsPage({
     .eq("conference_id", ctx.conference.id)
     .order(orderCol);
   type PeerRow = { id: string; name?: string | null; firm_name?: string | null };
-  const options: DirectoryOption[] = ((peersRaw ?? []) as PeerRow[]).map(p => ({
+  const allPeers: DirectoryOption[] = ((peersRaw ?? []) as PeerRow[]).map(p => ({
     id: p.id,
     name: (otherSide === "company" ? p.name : p.firm_name) || "—",
   }));
-  const nameById = new Map(options.map(o => [o.id, o.name]));
+  // Avoid-list picker: ONLY registered (attending) companies/investors.
+  const attending = await attendingLeadIds(ctx.conference.id, otherSide);
+  const options = allPeers.filter(o => attending.has(o.id));
+  const nameById = new Map(allPeers.map(o => [o.id, o.name]));
   const rows: BlockRow[] = blocklist.map(b => ({
     id: b.id,
     to_lead_type: b.to_lead_type,

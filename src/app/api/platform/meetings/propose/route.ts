@@ -57,6 +57,11 @@ export async function POST(request: Request) {
   if (mySide === body.other_lead_type) {
     return NextResponse.json({ error: "Meetings are between a company and an investor." }, { status: 400 });
   }
+  {
+    const { attendingLeadIds } = await import("@/lib/platform");
+    if (!(await attendingLeadIds(attendee.conference_id, body.other_lead_type)).has(body.other_lead_id))
+      return NextResponse.json({ error: "They aren't registered for this conference." }, { status: 400 });
+  }
 
   const companyId = mySide === "company" ? attendee.lead_id : body.other_lead_id;
   const investorId = mySide === "investor" ? attendee.lead_id : body.other_lead_id;

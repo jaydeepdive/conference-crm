@@ -14,7 +14,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { publicLeadColumns } from "@/lib/platform";
+import { publicLeadColumns, attendingLeadIds } from "@/lib/platform";
 import {
   requirePlatformContext, leadDisplayName, slotsForPlatform, formatSlotRange,
 } from "@/lib/platform";
@@ -41,6 +41,8 @@ export default async function DirectoryDetailPage({
   const { data: otherRow } = await createServiceClient().from(otherTable).select(publicLeadColumns(otherSide))
     .eq("id", id).eq("conference_id", ctx.conference.id).maybeSingle();
   if (!otherRow) notFound();
+  // Only registered (attending) companies/investors can be viewed / requested.
+  if (!(await attendingLeadIds(ctx.conference.id, otherSide)).has(id)) notFound();
   const other = otherRow as unknown as Company | Investor;
   const otherName = leadDisplayName(other, otherSide);
 
