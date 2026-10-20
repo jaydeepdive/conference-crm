@@ -77,7 +77,7 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
           />
           <div>
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Activity</h2>
-            <ActivityFeed entries={activity ?? []} profiles={profiles ?? []} />
+            <ActivityFeed entries={activity ?? []} profiles={profiles ?? []} showLead={false} />
           </div>
         </div>
       </div>

@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.76** · 72 commits on `main`
+> Last updated: 2026-10-14 · Live version: **v6.77** · 72 commits on `main`
 
 ---
 
