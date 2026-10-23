@@ -28,7 +28,7 @@ export default async function PlatformDashboardPage({
   const sideColumn = ctx.side === "company" ? "company_id" : "investor_id";
   const otherSide = ctx.side === "company" ? "investor" : "company";
 
-  const { data: meetings } = await supabase.from("meetings").select("*")
+  const { data: meetings } = await createServiceClient().from("meetings").select("*")
     .eq("conference_id", ctx.conference.id)
     .eq(sideColumn, ctx.attendee.lead_id);
   const list = (meetings ?? []) as Meeting[];

@@ -35,7 +35,15 @@ export async function POST(request: Request) {
     const act = b.activity == null || b.activity === "" ? null : String(b.activity);
     if (ids.length === 0) return NextResponse.json({ error: "No one selected" }, { status: 400 });
     if (act && !["site_visit", "golf", "none"].includes(act)) return NextResponse.json({ error: "Unknown activity" }, { status: 400 });
-    const { error } = await svc.from("attendee_profiles").update({ day1_activity: act }).in("id", ids);
+    // Company contacts share one schedule: expand to everyone at those companies.
+    const { data: picked } = await svc.from("attendee_profiles").select("lead_type, lead_id").in("id", ids);
+    const companyLeads = Array.from(new Set((picked ?? []).filter(p => p.lead_type === "company").map(p => p.lead_id as string)));
+    let allIds = ids;
+    if (companyLeads.length) {
+      const { data: mates } = await svc.from("attendee_profiles").select("id").eq("lead_type", "company").in("lead_id", companyLeads);
+      allIds = Array.from(new Set([...ids, ...(mates ?? []).map(m => m.id as string)]));
+    }
+    const { error } = await svc.from("attendee_profiles").update({ day1_activity: act }).in("id", allIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }

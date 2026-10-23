@@ -37,7 +37,7 @@ export default async function Day1Page({ params }: { params: Promise<{ slug: str
         <div className="text-[11px] uppercase tracking-[0.22em] text-brand-accent">Day 1 · Sunday, November 22</div>
         <h1 className="mt-1 font-display text-3xl font-medium sm:text-4xl">Site visit &amp; golf</h1>
         <p className="mt-1 max-w-3xl text-sm text-muted">
-          Write the details for each activity, then assign each person. Attendees see their activity and its details on their portal Schedule. No emails are sent.
+          Write the details for each activity, then assign people. Everyone at a company shares one schedule — assigning one contact assigns the whole company. Attendees see their activity and its details on their portal Schedule. No emails are sent.
         </p>
       </div>
       <Day1Client conferenceId={conf.id as string} activities={activities} people={rows} />
