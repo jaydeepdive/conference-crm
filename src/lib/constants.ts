@@ -25,7 +25,7 @@ export const PAYMENT_STATUSES: { value: PaymentStatus; label: string; color: str
 ];
 
 export const INDUSTRIES = ["SaaS / Software","Fintech","Healthtech","Cleantech / Energy","Consumer","Hardware","AI / ML","Biotech","Marketplace","Mining","Energy","Other"];
-export const COMPANY_CATEGORIES = ["Explorer", "Developer", "Producer", "Industrials", "Royalty"] as const;
+export const COMPANY_CATEGORIES = ["Explorer", "Developer", "Producer", "Industrials", "Royalty", "Precious Metals Dealer"] as const;
 export const PRIMARY_METALS = ["Gold", "Silver", "Copper", "Tungsten", "Phosphate", "Nickel", "Polymetallic"] as const;
 export const DAY1_LABELS: Record<string, string> = { site_visit: "Site visit", golf: "Golf tournament", none: "Not attending Day 1" };
 export const INVESTOR_TYPES = ["Advisor/Broker","Broker","Family Office","Hedge Fund","Individual Investor","Institutional Investor","Investor Relations"];
