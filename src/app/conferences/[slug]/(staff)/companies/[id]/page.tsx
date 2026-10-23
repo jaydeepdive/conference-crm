@@ -7,6 +7,7 @@ import { ActivityFeed } from "@/components/ActivityFeed";
 import { LeadNotes } from "@/components/LeadNotes";
 import { LeadComps } from "@/components/LeadComps";
 import { LeadAttendees } from "@/components/LeadAttendees";
+import { CompanyProfileEditor } from "@/components/CompanyProfileEditor";
 import { AgreementPanel } from "@/components/AgreementPanel";
 import { CompanyContacts } from "@/components/CompanyContacts";
 import { canEditLeads } from "@/lib/types";
@@ -67,6 +68,11 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
             contacts={(contacts ?? []) as CompanyContact[]}
             canEdit={canEditLeads(ctx.effectiveRole)}
           />
+          <CompanyProfileEditor company={{
+            id, website: company.website ?? null, about: company.about ?? null,
+            category: (company as { category?: string | null }).category ?? null,
+            primary_metal: (company as { primary_metal?: string | null }).primary_metal ?? null,
+          }} />
           <LeadAttendees conferenceId={ctx.conference.id} leadType="company" leadId={id} conferenceSlug={slug}
             attendees={(attendees ?? []) as AttendeeProfile[]} />
           <AgreementPanel

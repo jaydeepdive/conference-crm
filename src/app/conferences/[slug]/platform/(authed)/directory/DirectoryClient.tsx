@@ -14,6 +14,8 @@ interface Row {
   about: string | null;
   meeting: { id: string; status: MeetingStatus } | null;
   blocked?: boolean;
+  category?: string | null;
+  metal?: string | null;
 }
 
 export function DirectoryClient({
@@ -26,16 +28,20 @@ export function DirectoryClient({
 }) {
   const slotQs = slot ? `?slot=${encodeURIComponent(slot.iso)}` : "";
   const [q, setQ] = useState("");
+  const [cat, setCat] = useState("");
+  const [metal, setMetal] = useState("");
+  const cats = useMemo(() => Array.from(new Set(rows.map(r => r.category).filter(Boolean) as string[])).sort(), [rows]);
+  const metals = useMemo(() => Array.from(new Set(rows.map(r => r.metal).filter(Boolean) as string[])).sort(), [rows]);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return rows;
     return rows.filter(r =>
-      r.name.toLowerCase().includes(term)
+      (!cat || r.category === cat) && (!metal || r.metal === metal) && (!term
+      || r.name.toLowerCase().includes(term)
       || (r.sub ?? "").toLowerCase().includes(term)
-      || (r.about ?? "").toLowerCase().includes(term)
+      || (r.about ?? "").toLowerCase().includes(term))
     );
-  }, [q, rows]);
+  }, [q, rows, cat, metal]);
 
   const title = otherSide === "investor" ? "Investors" : "Companies";
   const kind = otherSide; // "company" or "investor"
@@ -64,6 +70,21 @@ export function DirectoryClient({
         style={{ fontSize: 16 }}
         placeholder={`Search ${title.toLowerCase()}…`}
         value={q} onChange={e => setQ(e.target.value)} />
+
+      {otherSide === "company" && (cats.length > 0 || metals.length > 0) && (
+        <div className="grid grid-cols-2 gap-2">
+          <select value={cat} onChange={e => setCat(e.target.value)}
+            className="rounded-md border border-slate-300 bg-white px-3 py-2.5" style={{ fontSize: 16 }}>
+            <option value="">All categories</option>
+            {cats.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={metal} onChange={e => setMetal(e.target.value)}
+            className="rounded-md border border-slate-300 bg-white px-3 py-2.5" style={{ fontSize: 16 }}>
+            <option value="">All metals</option>
+            {metals.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="rounded-md border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">

@@ -112,6 +112,17 @@ export default async function DirectoryDetailPage({
             {other.contact_name}{other.contact_title ? ` · ${other.contact_title}` : ""}
           </div>
         )}
+        {otherSide === "company" && ((other as Company).category || (other as Company).primary_metal) && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {[(other as Company).category, (other as Company).primary_metal].filter(Boolean).map(t => (
+              <span key={t as string} className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-900">{t}</span>
+            ))}
+          </div>
+        )}
+        {other.website && (
+          <a href={other.website} target="_blank" rel="noopener noreferrer"
+            className="mt-2 inline-block text-sm text-slate-900 underline">{other.website.replace(/^https?:\/\//, "").replace(/\/$/, "")} ↗</a>
+        )}
         {other.about && (
           <p className="mt-3 whitespace-pre-line text-sm text-slate-700">{other.about}</p>
         )}

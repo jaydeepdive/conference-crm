@@ -48,7 +48,7 @@ export const IMPERSONATE_COOKIE = "platform_impersonate";
  * logins read them directly) and must only ever select these columns.
  */
 export const COMPANY_PUBLIC_COLUMNS =
-  "id, conference_id, name, industry, contact_name, contact_title, about, website, ticker, stage";
+  "id, conference_id, name, industry, category, primary_metal, contact_name, contact_title, about, website, ticker, stage";
 export const INVESTOR_PUBLIC_COLUMNS =
   "id, conference_id, firm_name, investor_type, contact_name, contact_title, about, investment_criteria, sector_focus, website, stage";
 export function publicLeadColumns(side: "company" | "investor"): string {

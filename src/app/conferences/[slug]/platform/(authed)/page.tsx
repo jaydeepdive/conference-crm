@@ -61,6 +61,11 @@ export default async function PlatformDashboardPage({
   }).length;
 
   const entity = leadDisplayName(ctx.lead, ctx.side);
+  const day1Kind = ctx.attendee.day1_activity;
+  const { data: day1 } = day1Kind === "site_visit" || day1Kind === "golf"
+    ? await createServiceClient().from("conference_activities").select("title, when_text, location, details")
+        .eq("conference_id", ctx.conference.id).eq("kind", day1Kind).maybeSingle()
+    : { data: null };
   const doorsUtc = conferenceWallClockToUtc(ctx.conference, ctx.conference.doors_open_time ?? ctx.conference.meeting_start_time ?? "08:00");
   const doorsLine = `Meeting day is ${new Intl.DateTimeFormat("en-US", { timeZone: ctx.conference.timezone, month: "long", day: "numeric" }).format(doorsUtc ?? new Date())}. Doors open at ${doorsUtc ? formatTimeInTz(doorsUtc.toISOString(), ctx.conference.timezone) : "7:45 AM"}.`;
   const dayHeading = formatPlatformDayHeading(ctx.conference);
@@ -122,6 +127,16 @@ export default async function PlatformDashboardPage({
           {doorsLine}
         </div>
       </section>
+
+      {day1 && (
+        <section className="rounded-md border border-stone-300 bg-white p-4" style={{ borderLeft: "4px solid #c9a24b" }}>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-800">Day 1 · Your activity</div>
+          <div className="mt-1 font-serif text-xl font-semibold text-stone-900">{day1.title}</div>
+          {day1.when_text && <div className="mt-1 text-sm text-stone-700">🕒 {day1.when_text}</div>}
+          {day1.location && <div className="mt-0.5 text-sm text-stone-700">📍 {day1.location}</div>}
+          {day1.details && <p className="mt-2 whitespace-pre-line text-sm text-stone-700">{day1.details}</p>}
+        </section>
+      )}
 
       {inboxCount > 0 && (
         <Link href={`/conferences/${slug}/platform/inbox`}

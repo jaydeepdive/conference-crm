@@ -87,6 +87,8 @@ export default async function DirectoryPage({
     about: string | null;
     meeting: { id: string; status: Meeting["status"] } | null;
     blocked: boolean;
+    category: string | null;
+    metal: string | null;
   }
   const rows: Row[] = (peers ?? [])
     .map(p => p as unknown as Peer)
@@ -103,7 +105,11 @@ export default async function DirectoryPage({
       return {
         id: peer.id,
         name: isInvestor ? (peer as Investor).firm_name : (peer as Company).name,
-        sub: isInvestor ? (peer as Investor).investor_type : (peer as Company).industry,
+        sub: isInvestor
+          ? (peer as Investor).investor_type
+          : ([(peer as Company).category, (peer as Company).primary_metal].filter(Boolean).join(" · ") || null),
+        category: isInvestor ? null : ((peer as Company).category ?? null),
+        metal: isInvestor ? null : ((peer as Company).primary_metal ?? null),
         about: isInvestor ? (peer as Investor).investment_criteria ?? peer.about : peer.about,
         meeting: meetingByOther.get(peer.id) ?? null,
         blocked: blockedOtherIds.has(peer.id),

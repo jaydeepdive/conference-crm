@@ -153,6 +153,9 @@ export interface LeadBase {
 export interface Company extends LeadBase {
   name: string; industry: string | null;
   about: string | null;
+  /** Portal profile (v6.78). */
+  category?: string | null;
+  primary_metal?: string | null;
   // SignWell agreement tracking (added in 0014).
   agreement_status: AgreementStatus;
   agreement_document_id: string | null;
@@ -199,6 +202,7 @@ export interface AttendeeProfile {
   accepted_at: string | null;
   created_at: string;
   updated_at: string;
+  day1_activity?: "site_visit" | "golf" | "none" | null;
 }
 
 export interface Meeting {
