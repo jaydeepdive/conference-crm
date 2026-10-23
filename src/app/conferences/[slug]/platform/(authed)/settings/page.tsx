@@ -30,7 +30,8 @@ export default async function PlatformSettingsPage({
 
   let contacts: CompanyContact[] = [];
   if (ctx.side === "company") {
-    const { data } = await supabase.from("company_contacts").select("*")
+    // Service client: attendee logins have no direct access to this table.
+    const { data } = await createServiceClient().from("company_contacts").select("*")
       .eq("company_id", (ctx.lead as Company).id);
     contacts = (data ?? []) as CompanyContact[];
   }
@@ -112,7 +113,7 @@ export default async function PlatformSettingsPage({
         <section className="rounded-md border border-slate-200 bg-white p-4">
           <h2 className="text-base font-semibold text-slate-900">People attending from {entityName}</h2>
           <p className="mt-1 text-xs text-slate-500">
-            These names show up on the other party&rsquo;s meeting cards when they view a confirmed meeting with you.
+            Everyone here can attend and is added to the portal. Anyone with an email can be sent a login by the organizers.
           </p>
           <PlatformCompanyContacts companyId={(ctx.lead as Company).id} contacts={contacts} />
         </section>

@@ -7,8 +7,7 @@
  */
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useParams, useRouter } from "next/navigation";
 import type { CompanyContact } from "@/lib/types";
 
 interface Form { name: string; title: string; email: string; phone: string }
@@ -39,35 +38,30 @@ export function PlatformCompanyContacts({
   }
   function cancel() { setAdding(false); setEditingId(null); setError(null); }
 
+  const { slug } = useParams<{ slug: string }>();
+
+  async function call(payload: Record<string, unknown>): Promise<boolean> {
+    setBusy(true); setError(null);
+    const res = await fetch("/api/platform/company-contacts", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, ...payload }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(j.error ?? "Something went wrong."); return false; }
+    router.refresh();
+    return true;
+  }
+
   async function save() {
     if (!form.name.trim()) { setError("Name is required."); return; }
-    setBusy(true); setError(null);
-    const supabase = createClient();
-    const payload = {
-      name: form.name.trim(),
-      title: form.title.trim() || null,
-      email: form.email.trim() || null,
-      phone: form.phone.trim() || null,
-    };
-    if (editingId) {
-      const { error: err } = await supabase.from("company_contacts").update(payload).eq("id", editingId);
-      if (err) { setError(err.message); setBusy(false); return; }
-    } else {
-      const { error: err } = await supabase.from("company_contacts")
-        .insert({ ...payload, company_id: companyId, is_primary: contacts.length === 0 });
-      if (err) { setError(err.message); setBusy(false); return; }
-    }
-    setBusy(false); cancel(); router.refresh();
+    const ok = await call({ action: editingId ? "update" : "create", id: editingId ?? undefined, ...form });
+    if (ok) cancel();
   }
 
   async function del(id: string) {
-    if (!confirm("Delete this person?")) return;
-    setBusy(true); setError(null);
-    const supabase = createClient();
-    const { error: err } = await supabase.from("company_contacts").delete().eq("id", id);
-    setBusy(false);
-    if (err) { setError(err.message); return; }
-    router.refresh();
+    if (!confirm("Remove this person? They'll lose access to the attendee portal.")) return;
+    await call({ action: "delete", id });
   }
 
   const input = "mt-1 w-full rounded-md border border-slate-300 px-3 py-2";
