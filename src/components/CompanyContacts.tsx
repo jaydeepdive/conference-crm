@@ -204,9 +204,9 @@ export function CompanyContacts({
         {canEdit && !draft && (
           <button
             onClick={startNew}
-            className="w-full border border-dashed border-gray-300 px-3 py-2 text-xs uppercase tracking-widest2 text-ink/60 hover:border-brand-accent hover:text-ink"
+            className="w-full bg-ink px-3 py-2.5 text-xs font-semibold uppercase tracking-widest2 text-white hover:bg-brand-accent"
           >
-            + Add contact
+            + Add another contact
           </button>
         )}
       </div>
