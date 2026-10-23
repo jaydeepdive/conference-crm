@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { RichTextEditor } from "@/components/RichTextEditor";
 
 type Audience = "company" | "investor" | "all";
 const LABEL = "block text-[11px] font-medium uppercase tracking-widest2 text-muted";
@@ -26,12 +27,13 @@ export function EmailsClient({ slug }: { slug: string }) {
 
   async function send(test: boolean) {
     setMsg(null);
-    if (!subject.trim() || !body.trim()) { setMsg({ ok: false, text: "Add a subject and a message first." }); return; }
+    const plain = body.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+    if (!subject.trim() || !plain) { setMsg({ ok: false, text: "Add a subject and a message first." }); return; }
     if (!test && !confirm(`Send "${subject.trim()}" to ${count} ${who}?\n\nThis can't be undone.`)) return;
     setBusy(test ? "test" : "send");
     const res = await fetch("/api/platform/admin/broadcast", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, audience, subject, body, include_button: button, test }),
+      body: JSON.stringify({ slug, audience, subject, body_html: body, include_button: button, test }),
     });
     const j = await res.json().catch(() => ({}));
     setBusy(null);
@@ -59,10 +61,12 @@ export function EmailsClient({ slug }: { slug: string }) {
         <label className="block"><span className={LABEL}>Subject</span>
           <input className={INPUT} value={subject} onChange={e => setSubject(e.target.value)} placeholder="e.g. Your 1-on-1 meeting portal is open" />
         </label>
-        <label className="block"><span className={LABEL}>Message</span>
-          <textarea className={`${INPUT} min-h-[220px]`} value={body} onChange={e => setBody(e.target.value)}
-            placeholder={"Write your message. Leave a blank line between paragraphs.\n\nEach person is greeted by first name automatically."} />
-        </label>
+        <div><span className={LABEL}>Message</span>
+          <div className="mt-1">
+            <RichTextEditor value={body} onChange={setBody}
+              placeholder={"Write your message. Select text and use the toolbar to bold, resize or colour it.\nEach person is greeted by first name automatically."} />
+          </div>
+        </div>
         <label className="flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" checked={button} onChange={e => setButton(e.target.checked)} />
           Include an &ldquo;Open the attendee portal&rdquo; button

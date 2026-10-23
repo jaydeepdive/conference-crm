@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.84** · 72 commits on `main`
+> Last updated: 2026-10-14 · Live version: **v6.85** · 72 commits on `main`
 
 ---
 
@@ -370,6 +370,11 @@ meetings, profiles, sent_email_recipients, sent_emails.
    /api/platform/admin/broadcast (super admin; preview → count). Uses
    sendResendBatch (Resend /emails/batch, 100 per call), reply-to = admin.
    brandedEmail now omits the button when buttonLabel is "".
+   v6.85: message box is RichTextEditor (src/components/RichTextEditor.tsx,
+   contentEditable + execCommand; bold/italic/underline/size/colour/lists/
+   align/link). Server sanitizes with src/lib/emailHtml.ts
+   (sanitizeEmailHtml whitelist + htmlToText); brandedEmail accepts
+   bodyHtml/bodyText.
 5. Meeting emails currently for request + counter only. Possible additions:
    accepted/declined/cancelled notices, day-before schedule email (no cron on
    Hobby — would need a button).

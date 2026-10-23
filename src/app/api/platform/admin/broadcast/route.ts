@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { brandedEmail, sendResendBatch } from "@/lib/resend";
 import { PORTAL_ORIGIN } from "@/lib/portalDomain";
+import { sanitizeEmailHtml, htmlToText } from "@/lib/emailHtml";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
   if (!me?.is_super_admin) return NextResponse.json({ error: "Super admin only" }, { status: 403 });
 
   const b = await request.json().catch(() => ({})) as {
-    slug?: string; audience?: string; subject?: string; body?: string; include_button?: boolean; test?: boolean; preview?: boolean;
+    slug?: string; audience?: string; subject?: string; body?: string; body_html?: string; include_button?: boolean; test?: boolean; preview?: boolean;
   };
   const audience = b.audience === "company" || b.audience === "investor" ? b.audience : "all";
   const svc = createServiceClient();
@@ -43,15 +44,17 @@ export async function POST(request: Request) {
   if (b.preview) return NextResponse.json({ ok: true, count: recipients.length });
 
   const subject = (b.subject ?? "").trim();
-  const body = (b.body ?? "").trim();
+  const bodyHtml = b.body_html ? sanitizeEmailHtml(b.body_html) : "";
+  const body = bodyHtml ? htmlToText(bodyHtml) : (b.body ?? "").trim();
   if (!subject || !body) return NextResponse.json({ error: "Subject and message are required." }, { status: 400 });
 
-  const paragraphs = body.split(/\n{2,}/).map(p => esc(p).replace(/\n/g, "<br>"));
+  const paragraphs = bodyHtml ? [] : body.split(/\n{2,}/).map(p => esc(p).replace(/\n/g, "<br>"));
   const url = `${PORTAL_ORIGIN}/conferences/${conf.slug}/platform`;
   const build = (name: string | null) => {
     const first = name ? String(name).split(" ")[0] : "";
     const { html, text } = brandedEmail({
       heading: subject, greeting: first ? `Hi ${first},` : "Hello,", paragraphs,
+      bodyHtml: bodyHtml || undefined, bodyText: bodyHtml ? body : undefined,
       buttonLabel: b.include_button === false ? "" : "Open the attendee portal", url,
       preheader: body.slice(0, 100),
     });

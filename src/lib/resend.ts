@@ -65,8 +65,11 @@ export function brandedEmail(opts: {
   buttonLabel: string; url: string; footnote?: string;
   details?: [string, string][];
   preheader?: string;
+  /** Pre-sanitized rich HTML body (console Emails editor), shown after the paragraphs. */
+  bodyHtml?: string;
+  bodyText?: string;
 }): { html: string; text: string } {
-  const { heading, greeting, paragraphs, buttonLabel, url, footnote, details, preheader } = opts;
+  const { heading, greeting, paragraphs, buttonLabel, url, footnote, details, preheader, bodyHtml, bodyText } = opts;
   const font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
   const serif = "Georgia,'Times New Roman',serif";
   const detailsHtml = details && details.length ? `
@@ -98,6 +101,7 @@ export function brandedEmail(opts: {
         <h1 style="margin:0 0 20px;font:400 28px/1.25 ${serif};color:#1c1a16;">${esc(heading)}</h1>
         <p style="margin:0 0 16px;font:16px/1.6 ${font};color:#1c1a16;">${esc(greeting)}</p>
         ${paragraphs.map(p => `<p style="margin:0 0 16px;font:16px/1.6 ${font};color:#3a362e;">${p}</p>`).join("\n        ")}
+        ${bodyHtml ? `<div style="font:16px/1.6 ${font};color:#3a362e;">${bodyHtml}</div>` : ""}
       </td></tr>${detailsHtml}
 ${buttonLabel ? `      <tr><td align="center" style="padding:20px 28px 28px;">
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
@@ -125,6 +129,7 @@ ${buttonLabel ? `      <tr><td align="center" style="padding:20px 28px 28px;">
   const text = [
     heading, "", greeting, "",
     ...paragraphs.map(p => strip(p) + "\n"),
+    ...(bodyText ? [bodyText + "\n"] : []),
     ...(details ?? []).map(([k, v]) => `${k}: ${v}`),
     details?.length ? "" : "",
     ...(buttonLabel ? [`${buttonLabel}: ${url}`, ""] : []),
