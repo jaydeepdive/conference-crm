@@ -50,7 +50,7 @@ things manually. Get it right the first time, verify live, keep replies short.
   & Bungalows, Scottsdale, Arizona.
 - **1-on-1 meeting day: Tue Nov 24, 2026.** 14 slots of 25 min + 5 min break:
   08:00–12:00 (8 slots), lunch 12:00–12:30, 12:30–15:30 (6 slots), farewell
-  16:00. Table/location per meeting assigned later by admin.
+  15:45. Table/location per meeting assigned later by admin.
 - Companies (presenting miners) ↔ Investors. Meetings are always one company
   + one investor. A company/investor can have several named people.
 - JV entities on budget: Canacom Group, Bri-Sim.
@@ -132,7 +132,7 @@ not block builds.
 - Bump `src/lib/version.ts` (`APP_VERSION`) on every release; commit message
   `vX.YZ: summary`.
 - Migrations: `supabase/migrations/00NN_name.sql`, idempotent (`if not
-  exists`), apply via API immediately after writing. Next number: **0033**.
+  exists`), apply via API immediately after writing. Next number: **0034**.
 - After `redirect()`/`notFound()` add `throw new Error("unreachable")` for TS
   narrowing.
 - Deleting files in the connected folder may need the Cowork delete permission.
@@ -236,7 +236,7 @@ meetings, profiles, sent_email_recipients, sent_emails.
 - Trigger (0020): any company/investor set to `registered` automatically gets
   attendee_profiles rows — NO email sent.
 - Invoices sync to budget receivables and lead `payment_status` (0010/0011).
-- Migrations 0001–0032 all applied. Notables: 0007 default-allow access +
+- Migrations 0001–0033 all applied. Notables: 0007 default-allow access +
   `hidden` role, 0012 attendee portal, 0014–0016 SignWell + public_name,
   0017 signed→registered, 0018 company_contacts, 0019 platform config, 0020
   auto attendees, 0021 blocked slots + blocklist, 0022 app_secrets, 0023
@@ -247,7 +247,7 @@ meetings, profiles, sent_email_recipients, sent_emails.
   name "Mining Summit 2026", public_name "Above & Beyond Mining Summit",
   status planning, visibility public, timezone America/Phoenix, dates 2026-11-22→24, meeting_date
   2026-11-24, 08:00–15:30, lunch 12:00–12:30, slot 25 / stride 30, farewell
-  16:00, meeting_emails_enabled **false**.
+  15:45, meeting_emails_enabled **false**.
 - 95 companies, 103 investors, 53 attendee profiles (20 company people, 33
   investor people), **0 attendee logins**, 0 meetings, 11 invoices.
 - Staff profiles: jay@thedeepdive.ca (super admin), admin@thedeepdive.ca
