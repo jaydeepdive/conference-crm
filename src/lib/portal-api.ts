@@ -75,3 +75,32 @@ export async function findActingAttendee(
   const { data } = await iq.maybeSingle();
   return (data as AttendeeProfile | null) ?? null;
 }
+
+/**
+ * Is either party already booked at this time? (A company's contacts all
+ * share one schedule.) Returns a friendly message or null if free.
+ */
+export async function slotConflict(opts: {
+  conferenceId: string; companyId: string; investorId: string; timeIso: string; excludeMeetingId?: string;
+}): Promise<string | null> {
+  const svc = createServiceClient();
+  let q = svc.from("meetings").select("id, company_id, investor_id")
+    .eq("conference_id", opts.conferenceId)
+    .eq("scheduled_time", new Date(opts.timeIso).toISOString())
+    .not("status", "in", "(declined,cancelled)")
+    .or(`company_id.eq.${opts.companyId},investor_id.eq.${opts.investorId}`);
+  if (opts.excludeMeetingId) q = q.neq("id", opts.excludeMeetingId);
+  const { data } = await q.limit(1);
+  const hit = data?.[0];
+  if (!hit) return null;
+  return hit.company_id === opts.companyId
+    ? "The company already has a meeting at that time."
+    : "The investor already has a meeting at that time.";
+}
+
+/** Turn a DB unique-slot violation into a readable message. */
+export function slotErrorMessage(err: { code?: string; message?: string } | null): string | null {
+  if (!err) return null;
+  if (err.code === "23505" && /one_per_slot/.test(err.message ?? "")) return "One of the parties already has a meeting at that time.";
+  return err.message ?? "Something went wrong.";
+}

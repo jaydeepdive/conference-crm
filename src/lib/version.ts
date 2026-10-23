@@ -3,4 +3,4 @@
  * verify at-a-glance which build is live. Rendered in the Masthead utility
  * strip.
  */
-export const APP_VERSION = "v6.79";
+export const APP_VERSION = "v6.80";

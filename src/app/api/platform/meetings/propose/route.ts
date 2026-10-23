@@ -14,7 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { AttendeeSide } from "@/lib/types";
 import { notifyMeeting } from "@/lib/meetingEmails";
-import { findActingAttendee } from "@/lib/portal-api";
+import { findActingAttendee, slotConflict } from "@/lib/portal-api";
 
 export const runtime = "nodejs";
 
@@ -96,6 +96,13 @@ export async function POST(request: Request) {
     .limit(1);
   if (slotBlocks && slotBlocks.length > 0) {
     return NextResponse.json({ error: "That slot is unavailable." }, { status: 409 });
+  }
+
+  // One meeting per slot: the company (all its contacts) or the investor may
+  // already be booked then.
+  {
+    const clash = await slotConflict({ conferenceId: attendee.conference_id, companyId, investorId, timeIso: proposedIso.toISOString() });
+    if (clash) return NextResponse.json({ error: clash.replace("The company", mySide === "company" ? "Your company" : "That company").replace("The investor", mySide === "investor" ? "You" : "That investor") + " Pick another time." }, { status: 409 });
   }
 
   // Existing row? (unique index enforces one per pair)

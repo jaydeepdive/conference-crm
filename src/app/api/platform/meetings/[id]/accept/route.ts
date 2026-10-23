@@ -4,7 +4,7 @@
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { loadMeetingCaller } from "@/lib/portal-api";
+import { loadMeetingCaller, slotConflict, slotErrorMessage } from "@/lib/portal-api";
 
 export const runtime = "nodejs";
 
@@ -21,11 +21,17 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   if (!meeting.proposed_time)
     return NextResponse.json({ error: "No proposed time on this meeting." }, { status: 409 });
 
+  const clash = await slotConflict({
+    conferenceId: meeting.conference_id, companyId: meeting.company_id, investorId: meeting.investor_id,
+    timeIso: meeting.proposed_time, excludeMeetingId: meeting.id,
+  });
+  if (clash) return NextResponse.json({ error: `${clash} Suggest another time instead.` }, { status: 409 });
+
   const supabase = await createClient();
   const { error } = await supabase.from("meetings").update({
     status: "accepted", scheduled_time: meeting.proposed_time, reschedule_from: null,
   }).eq("id", meeting.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: slotErrorMessage(error) }, { status: 409 });
 
   await supabase.from("meeting_events").insert({
     meeting_id: meeting.id, actor_profile_id: attendee.id, actor_side: mySide,

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { slotConflict, slotErrorMessage } from "@/lib/portal-api";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Meeting } from "@/lib/types";
@@ -63,6 +64,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Investor not in this conference" }, { status: 400 });
   }
 
+  // One meeting per slot for each company (all contacts share one schedule)
+  // and each investor.
+  {
+    const { data: pairRow } = await admin.from("meetings").select("id")
+      .eq("conference_id", conferenceId).eq("company_id", company_id).eq("investor_id", investor_id).maybeSingle();
+    const clash = await slotConflict({ conferenceId, companyId: company_id, investorId: investor_id, timeIso: scheduled_time, excludeMeetingId: pairRow?.id as string | undefined });
+    if (clash) return NextResponse.json({ error: clash }, { status: 409 });
+  }
+
   // Does a meeting already exist for this pair? (Unique index means at most one.)
   const { data: existing } = await admin.from("meetings").select("*")
     .eq("conference_id", conferenceId)
@@ -79,7 +89,7 @@ export async function POST(request: Request) {
       notes: notes === undefined ? row.notes : notes,
       status: "accepted",
     }).eq("id", row.id);
-    if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+    if (upErr) return NextResponse.json({ error: slotErrorMessage(upErr) }, { status: 409 });
     meetingId = row.id;
   } else {
     // meetings.proposed_by check constraint only allows 'company' | 'investor' —
@@ -96,7 +106,7 @@ export async function POST(request: Request) {
       created_by: null,
     }).select("id").single();
     if (insErr || !inserted) {
-      return NextResponse.json({ error: insErr?.message ?? "insert failed" }, { status: 500 });
+      return NextResponse.json({ error: slotErrorMessage(insErr) ?? "insert failed" }, { status: 409 });
     }
     meetingId = (inserted as { id: string }).id;
   }

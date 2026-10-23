@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { slotConflict, slotErrorMessage } from "@/lib/portal-api";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -36,6 +37,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const notes: string[] = [];
 
   if (typeof body.scheduled_time === "string") {
+    const clash = await slotConflict({
+      conferenceId: existing.conference_id, companyId: existing.company_id, investorId: existing.investor_id,
+      timeIso: body.scheduled_time, excludeMeetingId: existing.id,
+    });
+    if (clash) return NextResponse.json({ error: clash }, { status: 409 });
     patch.scheduled_time = body.scheduled_time;
     // Force the meeting into accepted state when we're assigning a time —
     // nothing else makes sense from an admin override.
@@ -56,7 +62,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const { error: upErr } = await admin.from("meetings").update(patch).eq("id", id);
-  if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
+  if (upErr) return NextResponse.json({ error: slotErrorMessage(upErr) }, { status: 409 });
 
   // Audit event — kind "note" because the meeting_events enum doesn't have
   // an "admin" kind. The body makes the override obvious in the history.

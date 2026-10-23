@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { slotErrorMessage } from "@/lib/portal-api";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Meeting, MeetingBlocklistEntry } from "@/lib/types";
@@ -152,7 +153,7 @@ export async function POST(request: Request) {
         created_by: null,
       }).select("id").single();
       if (insErr || !inserted) {
-        skipped.push({ company_id: p.company_id, investor_id: p.investor_id, reason: insErr?.message ?? "insert failed" });
+        skipped.push({ company_id: p.company_id, investor_id: p.investor_id, reason: slotErrorMessage(insErr) ?? "insert failed" });
         continue;
       }
       meetingId = (inserted as { id: string }).id;
