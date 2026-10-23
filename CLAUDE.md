@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.83** · 72 commits on `main`
+> Last updated: 2026-10-14 · Live version: **v6.84** · 72 commits on `main`
 
 ---
 
@@ -364,6 +364,12 @@ meetings, profiles, sent_email_recipients, sent_emails.
    via service client by lead id). Day 1 activity is company-wide: assigning
    one contact assigns all; new contacts inherit (trigger
    inherit_company_day1).
+5m. v6.84: console "Emails" tab (/platform/admin/emails) — branded email to
+   registered portal attendees: Companies / Investors / Everyone (people with
+   an email, deduped), "Send test to me", confirm before send. API
+   /api/platform/admin/broadcast (super admin; preview → count). Uses
+   sendResendBatch (Resend /emails/batch, 100 per call), reply-to = admin.
+   brandedEmail now omits the button when buttonLabel is "".
 5. Meeting emails currently for request + counter only. Possible additions:
    accepted/declined/cancelled notices, day-before schedule email (no cron on
    Hobby — would need a button).

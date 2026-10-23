@@ -99,18 +99,18 @@ export function brandedEmail(opts: {
         <p style="margin:0 0 16px;font:16px/1.6 ${font};color:#1c1a16;">${esc(greeting)}</p>
         ${paragraphs.map(p => `<p style="margin:0 0 16px;font:16px/1.6 ${font};color:#3a362e;">${p}</p>`).join("\n        ")}
       </td></tr>${detailsHtml}
-      <tr><td align="center" style="padding:20px 28px 28px;">
+${buttonLabel ? `      <tr><td align="center" style="padding:20px 28px 28px;">
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>
           <td align="center" bgcolor="#c9a24b" style="background:#c9a24b;">
             <a href="${url}" style="display:inline-block;padding:15px 34px;font:700 13px/1 ${font};letter-spacing:2px;text-transform:uppercase;color:#000000;text-decoration:none;">${esc(buttonLabel)}</a>
           </td>
         </tr></table>
       </td></tr>
-      <tr><td style="padding:0 28px 32px;">
+` : ""}${buttonLabel ? `      <tr><td style="padding:0 28px 32px;">
         <p style="margin:0;font:13px/1.6 ${font};color:#7a7363;">Button not working? Copy this link into your browser:<br>
         <a href="${url}" style="color:#8f6f2a;word-break:break-all;">${url}</a></p>
         ${footnote ? `<p style="margin:14px 0 0;font:13px/1.6 ${font};color:#7a7363;">${footnote}</p>` : ""}
-      </td></tr>
+      </td></tr>` : `<tr><td style="padding:0 28px 32px;">${footnote ? `<p style="margin:0;font:13px/1.6 ${font};color:#7a7363;">${footnote}</p>` : ""}</td></tr>`}
     </table>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
       <tr><td align="center" style="padding:20px 24px;font:12px/1.6 ${font};color:#8a8475;">
@@ -127,9 +127,30 @@ export function brandedEmail(opts: {
     ...paragraphs.map(p => strip(p) + "\n"),
     ...(details ?? []).map(([k, v]) => `${k}: ${v}`),
     details?.length ? "" : "",
-    `${buttonLabel}: ${url}`, "",
+    ...(buttonLabel ? [`${buttonLabel}: ${url}`, ""] : []),
     ...(footnote ? [strip(footnote), ""] : []),
     "Above & Beyond Mining Summit · Andaz Scottsdale Resort & Bungalows · Scottsdale, Arizona",
   ].join("\n");
   return { html, text };
+}
+
+/** Send up to 100 emails per call via Resend's batch endpoint. Returns count sent. */
+export async function sendResendBatch(items: { to: string; subject: string; html: string; text?: string; replyTo?: string | null }[]): Promise<{ sent: number; errors: string[] }> {
+  const key = await getResendKey();
+  if (!key) throw new Error("Resend is not configured");
+  let sent = 0; const errors: string[] = [];
+  for (let i = 0; i < items.length; i += 100) {
+    const chunk = items.slice(i, i + 100).map(it => ({
+      from: ATTENDEE_FROM, to: [it.to], subject: it.subject, html: it.html,
+      ...(it.text ? { text: it.text } : {}), ...(it.replyTo ? { reply_to: it.replyTo } : {}),
+    }));
+    const res = await fetch("https://api.resend.com/emails/batch", {
+      method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify(chunk),
+    });
+    const j = await res.json().catch(() => ({})) as { data?: unknown[]; message?: string };
+    if (res.ok) sent += Array.isArray(j.data) ? j.data.length : chunk.length;
+    else errors.push(j.message ?? `Resend error ${res.status}`);
+  }
+  return { sent, errors };
 }
