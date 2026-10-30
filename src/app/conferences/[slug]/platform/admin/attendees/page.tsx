@@ -10,6 +10,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { AttendeeProfile, Company, Investor } from "@/lib/types";
 import { PageTitle } from "@/components/SectionHeader";
+import { lastSignIns } from "@/lib/signins";
 import { PlatformInvitesClient, type InviteRow, type MissingLead } from "./PlatformInvitesClient";
 import type { LeadOption } from "./PersonDialog";
 
@@ -76,6 +77,7 @@ export default async function PlatformInvitesPage({
     missing.push({ lead_type: "investor", lead_id: i.id as string, name: ((i.firm_name || i.contact_name || "(no name)") as string).trim(), reason: reasonFor(i.email as string | null) });
   missing.sort((a, b) => a.lead_type.localeCompare(b.lead_type) || a.name.localeCompare(b.name));
 
+  const signIns = await lastSignIns();
   const rows: InviteRow[] = list
     .map(p => ({
       id: p.id,
@@ -86,6 +88,7 @@ export default async function PlatformInvitesPage({
       email: p.email,
       invite_sent_at: p.invite_sent_at,
       accepted_at: p.accepted_at,
+      last_sign_in_at: p.user_id ? (signIns.get(p.user_id) ?? null) : null,
       user_id: p.user_id,
     }))
     .sort((a, b) =>

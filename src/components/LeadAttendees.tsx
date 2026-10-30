@@ -95,7 +95,7 @@ export function LeadAttendees({ conferenceId, leadType, leadId, attendees, confe
                       <div className="font-medium text-ink">{a.full_name || "(no name)"}</div>
                       {a.email ? <div className="text-xs text-muted">{a.email}</div> : <div className="text-xs font-semibold text-amber-800">No email on file — Edit to add one</div>}
                       <div className="mt-1 text-[10px] uppercase tracking-widest2 text-muted">
-                        {signedIn ? "Signed in" : a.invite_sent_at ? `Invited ${new Date(a.invite_sent_at).toLocaleDateString()}` : "Not invited yet"}
+                        {signedIn ? "Has a login" : a.invite_sent_at ? `Invited ${new Date(a.invite_sent_at).toLocaleDateString()}` : "Not invited yet"}
                       </div>
                     </div>
                     <div className="flex gap-2">

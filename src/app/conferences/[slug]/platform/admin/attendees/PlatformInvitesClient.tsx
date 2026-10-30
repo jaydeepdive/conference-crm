@@ -20,6 +20,7 @@ export interface InviteRow {
   email: string | null;
   invite_sent_at: string | null;
   accepted_at: string | null;
+  last_sign_in_at?: string | null;
   user_id: string | null;
 }
 
@@ -30,7 +31,7 @@ export interface MissingLead {
   reason: string;
 }
 
-type Status = "signed_in" | "invited" | "not_invited";
+type Status = "signed_in" | "password_set" | "invited" | "not_invited";
 type Filter = "all" | "company" | "investor" | "no_email" | Status;
 
 const FILTERS: { value: Filter; label: string }[] = [
@@ -39,6 +40,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "investor", label: "Investors" },
   { value: "not_invited", label: "Not invited" },
   { value: "invited", label: "Invited" },
+  { value: "password_set", label: "Password set" },
   { value: "signed_in", label: "Signed in" },
   { value: "no_email", label: "No email" },
 ];
@@ -52,7 +54,8 @@ const BTN_COMPACT =
   "inline-flex items-center justify-center whitespace-nowrap border border-ink/20 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-widest2 text-ink hover:border-ink disabled:cursor-not-allowed disabled:opacity-50";
 
 function rowStatus(r: InviteRow): Status {
-  if (r.accepted_at || r.user_id) return "signed_in";
+  if (r.last_sign_in_at) return "signed_in";          // has actually logged in
+  if (r.user_id) return "password_set";                // login exists, never used
   if (r.invite_sent_at) return "invited";
   return "not_invited";
 }
@@ -73,6 +76,7 @@ function StatusPill({ row }: { row: InviteRow }) {
   const st = rowStatus(row);
   const base = "inline-flex items-center whitespace-nowrap rounded-sm px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ring-1 ring-inset";
   if (st === "signed_in") return <span className={`${base} bg-emerald-50 text-emerald-800 ring-emerald-200`}>Signed in</span>;
+  if (st === "password_set") return <span className={`${base} bg-sky-50 text-sky-800 ring-sky-200`}>Password set</span>;
   if (st === "invited") {
     return (
       <span className={`${base} bg-amber-50 text-amber-800 ring-amber-200`}>
@@ -120,7 +124,7 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
     setPerson({ lead_type: "company", lead_id: r?.lead_type === "company" ? r.lead_id : "", full_name: "", email: "" });
   }
   function editPerson(r: InviteRow) {
-    setPerson({ id: r.id, lead_type: r.lead_type, lead_id: r.lead_id, full_name: r.full_name ?? "", email: r.email ?? "", signed_in: rowStatus(r) === "signed_in" });
+    setPerson({ id: r.id, lead_type: r.lead_type, lead_id: r.lead_id, full_name: r.full_name ?? "", email: r.email ?? "", signed_in: !!r.user_id });
   }
   async function removePerson(r: InviteRow) {
     const who = r.full_name ? `${r.full_name}${r.email ? ` (${r.email})` : ""}` : (r.email ?? "this person");
@@ -393,7 +397,7 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
                         </button>
                         <button type="button" onClick={() => removePerson(r)}
                           className={`${BTN_COMPACT} !text-rose-700 hover:!border-rose-700`}>Remove</button>
-                        {st !== "signed_in" && r.email && (
+                        {st !== "signed_in" && st !== "password_set" && r.email && (
                           <button type="button" onClick={() => sendOne(r)} disabled={busy} className={BTN_COMPACT}>
                             {busy ? "Sending…" : st === "invited" ? "Resend" : "Send"}
                           </button>
@@ -437,7 +441,7 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
                     className="ml-auto text-[11px] font-semibold uppercase tracking-widest2 text-brand-accent">+ Add person</button>
                 )}
               </div>
-              <div className={`mt-3 grid gap-2 ${!r.email ? "grid-cols-1" : st === "signed_in" ? "grid-cols-2" : "grid-cols-3"}`}>
+              <div className={`mt-3 grid gap-2 ${!r.email ? "grid-cols-1" : st === "signed_in" || st === "password_set" ? "grid-cols-2" : "grid-cols-3"}`}>
                 <button type="button" onClick={() => preview(r.id)} disabled={previewBusy !== null} className={BTN_SECONDARY}>
                   {previewBusy === r.id ? "Opening…" : "Preview"}
                 </button>
@@ -446,7 +450,7 @@ export function PlatformInvitesClient({ rows, slug, conferenceId, leads, missing
                     Password
                   </button>
                 )}
-                {st !== "signed_in" && r.email && (
+                {st !== "signed_in" && st !== "password_set" && r.email && (
                   <button type="button" onClick={() => sendOne(r)} disabled={busy}
                     className={st === "invited" ? BTN_SECONDARY : BTN_PRIMARY}>
                     {busy ? "Sending…" : st === "invited" ? "Resend" : "Send"}

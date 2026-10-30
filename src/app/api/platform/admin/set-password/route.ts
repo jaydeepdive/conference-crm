@@ -64,12 +64,11 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ error: "Could not create login" }, { status: 500 });
 
   // Bind this attendee row (and any other unclaimed rows for the same email).
-  const now = new Date().toISOString();
   await svc.from("attendee_profiles")
-    .update({ user_id: userId, accepted_at: now, invite_token: null })
+    .update({ user_id: userId, invite_token: null })
     .eq("id", attendee.id);
   await svc.from("attendee_profiles")
-    .update({ user_id: userId, accepted_at: now, invite_token: null })
+    .update({ user_id: userId, invite_token: null })
     .eq("email", email).is("user_id", null);
 
   const { data: conf } = await svc.from("conferences").select("slug").eq("id", attendee.conference_id).maybeSingle();

@@ -4,6 +4,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/service";
+import { lastSignIns } from "@/lib/signins";
 import { MeetingEmailsToggle } from "./MeetingEmailsToggle";
 
 export const dynamic = "force-dynamic";
@@ -18,13 +19,14 @@ export default async function PlatformAdminOverview({ params }: { params: Promis
     admin.from("attendee_profiles").select("*", { count: "exact", head: true }).eq("conference_id", conference.id),
     admin.from("attendee_profiles").select("lead_id").eq("conference_id", conference.id).eq("lead_type", "company"),
     admin.from("attendee_profiles").select("lead_id").eq("conference_id", conference.id).eq("lead_type", "investor"),
-    admin.from("attendee_profiles").select("*", { count: "exact", head: true }).eq("conference_id", conference.id).not("user_id", "is", null),
+    admin.from("attendee_profiles").select("user_id").eq("conference_id", conference.id).not("user_id", "is", null),
     admin.from("meetings").select("*", { count: "exact", head: true }).eq("conference_id", conference.id).eq("status", "accepted"),
     admin.from("meetings").select("*", { count: "exact", head: true }).eq("conference_id", conference.id).in("status", ["proposed", "countered"]),
   ]);
+  const signIns = await lastSignIns();
   const stats: [string, number][] = [
     ["Attendees", att.count ?? 0],
-    ["Logged in", acc.count ?? 0],
+    ["Logged in", (acc.data ?? []).filter(r => signIns.get(r.user_id as string)).length],
     ["Companies", new Set((comp.data ?? []).map(r => r.lead_id)).size],
     ["Investors", new Set((inv.data ?? []).map(r => r.lead_id)).size],
     ["Confirmed meetings", mtg.count ?? 0],

@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.85** · 72 commits on `main`
+> Last updated: 2026-10-14 · Live version: **v6.86** · 72 commits on `main`
 
 ---
 
@@ -375,6 +375,10 @@ meetings, profiles, sent_email_recipients, sent_emails.
    align/link). Server sanitizes with src/lib/emailHtml.ts
    (sanitizeEmailHtml whitelist + htmlToText); brandedEmail accepts
    bodyHtml/bodyText.
+5n. v6.86: "Signed in" = real auth last_sign_in_at (src/lib/signins.ts
+   lastSignIns()). Admin set-password no longer stamps accepted_at; status
+   for a login that exists but was never used is "Password set". Overview
+   "Logged in" counts real sign-ins.
 5. Meeting emails currently for request + counter only. Possible additions:
    accepted/declined/cancelled notices, day-before schedule email (no cron on
    Hobby — would need a button).
