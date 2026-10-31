@@ -20,10 +20,8 @@ export default function PlatformResetPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    createClient().auth.getUser().then(({ data }) => {
-      if (!data.user) router.replace(`/conferences/${slug}/platform/login`);
-      else setEmail(data.user.email ?? null);
-    });
+    // Display only — the server checks the session when saving.
+    createClient().auth.getUser().then(({ data }) => { if (data.user) setEmail(data.user.email ?? null); }).catch(() => {});
   }, [slug, router]);
 
   async function save() {
@@ -31,9 +29,13 @@ export default function PlatformResetPage() {
     if (pw.length < 8) { setError("Password must be at least 8 characters."); return; }
     if (pw !== pw2) { setError("Passwords don't match."); return; }
     setBusy(true);
-    const { error } = await createClient().auth.updateUser({ password: pw });
+    const res = await fetch("/api/platform/new-password", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: pw }),
+    }).catch(() => null);
     setBusy(false);
-    if (error) { setError(error.message); return; }
+    if (!res) { setError("Connection problem — check your internet and try again."); return; }
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) { setError(j.error ?? "Couldn't save your password."); return; }
     router.push(`/conferences/${slug}/platform`);
     router.refresh();
   }

@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.86** · 72 commits on `main`
+> Last updated: 2026-10-14 · Live version: **v6.87** · 72 commits on `main`
 
 ---
 
@@ -379,6 +379,10 @@ meetings, profiles, sent_email_recipients, sent_emails.
    lastSignIns()). Admin set-password no longer stamps accepted_at; status
    for a login that exists but was never used is "Password set". Overview
    "Logged in" counts real sign-ins.
+5o. v6.87: attendee sign-in / accept / reset / sign-out go through our own
+   domain (/api/platform/login [public], /api/platform/new-password,
+   /api/platform/logout) instead of the browser calling supabase.co directly
+   — fixes intermittent "NetworkError" from blockers / office networks.
 5. Meeting emails currently for request + counter only. Possible additions:
    accepted/declined/cancelled notices, day-before schedule email (no cron on
    Hobby — would need a button).

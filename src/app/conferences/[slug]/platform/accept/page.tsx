@@ -6,7 +6,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import {
   AboveBeyondHero,
   BRAND_GOLD, BRAND_GOLD_L, BRAND_IVORY, BRAND_GREY, BRAND_BORDER,
@@ -56,11 +55,16 @@ export default function PlatformAcceptPage() {
     const j = await res.json();
     if (!res.ok) { setError(j.error ?? "Something went wrong."); setBusy(false); return; }
 
-    const supabase = createClient();
-    const { error: signErr } = await supabase.auth.signInWithPassword({
-      email: j.email, password,
-    });
-    if (signErr) { setError(signErr.message); setBusy(false); return; }
+    const signRes = await fetch("/api/platform/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: j.email, password }),
+    }).catch(() => null);
+    if (!signRes || !signRes.ok) {
+      setError("Your password is set — please sign in on the next screen.");
+      setBusy(false);
+      router.push(`/conferences/${slug}/platform/login`);
+      return;
+    }
     router.push(`/conferences/${slug}/platform`);
     router.refresh();
   }

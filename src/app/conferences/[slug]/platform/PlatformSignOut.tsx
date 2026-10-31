@@ -10,8 +10,8 @@ import { createClient } from "@/lib/supabase/client";
 export function PlatformSignOut({ slug, compact }: { slug: string; compact?: boolean }) {
   const router = useRouter();
   async function signOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await fetch("/api/platform/logout", { method: "POST" }).catch(() => null);
+    await createClient().auth.signOut().catch(() => null);
     router.push(`/conferences/${slug}/platform/login`);
     router.refresh();
   }

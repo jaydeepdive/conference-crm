@@ -29,16 +29,24 @@ export default function PlatformLoginPage() {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) router.push(`/conferences/${slug}/platform`);
-    });
+    }).catch(() => { /* ignore — sign-in goes through our own server */ });
   }, [slug, router]);
 
   async function signIn() {
     setError(null); setInfo(null);
     if (!email || !password) { setError("Enter your email and password."); return; }
     setBusy(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    if (error) { setError(error.message); setBusy(false); return; }
+    let res: Response;
+    try {
+      res = await fetch("/api/platform/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+    } catch {
+      setError("Connection problem — check your internet and try again."); setBusy(false); return;
+    }
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) { setError(j.error ?? "Couldn't sign in. Please try again."); setBusy(false); return; }
     router.push(`/conferences/${slug}/platform`);
     router.refresh();
   }

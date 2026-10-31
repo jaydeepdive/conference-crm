@@ -94,7 +94,8 @@ export async function updateSession(request: NextRequest) {
     || path === "/api/platform/accept"
     || path.startsWith("/api/platform/invites/preview")
     || path === "/api/platform/invites/resend"
-    || path === "/api/auth/forgot";
+    || path === "/api/auth/forgot"
+    || path === "/api/platform/login";
 
   if (!user && !isPublic) {
     // API routes get a 401 (not an HTML redirect) so client fetches don't
