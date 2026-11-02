@@ -62,7 +62,7 @@ function Inner({ onClose, onSaved, conferenceId, leads, initial }: {
     const j = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) { setError(j.error ?? "Could not save."); return; }
-    onSaved(editing ? "Saved." : `Added ${name.trim() || email.trim()} to ${chosen?.name ?? "the list"}. No email was sent.`);
+    onSaved(editing ? (j.login_email_changed ? `Email changed — they now sign in with ${email.trim().toLowerCase()} and their same password. No email was sent.` : "Saved.") : `Added ${name.trim() || email.trim()} to ${chosen?.name ?? "the list"}. No email was sent.`);
   }
 
   return (
@@ -104,9 +104,9 @@ function Inner({ onClose, onSaved, conferenceId, leads, initial }: {
         <input className={INPUT} value={name} onChange={e => setName(e.target.value)} placeholder="Jane Smith" />
         <label className={`mt-4 block ${LABEL}`}>Email</label>
         <input className={INPUT} type="email" value={email} onChange={e => setEmail(e.target.value)}
-          placeholder="jane@company.com" disabled={editing && initial.signed_in} />
-        {editing && initial.signed_in && (
-          <p className="mt-1 text-xs text-muted">This person has already signed in, so their email can&rsquo;t change. Remove them and add the new email instead.</p>
+          placeholder="jane@company.com" />
+        {editing && initial.signed_in && email.trim().toLowerCase() !== initial.email.trim().toLowerCase() && (
+          <p className="mt-1 text-xs text-muted">They&rsquo;ve already signed in. From now on they sign in with the new email and their same password. Their meetings and messages stay as they are.</p>
         )}
         {editing && !initial.signed_in && (
           <p className="mt-1 text-xs text-muted">Changing the email cancels any invite link already sent.</p>

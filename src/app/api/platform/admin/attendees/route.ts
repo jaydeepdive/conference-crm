@@ -10,6 +10,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { generateInviteToken } from "@/lib/platform";
+import { findAuthUserIdByEmail } from "@/lib/passwords";
 
 export const runtime = "nodejs";
 
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
   }
 
   if (!body.id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-  const { data: row } = await svc.from("attendee_profiles").select("id, user_id, email, conference_id").eq("id", body.id).maybeSingle();
+  const { data: row } = await svc.from("attendee_profiles").select("id, user_id, email, conference_id, lead_type, lead_id").eq("id", body.id).maybeSingle();
   if (!row) return NextResponse.json({ error: "Attendee not found" }, { status: 404 });
 
   if (body.action === "update") {
@@ -69,9 +70,14 @@ export async function POST(request: Request) {
       if (!EMAIL_RE.test(email)) return NextResponse.json({ error: "Enter a valid email." }, { status: 400 });
       const clash = await emailInUse(svc, row.conference_id as string, email);
       if (clash) return NextResponse.json({ error: clash }, { status: 409 });
-      if (row.user_id) return NextResponse.json({
-        error: "This person has already signed in with their email. Remove them and add the new email instead.",
-      }, { status: 409 });
+      if (row.user_id) {
+        // Already has a login: move the login itself to the new email (no email sent),
+        // then the attendee row, their CRM contact (via DB trigger) and the lead's
+        // primary email if it was the old one. Meetings/messages are untouched.
+        const moved = await changeLoginEmail(svc, row as AttendeeRow, email, fullName);
+        if (moved) return NextResponse.json({ error: moved }, { status: 409 });
+        return NextResponse.json({ ok: true, login_email_changed: true });
+      }
       patch.email = email;
       patch.invite_token = generateInviteToken(); // old invite link stops working
       patch.invite_sent_at = null;
@@ -104,4 +110,44 @@ async function emailInUse(svc: ReturnType<typeof createServiceClient>, conferenc
   const l = lead as { name?: string; firm_name?: string } | null;
   const who = l?.name ?? l?.firm_name ?? "another company/investor";
   return `${email} is already an attendee for ${who}. Each email can only be used once.`;
+}
+
+interface AttendeeRow { id: string; user_id: string; email: string | null; conference_id: string; lead_type: string; lead_id: string }
+
+/** Change the sign-in email of an attendee who already has a login.
+ *  Returns a human error message, or null on success. Never sends email. */
+async function changeLoginEmail(
+  svc: ReturnType<typeof createServiceClient>, row: AttendeeRow, newEmail: string, fullName: string | null | undefined,
+): Promise<string | null> {
+  const oldEmail = String(row.email ?? "").toLowerCase();
+
+  const { data: prof } = await svc.from("profiles").select("account_type").eq("id", row.user_id).maybeSingle();
+  if (prof?.account_type === "staff")
+    return "This person also signs in to the staff CRM with that email, so it can't be changed here.";
+
+  const other = await findAuthUserIdByEmail(svc, newEmail);
+  if (other && other !== row.user_id) return `${newEmail} already has its own login, so it can't be used for this person.`;
+
+  const { data: authUser, error: getErr } = await svc.auth.admin.getUserById(row.user_id);
+  if (getErr || !authUser?.user) return "Couldn't find this person's login.";
+  const prevAuthEmail = authUser.user.email ?? oldEmail;
+
+  const { error: authErr } = await svc.auth.admin.updateUserById(row.user_id, { email: newEmail, email_confirm: true });
+  if (authErr) return `Couldn't change the login email: ${authErr.message}`;
+
+  const patch: Record<string, unknown> = { email: newEmail };
+  if (fullName !== undefined) patch.full_name = fullName;
+  const { error: rowErr } = await svc.from("attendee_profiles").update(patch).eq("id", row.id);
+  if (rowErr) {
+    await svc.auth.admin.updateUserById(row.user_id, { email: prevAuthEmail, email_confirm: true });
+    return `Couldn't save: ${rowErr.message}`;
+  }
+
+  // Keep the rest in step (best effort — the login + attendee row are what matter).
+  await svc.from("profiles").update({ email: newEmail }).eq("id", row.user_id);
+  if (oldEmail) {
+    const table = row.lead_type === "company" ? "companies" : "investors";
+    await svc.from(table).update({ email: newEmail }).eq("id", row.lead_id).ilike("email", oldEmail);
+  }
+  return null;
 }
