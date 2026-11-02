@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 
 export interface Day1Activity { kind: "site_visit" | "golf"; title: string; when_text: string | null; location: string | null; details: string | null }
 export interface Day1Person {
@@ -111,6 +112,7 @@ function ActivityEditor({ conferenceId, kind, initial, count, onCsv }: {
   conferenceId: string; kind: "site_visit" | "golf"; initial?: Day1Activity; count: number; onCsv: () => void;
 }) {
   const router = useRouter();
+  const { slug } = useParams<{ slug: string }>();
   const [title, setTitle] = useState(initial?.title ?? (kind === "golf" ? "Golf tournament" : "Site visit"));
   const [when, setWhen] = useState(initial?.when_text ?? "");
   const [loc, setLoc] = useState(initial?.location ?? "");
@@ -135,7 +137,9 @@ function ActivityEditor({ conferenceId, kind, initial, count, onCsv }: {
         <div className="font-display text-2xl">{kind === "golf" ? "⛳ Golf" : "⛏ Site visit"}</div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted">{count} assigned</span>
-          {count > 0 && <button onClick={onCsv} className="border border-ink/20 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-ink">Download list</button>}
+          <Link href={`/conferences/${slug}/platform/admin/day1/list?kind=${kind}`}
+            className="bg-ink px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-white">View list</Link>
+          {count > 0 && <button onClick={onCsv} className="border border-ink/20 px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-ink">Download</button>}
         </div>
       </div>
       <label className="mt-3 block"><span className={LABEL}>Title</span><input className={INPUT} value={title} onChange={e => setTitle(e.target.value)} /></label>
