@@ -5,7 +5,23 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-10-14 · Live version: **v6.87** · 72 commits on `main`
+> Last updated: 2026-11-02 · Live version: **v6.87** · ~98 commits on `main`
+
+
+## ▶ START HERE (new chat / remote session)
+
+1. Read this whole file, then `LOCAL_SECRETS.md` (same folder; tokens). Export
+   GITHUB_TOKEN / SUPABASE_ACCESS_TOKEN in your sandbox and recreate the scoped
+   git credential helper (§3). Never print tokens back to Jordan.
+2. Jordan is often on his PHONE (Dispatch). Keep replies short, plain
+   English, no code. Do the work end-to-end: edit → typecheck → commit →
+   push → wait for Vercel "success" → verify live → report in 2–6 bullets.
+3. The summit is **Nov 22–24, 2026** and is LIVE: attendees have logged in,
+   ~220 meetings are booked, meeting/message emails are ON. Treat every change
+   as production: no destructive SQL, no mass emails, test with rollback
+   (DO-block + raise exception) before touching real data.
+4. §6 has the open items; §7 has the full feature history (v6.64–v6.87 is the
+   most recent work; older detail in docs/HISTORY_SUMMARIES.md).
 
 ---
 
@@ -26,8 +42,9 @@ things manually. Get it right the first time, verify live, keep replies short.
    `jaydeepdive/conference-crm`.
 2. "DO NOT SEND ANY EMAILS YET. I NEED A BUTTON TO SEND OUT THESE EMAILS AT
    MY OWN DISCRETION NOT YOURS." and "DO NOT SEND AN INVITE EMAIL. WE ARE
-   STILL TESTING". Never trigger invites/notifications to real attendees.
-   Meeting emails are behind a switch that is OFF (`meeting_emails_enabled`).
+   STILL TESTING". → As of Nov 2 Jordan HAS sent invites himself (76 people)
+   and turned the notification switch ON. Still: never send any email
+   yourself; emails go out only via his buttons or attendee actions.
 3. "google sign in should not be an option for the portal either. we're
    keeping it simple." (attendee portal = email + password only)
 4. "Mining Summit 2026" is an INTERNAL name. Anything a client/attendee sees
@@ -125,14 +142,14 @@ Service-role key: `GET .../v1/projects/zetiaccmsqamqhldjaps/api-keys?reveal=true
 **Typecheck:** the repo's own `node_modules` may be absent in the connected
 folder. Copy to a scratch dir (exclude node_modules/.git/.next), `npm ci`, then
 `./node_modules/.bin/tsc --noEmit --skipLibCheck`. Known pre-existing error to
-ignore: `src/lib/auth.ts(11,44): error TS18047`. No ESLint config → lint does
+ignore: `src/lib/auth.ts(13,44): error TS18047` (line may shift). No ESLint config → lint does
 not block builds.
 
 **Conventions:**
 - Bump `src/lib/version.ts` (`APP_VERSION`) on every release; commit message
   `vX.YZ: summary`.
 - Migrations: `supabase/migrations/00NN_name.sql`, idempotent (`if not
-  exists`), apply via API immediately after writing. Next number: **0038**.
+  exists`), apply via API immediately after writing. Next number: **0039**.
 - After `redirect()`/`notFound()` add `throw new Error("unreachable")` for TS
   narrowing.
 - Deleting files in the connected folder may need the Cowork delete permission.
@@ -162,16 +179,18 @@ gold-light #e8cf8f, gold-dark #8f6f2a, ivory #f5f0e6, grey #9a9a9a, border
    only. `/account` = change own password. `/login`, `/reset-password`.
    Old `(staff)/meetings` and `(staff)/platform-invites` just redirect to the
    admin console.
-2. **A&B Admin console** — `/conferences/[slug]/platform/admin` (super admin):
-   Overview (live counts + **Meeting request emails ON/OFF switch**),
+2. **A&B Admin console** — `/conferences/[slug]/platform/admin` (super admin).
+   Tabs: Overview · Meetings · Attendees · Company profiles · Day 1 · Emails ·
+   Accounts. Overview (live counts + **Attendee notification emails ON/OFF switch**),
    `/meetings` (schedule grid companies/investors × 14 slots, list view,
    create/edit/cancel, tables, sees blocked slots + do-not-pair),
    `/meetings/auto-match` (greedy matcher `src/lib/match.ts`, review then
    commit), `/attendees` (sync registered leads, Send/Resend invite button,
    **Password** button = set/generate password with no email, Preview =
    impersonate).
-3. **Attendee portal** — `/conferences/[slug]/platform` (`(authed)` group):
-   Schedule, Directory (other side), Inbox, Meetings/[id]
+3. **Attendee portal** — `/conferences/[slug]/platform` (`(authed)` group).
+   Nav: Schedule · Directory · Requests · Messages · Settings.
+   Schedule, Directory (other side), Requests (was Inbox), Messages, Meetings/[id]
    (accept/decline/counter/cancel), Settings (names, company attendees,
    blocked slots, do-not-meet list). Public: `/platform/login`,
    `/platform/accept?token=`, `/platform/reset`. Super admin who isn't an
@@ -236,29 +255,45 @@ meetings, profiles, sent_email_recipients, sent_emails.
 - Trigger (0020): any company/investor set to `registered` automatically gets
   attendee_profiles rows — NO email sent.
 - Invoices sync to budget receivables and lead `payment_status` (0010/0011).
-- Migrations 0001–0037 all applied. Notables: 0007 default-allow access +
+- Migrations 0001–0038 all applied. Notables: 0007 default-allow access +
   `hidden` role, 0012 attendee portal, 0014–0016 SignWell + public_name,
   0017 signed→registered, 0018 company_contacts, 0019 platform config, 0020
   auto attendees, 0021 blocked slots + blocklist, 0022 app_secrets, 0023
   meeting_emails_enabled + email_throttle.
 
-### Live state (2026-10-14)
+### Live state (2026-11-02)
 - Conference `mining-summit-2026` (id 7ac8254a-ff16-4b27-a964-2d3d0041174d),
-  name "Mining Summit 2026", public_name "Above & Beyond Mining Summit",
-  status planning, visibility public, timezone America/Phoenix, dates 2026-11-22→24, meeting_date
-  2026-11-24, 08:00–15:30, lunch 12:00–12:30, slot 25 / stride 30, farewell
-  15:45, meeting_emails_enabled **false**.
-- 95 companies, 103 investors, 53 attendee profiles (20 company people, 33
-  investor people), **0 attendee logins**, 0 meetings, 11 invoices.
-- Staff profiles: jay@thedeepdive.ca (super admin), admin@thedeepdive.ca
-  (Jordan's alt), evofarizona@gmail.com (Brian Mildebrandt), steve.r.hyland@
-  gmail.com (Steve Hyland), chriz@thedeepdive.ca (Chriz Macray),
-  numa.pentest.1791822865@gmail.com (see issues).
+  public_name "Above & Beyond Mining Summit", timezone America/Phoenix,
+  meeting_date 2026-11-24, slots 08:00–15:30 (lunch 12:00–12:30, slot 25 /
+  stride 30), doors_open 07:45, farewell 15:45, **meeting_emails_enabled = TRUE**.
+- 99 companies (24 registered), 120 investors (48 registered); 78 attendee
+  rows (30 company people, 48 investors), 0 without email, 76 invited, 77
+  logins; ~222 active meetings; 11 portal messages; 23 invoices; 30 company
+  contacts.
+- Staff (account_type staff): jay@thedeepdive.ca (super admin),
+  evofarizona@gmail.com Brian Mildebrandt (super admin), steve.r.hyland@
+  gmail.com Steve Hyland (super admin), admin@thedeepdive.ca (Jordan alt),
+  chriz@thedeepdive.ca. Attendee logins = account_type 'attendee' (76).
+  The numa.pentest account is gone. One stray login with no attendee row:
+  ameckler@180-advisory.com (pending) — ask Jordan before touching.
+- Test data still present: "TEST Company (delete after testing)" and an old
+  "Test Co" — remind Jordan to delete before Nov 22.
 
 ---
 
-## 6. OPEN ISSUES / TODO (priority order)
+## 6. OPEN ISSUES / TODO (as of 2026-11-02)
 
+- **DMARC still missing** for abovebeyondsummit.com (checked Nov 2) → portal
+  emails likely land in junk. Jordan must add Cloudflare DNS TXT `_dmarc` =
+  `v=DMARC1; p=none; rua=mailto:jay@thedeepdive.ca`. Remind him once.
+- Resend free plan = 100 emails/day shared with partner; with notifications
+  ON + broadcasts, watch for limit errors (Resend dashboard is the partner's).
+- Delete test data before the event (see Live state).
+- Possible next asks: accepted/declined meeting emails, table/room
+  assignment UX for the day, printable day-of schedules per company/investor,
+  check-in view. Don't build unasked.
+
+### Change log of recent fixes (most recent last)
 1. ~~Timezone bug~~ FIXED v6.64 (migration 0024): conference timezone is now
    `America/Phoenix`; slots verified 8:00 AM Arizona = 15:00 UTC.
 2. Staff self-sign-up: FIXED v6.65 (migration 0025). `profiles.account_type`
@@ -383,13 +418,13 @@ meetings, profiles, sent_email_recipients, sent_emails.
    domain (/api/platform/login [public], /api/platform/new-password,
    /api/platform/logout) instead of the browser calling supabase.co directly
    — fixes intermittent "NetworkError" from blockers / office networks.
-5. Meeting emails currently for request + counter only. Possible additions:
-   accepted/declined/cancelled notices, day-before schedule email (no cron on
-   Hobby — would need a button).
-6. Jordan is the first real tester of: staff forgot-password email (Resend),
-   meeting emails (switch OFF), invite email design.
 
 ---
+
+5p. (Nov 2, migration 0038) attendee logins were labelled 'pending' because
+   GoTrue writes app_metadata after the insert trigger; fixed 76 rows +
+   triggers sync_profile_account_type (auth.users update) and
+   mark_profile_attendee (attendee_profiles.user_id set).
 
 ## 7. History (condensed)
 
@@ -422,6 +457,16 @@ meetings, profiles, sent_email_recipients, sent_emails.
   console + `(staff)` route group (fixed layout-until-refresh bug); Resend
   for all attendee/auth email; branded email template; meeting request/counter
   notifications behind switch.
+
+- **v6.64–v6.87 (Oct 14 – Nov 2):** Phoenix timezone; account types +
+  Accounts tab; attendee data lockdown; crm.abovebeyondsummit.com portal-only
+  domain; transparent logo; multi-person companies (contacts ⇄ attendees
+  sync); "no email on file" placeholders; registered-only directory with
+  slot filter; reschedule; one meeting per slot per company/investor;
+  identical schedule for all company contacts; direct messaging; activity
+  log names; company profiles (category incl. Precious Metals Dealer, metal,
+  website, blurb); Day 1 site visit/golf; farewell 15:45; console Emails tab
+  with rich text; real "Signed in" status; server-side attendee login.
 
 Full original transcripts are on Jordan's Mac in the Cowork session; the two
 detailed context summaries are in `docs/HISTORY_SUMMARIES.md`.

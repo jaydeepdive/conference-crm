@@ -292,3 +292,43 @@ Summary:
 
 9. Optional Next Step:
    Continue the password-reset work per the user's latest request: "i need to be able to easily reset attendee passwords in the backend so that it can be done on the go at the conference if needed" and "i forget my password for the crm, how do i reset it". Next: add SetPasswordDialog to UsersAdmin.tsx (state `pwFor`, a "Set password" button per row, endpoint `/api/admin/users/${pwFor.id}/password`), then create `/reset-password` and `/conferences/[slug]/platform/reset` pages, update redirectTo in src/app/login/page.tsx and src/app/api/platform/invites/resend/route.ts, bump to v6.59, typecheck, commit + push, and reply with the self-reset instructions and the SMTP/allow-list notes (asking permission before changing Supabase auth config).
+
+---
+
+## Summary 3 (Oct 14 → Nov 2, 2026: v6.64 → v6.87)
+
+What Jordan asked for, in order (all done unless noted):
+- Fix timezone (Toronto → Phoenix). Explained how a stranger got a staff
+  login; built account types (staff/attendee/pending) + Accounts page; locked
+  attendee logins out of the staff CRM and out of raw company/investor data.
+- crm.abovebeyondsummit.com: portal-only domain ("attendees MUST ONLY see the
+  Above & Beyond login, NOT Deep Dive"); transparent logo; Accounts tab inside
+  the console (no external-looking links).
+- Multiple contacts per company (later simplified: "do not make this
+  complicated" → one Contacts list that syncs with portal logins; prominent
+  "+ Add another contact" button). Only companies get extra people.
+- Temp TEST company/investor for testing (TEST Investor since deleted).
+- Admin preview can act as the attendee; doors open 7:45; tapping an open
+  slot shows only parties free then; "registered = coming, requests allowed".
+- Reschedule a confirmed meeting. One meeting per slot per company; every
+  company contact sees the same schedule (incl. Day 1).
+- Missing registered leads explained (no email / shared email) → show them
+  with "No email on file".
+- Avoid-list & directory only show registered parties.
+- Direct messaging between companies and investors.
+- Activity log shows the lead's name/contact for website registrations.
+- PHP2Shell vulnerability: CRM unaffected (Node/Vercel); thedeepdive.ca is
+  WordPress/PHP → Jordan told how to check PHP version.
+- Company portal profiles (category incl. "Precious Metals Dealer", primary
+  metal, website, blurb) + Day 1 site visit/golf assignments & details.
+- Farewell moved to 3:45 PM.
+- Console "Emails" tab to email registered companies / investors / everyone,
+  with rich-text formatting.
+- "Signed in" status only after a real login ("Password set" otherwise).
+- Intermittent "NetworkError" on attendee login → sign-in now server-side.
+- Remote work: Dispatch / Cowork on phone; CLAUDE.md + LOCAL_SECRETS.md are
+  the handoff. Nov 2: fixed attendee logins mislabelled 'pending'.
+
+Jordan's working style: short replies, no jargon, never ask him to run code
+or SQL, verify live before saying done, don't over-engineer, don't send
+emails yourself.
