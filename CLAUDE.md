@@ -5,23 +5,38 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-11-02 · Live version: **v6.87** · ~98 commits on `main`
+> Last updated: 2026-11-02 (handoff verified) · Live version: **v6.87** · ~98 commits on `main`
 
 
 ## ▶ START HERE (new chat / remote session)
 
-1. Read this whole file, then `LOCAL_SECRETS.md` (same folder; tokens). Export
-   GITHUB_TOKEN / SUPABASE_ACCESS_TOKEN in your sandbox and recreate the scoped
-   git credential helper (§3). Never print tokens back to Jordan.
-2. Jordan is often on his PHONE (Dispatch). Keep replies short, plain
-   English, no code. Do the work end-to-end: edit → typecheck → commit →
-   push → wait for Vercel "success" → verify live → report in 2–6 bullets.
-3. The summit is **Nov 22–24, 2026** and is LIVE: attendees have logged in,
+**Folder:** `/Users/jordanlutz/Documents/conference-crm-source` (request access
+to exactly this folder if you can't see it — not all of Documents).
+
+1. Read this whole file, then `LOCAL_SECRETS.md` (same folder; all tokens).
+   Never print tokens back to Jordan or put them in commits/URLs.
+2. **Zero setup needed** — the folder is self-sufficient:
+   - Push: `git push origin main` just works. `.git/config` uses the
+     repo-local helper `scripts/git-cred.sh` (reads GITHUB_TOKEN from env or
+     LOCAL_SECRETS.md; answers ONLY for jaydeepdive/conference-crm).
+   - SQL/migrations: `scripts/supabase-sql.sh <file.sql>` (token from env or
+     LOCAL_SECRETS.md).
+   - Deploy check: `scripts/deploy-status.sh [sha]` → waits for Vercel.
+   - Typecheck: copy repo to a scratch dir (exclude node_modules/.git/.next),
+     `npm ci`, `./node_modules/.bin/tsc --noEmit --skipLibCheck`.
+   - Needs outbound internet to github.com, api.github.com, api.supabase.com,
+     registry.npmjs.org. If git push fails with "could not read Username",
+     run `git config credential.helper '!sh "$(git rev-parse --show-toplevel)/scripts/git-cred.sh"'`.
+   - All three scripts were verified working from the folder alone on Nov 2.
+3. Jordan is often on his PHONE (Dispatch). Short replies, plain English, no
+   code. Work end-to-end: edit → typecheck → commit (bump version) → push →
+   deploy-status "success" → verify live → report in 2–6 bullets.
+4. The summit is **Nov 22–24, 2026** and is LIVE: attendees have logged in,
    ~220 meetings are booked, meeting/message emails are ON. Treat every change
-   as production: no destructive SQL, no mass emails, test with rollback
-   (DO-block + raise exception) before touching real data.
-4. §6 has the open items; §7 has the full feature history (v6.64–v6.87 is the
-   most recent work; older detail in docs/HISTORY_SUMMARIES.md).
+   as production: no destructive SQL, never send emails yourself, test data
+   changes inside a DO-block that ends with `raise exception` (auto-rollback).
+5. Past chats are NOT searchable from new sessions — this file +
+   docs/HISTORY_SUMMARIES.md ARE the history. §6 = open items, §7 = history.
 
 ---
 
@@ -115,26 +130,12 @@ Google OAuth enabled for STAFF login only.
 
 All tokens are in `LOCAL_SECRETS.md`. In a fresh sandbox, recreate helpers:
 
-**Push to GitHub (scoped to this repo only):**
-```bash
-# credential helper that ONLY answers for jaydeepdive/conference-crm
-cat > ~/git-cred.sh <<'SH'
-#!/bin/sh
-input=$(cat)
-if echo "$input" | grep -q "host=github.com" && echo "$input" | grep -q "path=jaydeepdive/conference-crm"; then
-  printf "username=x-access-token\npassword=%s\n" "$GITHUB_TOKEN"
-fi
-SH
-chmod +x ~/git-cred.sh
-git -C <repo> config credential.helper "$HOME/git-cred.sh"
-git -C <repo> config credential.useHttpPath true
-git -C <repo> push origin main      # Vercel deploys automatically
-```
-Check deploy: `GET https://api.github.com/repos/jaydeepdive/conference-crm/commits/<sha>/status`
-→ context "Vercel", "Deployment has completed".
+**Push to GitHub (scoped to this repo only):** already configured in
+`.git/config` → `scripts/git-cred.sh`. Just `git push origin main`; Vercel
+deploys automatically. Check with `scripts/deploy-status.sh`.
 
 **Run a migration / SQL (no dashboard needed):** `scripts/supabase-sql.sh <file.sql>`
-(uses env `SUPABASE_ACCESS_TOKEN`; POSTs to
+(token from env `SUPABASE_ACCESS_TOKEN` or LOCAL_SECRETS.md; POSTs to
 `https://api.supabase.com/v1/projects/zetiaccmsqamqhldjaps/database/query`).
 Auth config: `GET/PATCH https://api.supabase.com/v1/projects/zetiaccmsqamqhldjaps/config/auth`.
 Service-role key: `GET .../v1/projects/zetiaccmsqamqhldjaps/api-keys?reveal=true`.
