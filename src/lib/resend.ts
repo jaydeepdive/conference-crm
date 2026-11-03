@@ -139,11 +139,21 @@ ${buttonLabel ? `      <tr><td align="center" style="padding:20px 28px 28px;">
   return { html, text };
 }
 
+/** True for something that looks like a real email (blocks "n/a", blanks, etc.). */
+export function isPlausibleEmail(e: string | null | undefined): boolean {
+  return !!e && /^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$/.test(e.trim());
+}
+
 /** Send up to 100 emails per call via Resend's batch endpoint. Returns count sent. */
 export async function sendResendBatch(items: { to: string; subject: string; html: string; text?: string; replyTo?: string | null }[]): Promise<{ sent: number; errors: string[] }> {
   const key = await getResendKey();
   if (!key) throw new Error("Resend is not configured");
   let sent = 0; const errors: string[] = [];
+  // One malformed address (e.g. "n/a") makes Resend reject the WHOLE batch,
+  // so drop anything that isn't a real-looking email first.
+  const bad = items.filter(it => !isPlausibleEmail(it.to));
+  if (bad.length) errors.push(`Skipped ${bad.length} invalid address${bad.length === 1 ? "" : "es"}: ${bad.map(b => b.to).join(", ")}`);
+  items = items.filter(it => isPlausibleEmail(it.to)).map(it => ({ ...it, to: it.to.trim() }));
   for (let i = 0; i < items.length; i += 100) {
     const chunk = items.slice(i, i + 100).map(it => ({
       from: ATTENDEE_FROM, to: [it.to], subject: it.subject, html: it.html,

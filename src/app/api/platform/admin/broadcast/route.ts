@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { brandedEmail, sendResendBatch } from "@/lib/resend";
+import { brandedEmail, sendResendBatch, isPlausibleEmail } from "@/lib/resend";
 import { PORTAL_ORIGIN } from "@/lib/portalDomain";
 import { sanitizeEmailHtml, htmlToText } from "@/lib/emailHtml";
 
@@ -38,7 +38,8 @@ export async function POST(request: Request) {
   const { data: people } = await q;
   const seen = new Set<string>();
   const recipients = (people ?? []).filter(p => {
-    const e = String(p.email).toLowerCase();
+    if (!isPlausibleEmail(p.email as string | null)) return false;
+    const e = String(p.email).trim().toLowerCase();
     if (seen.has(e)) return false; seen.add(e); return true;
   });
   if (b.preview) return NextResponse.json({ ok: true, count: recipients.length });
