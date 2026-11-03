@@ -42,14 +42,25 @@ export default async function PlatformDashboardPage({
   const otherById = new Map((others ?? []).map(o => [o.id as string, o as Pick<Company, "id" | "name"> | Pick<Investor, "id" | "firm_name">]));
 
   const slots = slotsForPlatform(ctx.conference);
+  // Several meeting rows can point at the same slot (an accepted meeting plus
+  // old declined requests or a pending one). Show the most important:
+  // accepted > reschedule in progress (still booked) > pending. Declined /
+  // cancelled rows never occupy a slot.
+  const rank = (m: Meeting) =>
+    m.status === "accepted" ? 3 : m.status === "countered" && m.reschedule_from ? 2
+      : m.status === "proposed" || m.status === "countered" ? 1 : 0;
   const byStart = new Map<string, Meeting>();
   for (const m of list) {
+    const r = rank(m);
+    if (r === 0) continue;
     const t = m.scheduled_time ?? m.proposed_time;
     if (!t) continue;
     const ts = new Date(t).getTime();
     for (const s of slots) {
       if (ts >= s.start.getTime() && ts < s.end.getTime()) {
-        byStart.set(s.start.toISOString(), m);
+        const key = s.start.toISOString();
+        const cur = byStart.get(key);
+        if (!cur || r > rank(cur)) byStart.set(key, m);
         break;
       }
     }
