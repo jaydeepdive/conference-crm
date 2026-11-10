@@ -58,9 +58,21 @@ export default async function PlatformMeetingPage({
   ]);
   const busyIsoSet = new Set<string>();
   const slots = slotsForPlatform(ctx.conference);
+  // A company with a higher per-slot limit (Zang = 3) is only busy once full.
+  const companyId = ctx.side === "company" ? ctx.attendee.lead_id : otherId;
+  const { data: capRow } = await svcB.from("companies").select("slot_capacity").eq("id", companyId).maybeSingle();
+  const companyCap = Number((capRow as { slot_capacity?: number } | null)?.slot_capacity ?? 1) || 1;
+  const capFilter = (times: (string | null)[]) => {
+    if (companyCap <= 1) return times;
+    const n = new Map<string, number>();
+    for (const t of times) if (t) n.set(new Date(t).toISOString(), (n.get(new Date(t).toISOString()) ?? 0) + 1);
+    return Array.from(n.entries()).filter(([, c]) => c >= companyCap).map(([t]) => t);
+  };
+  const otherTimes = ((otherBusy ?? []) as Pick<Meeting, "scheduled_time">[]).map(b => b.scheduled_time);
+  const myTimes = ((myBusy ?? []) as Pick<Meeting, "scheduled_time">[]).map(b => b.scheduled_time);
   const busyTimes = [
-    ...((otherBusy ?? []) as Pick<Meeting, "scheduled_time">[]).map(b => b.scheduled_time),
-    ...((myBusy ?? []) as Pick<Meeting, "scheduled_time">[]).map(b => b.scheduled_time),
+    ...(otherSide === "company" ? capFilter(otherTimes) : otherTimes),
+    ...(ctx.side === "company" ? capFilter(myTimes) : myTimes),
     ...((blockedRows ?? []) as { slot_time: string }[]).map(b => b.slot_time),
   ];
   for (const bt of busyTimes) {

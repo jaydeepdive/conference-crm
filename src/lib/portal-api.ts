@@ -90,12 +90,31 @@ export async function slotConflict(opts: {
     .not("status", "in", "(declined,cancelled)")
     .or(`company_id.eq.${opts.companyId},investor_id.eq.${opts.investorId}`);
   if (opts.excludeMeetingId) q = q.neq("id", opts.excludeMeetingId);
-  const { data } = await q.limit(1);
-  const hit = data?.[0];
-  if (!hit) return null;
-  return hit.company_id === opts.companyId
-    ? "The company already has a meeting at that time."
-    : "The investor already has a meeting at that time.";
+  const { data } = await q;
+  const rows = data ?? [];
+  if (rows.some(r => r.investor_id === opts.investorId)) return "The investor already has a meeting at that time.";
+  const companyCount = rows.filter(r => r.company_id === opts.companyId).length;
+  if (companyCount === 0) return null;
+  const cap = await companySlotCapacity(opts.companyId);
+  if (companyCount < cap) return null;
+  return cap > 1
+    ? `The company already has ${cap} meetings at that time (its limit).`
+    : "The company already has a meeting at that time.";
+}
+
+/** Meetings a company may hold in one time slot (1 for everyone except
+ *  companies given an exception, e.g. Zang International = 3). */
+export async function companySlotCapacity(companyId: string): Promise<number> {
+  const { data } = await createServiceClient().from("companies").select("slot_capacity").eq("id", companyId).maybeSingle();
+  const n = Number((data as { slot_capacity?: number } | null)?.slot_capacity ?? 1);
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
+
+/** company id → slot capacity, only for companies above 1. */
+export async function companyCapacities(conferenceId: string): Promise<Map<string, number>> {
+  const { data } = await createServiceClient().from("companies").select("id, slot_capacity")
+    .eq("conference_id", conferenceId).gt("slot_capacity", 1);
+  return new Map(((data ?? []) as { id: string; slot_capacity: number }[]).map(r => [r.id, r.slot_capacity]));
 }
 
 /** Turn a DB unique-slot violation into a readable message. */

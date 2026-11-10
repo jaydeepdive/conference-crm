@@ -15,6 +15,7 @@ import {
   formatTimeInTz,
 } from "@/lib/platform";
 import type { Company, Investor, Meeting } from "@/lib/types";
+import { companySlotCapacity } from "@/lib/portal-api";
 import { loadProgram, fmtProgramRange, fmtProgramDay, groupByDay, type ProgramItem } from "@/lib/program";
 
 export const dynamic = "force-dynamic";
@@ -51,21 +52,30 @@ export default async function PlatformDashboardPage({
   const rank = (m: Meeting) =>
     m.status === "accepted" ? 3 : m.status === "countered" && m.reschedule_from ? 2
       : m.status === "proposed" || m.status === "countered" ? 1 : 0;
-  const byStart = new Map<string, Meeting>();
+  // Most companies hold one meeting per slot; exceptions (Zang = 3) can hold more.
+  const myCap = ctx.side === "company" ? await companySlotCapacity(ctx.attendee.lead_id) : 1;
+  const allBySlot = new Map<string, Meeting[]>();
   for (const m of list) {
-    const r = rank(m);
-    if (r === 0) continue;
+    if (rank(m) === 0) continue;
     const t = m.scheduled_time ?? m.proposed_time;
     if (!t) continue;
     const ts = new Date(t).getTime();
     for (const s of slots) {
       if (ts >= s.start.getTime() && ts < s.end.getTime()) {
         const key = s.start.toISOString();
-        const cur = byStart.get(key);
-        if (!cur || r > rank(cur)) byStart.set(key, m);
+        if (!allBySlot.has(key)) allBySlot.set(key, []);
+        allBySlot.get(key)!.push(m);
         break;
       }
     }
+  }
+  const bySlot = new Map<string, Meeting[]>();
+  for (const [key, ms] of allBySlot) {
+    ms.sort((a, b) => rank(b) - rank(a));
+    if (myCap <= 1) { bySlot.set(key, [ms[0]]); continue; }
+    const booked = ms.filter(m => rank(m) >= 2).slice(0, myCap);
+    const pending = ms.filter(m => rank(m) === 1).slice(0, Math.max(0, myCap - booked.length));
+    bySlot.set(key, [...booked, ...pending]);
   }
 
   const inboxCount = list.filter(m => {
@@ -108,6 +118,7 @@ export default async function PlatformDashboardPage({
 
   // Build the render list: slot rows + a lunch pseudo-row + a farewell pseudo-row.
   interface Row {
+    id?: string;
     key: string;
     label: string;
     kind: "slot" | "lunch" | "farewell" | "program";
@@ -115,13 +126,17 @@ export default async function PlatformDashboardPage({
     item?: ProgramItem;
     sortKey: number;
   }
-  const rows: Row[] = slots.filter(s => !s.isLunch).map(s => ({
-    key: s.start.toISOString(),
-    label: formatSlotRange(s.start, s.end, ctx.conference.timezone),
-    kind: "slot" as const,
-    meeting: byStart.get(s.start.toISOString()),
-    sortKey: s.start.getTime(),
-  }));
+  const rows: Row[] = [];
+  for (const s of slots.filter(x => !x.isLunch)) {
+    const key = s.start.toISOString();
+    const label = formatSlotRange(s.start, s.end, ctx.conference.timezone);
+    const ms = bySlot.get(key) ?? [];
+    if (ms.length === 0) { rows.push({ key, label, kind: "slot", sortKey: s.start.getTime() }); continue; }
+    ms.forEach((m, i) => rows.push({ id: `${key}#${i}`, key, label, kind: "slot", meeting: m, sortKey: s.start.getTime() + i / 100 }));
+    // Room for more (only companies with a higher per-slot limit).
+    const booked = ms.filter(m => rank(m) >= 2).length;
+    if (myCap > 1 && booked < myCap) rows.push({ id: `${key}#open`, key, label, kind: "slot", sortKey: s.start.getTime() + 0.5 });
+  }
   const lunchSlot = slots.find(s => s.isLunch);
   if (lunchSlot) {
     rows.push({
@@ -226,7 +241,7 @@ export default async function PlatformDashboardPage({
           </div>
         ) : (
           <ul>
-            {rows.map(r => <ScheduleRow key={r.key} row={r} slug={slug} ctx={ctx} otherById={otherById} />)}
+            {rows.map(r => <ScheduleRow key={r.id ?? r.key} row={r} slug={slug} ctx={ctx} otherById={otherById} />)}
           </ul>
         )}
       </section>

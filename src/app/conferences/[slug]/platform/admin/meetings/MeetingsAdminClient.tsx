@@ -186,12 +186,14 @@ export function MeetingsAdminClient({
 
   // Confirmed meetings keyed by "leadId|slotIso".
   const { byCompanySlot, byInvestorSlot } = useMemo(() => {
-    const a = new Map<string, MeetingRow>();
-    const b = new Map<string, MeetingRow>();
+    // Arrays: a company with a higher per-slot limit (Zang = 3) can hold several.
+    const a = new Map<string, MeetingRow[]>();
+    const b = new Map<string, MeetingRow[]>();
+    const push = (m: Map<string, MeetingRow[]>, k: string, r: MeetingRow) => { if (!m.has(k)) m.set(k, []); m.get(k)!.push(r); };
     for (const r of rows) {
       if (r.status !== "accepted" || !r.current_slot_iso) continue;
-      a.set(`${r.company_id}|${r.current_slot_iso}`, r);
-      b.set(`${r.investor_id}|${r.current_slot_iso}`, r);
+      push(a, `${r.company_id}|${r.current_slot_iso}`, r);
+      push(b, `${r.investor_id}|${r.current_slot_iso}`, r);
     }
     return { byCompanySlot: a, byInvestorSlot: b };
   }, [rows]);
@@ -341,20 +343,26 @@ export function MeetingsAdminClient({
                         </a>
                       </th>
                       {slotOptions.map(s => {
-                        const m = map.get(`${ent.id}|${s.iso}`);
-                        if (m) {
-                          const other = axis === "company" ? m.investor_name : m.company_name;
+                        const ms = map.get(`${ent.id}|${s.iso}`) ?? [];
+                        if (ms.length > 0) {
                           return (
                             <td key={s.iso} className="border-b border-line p-1">
-                              <button
-                                type="button"
-                                onClick={() => setEditing(m)}
-                                title={`${other}${m.location ? ` · ${m.location}` : ""} — click to edit`}
-                                className="flex h-12 w-full flex-col justify-center border-l-2 border-brand-accent bg-brand-accent/10 px-2 text-left hover:bg-brand-accent/20"
-                              >
-                                <span className="block w-full truncate text-xs font-semibold text-ink">{other}</span>
-                                {m.location && <span className="block w-full truncate text-[11px] text-muted">{m.location}</span>}
-                              </button>
+                              <div className="space-y-0.5">
+                                {ms.map(m => {
+                                  const other = axis === "company" ? m.investor_name : m.company_name;
+                                  return (
+                                    <button key={m.id}
+                                      type="button"
+                                      onClick={() => setEditing(m)}
+                                      title={`${other}${m.location ? ` · ${m.location}` : ""} — click to edit`}
+                                      className={`flex w-full flex-col justify-center border-l-2 border-brand-accent bg-brand-accent/10 px-2 text-left hover:bg-brand-accent/20 ${ms.length > 1 ? "min-h-[28px] py-0.5" : "h-12"}`}
+                                    >
+                                      <span className="block w-full truncate text-xs font-semibold text-ink">{other}</span>
+                                      {m.location && ms.length === 1 && <span className="block w-full truncate text-[11px] text-muted">{m.location}</span>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </td>
                           );
                         }
@@ -407,7 +415,7 @@ export function MeetingsAdminClient({
             {mobileId && (
               <ul className="divide-y divide-line border border-line bg-white">
                 {slotOptions.map(s => {
-                  const m = (axis === "company" ? byCompanySlot : byInvestorSlot).get(`${mobileId}|${s.iso}`);
+                  const ms = (axis === "company" ? byCompanySlot : byInvestorSlot).get(`${mobileId}|${s.iso}`) ?? [];
                   const blocked = ((axis === "company" ? blockedByCompany : blockedByInvestor)[mobileId] ?? []).includes(s.iso);
                   return (
                     <li key={s.iso} className="flex min-h-[56px] items-stretch">
@@ -415,14 +423,18 @@ export function MeetingsAdminClient({
                         {s.short}
                       </div>
                       <div className="flex min-w-0 flex-1 items-center p-1.5">
-                        {m ? (
-                          <button type="button" onClick={() => setEditing(m)}
-                            className="flex min-h-[44px] w-full flex-col justify-center border-l-2 border-brand-accent bg-brand-accent/10 px-3 text-left">
-                            <span className="block truncate text-sm font-semibold text-ink">
-                              {axis === "company" ? m.investor_name : m.company_name}
-                            </span>
-                            {m.location && <span className="block truncate text-xs text-muted">{m.location}</span>}
-                          </button>
+                        {ms.length > 0 ? (
+                          <div className="w-full space-y-1">
+                            {ms.map(m => (
+                              <button key={m.id} type="button" onClick={() => setEditing(m)}
+                                className="flex min-h-[44px] w-full flex-col justify-center border-l-2 border-brand-accent bg-brand-accent/10 px-3 text-left">
+                                <span className="block truncate text-sm font-semibold text-ink">
+                                  {axis === "company" ? m.investor_name : m.company_name}
+                                </span>
+                                {m.location && <span className="block truncate text-xs text-muted">{m.location}</span>}
+                              </button>
+                            ))}
+                          </div>
                         ) : blocked ? (
                           <div className="flex min-h-[44px] w-full items-center px-3 text-xs uppercase tracking-wider text-muted" style={HATCH}>
                             Blocked

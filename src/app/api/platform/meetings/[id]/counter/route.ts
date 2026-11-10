@@ -68,12 +68,12 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
 
   // Busy check (other confirmed meetings on either side) — server-side truth.
   {
-    const { createServiceClient } = await import("@/lib/supabase/service");
-    const { data: clash } = await createServiceClient().from("meetings").select("id")
-      .eq("conference_id", meeting.conference_id).neq("id", meeting.id)
-      .eq("scheduled_time", t.toISOString()).not("status", "in", "(declined,cancelled)")
-      .or(`company_id.eq.${meeting.company_id},investor_id.eq.${meeting.investor_id}`).limit(1);
-    if (clash && clash.length > 0) return NextResponse.json({ error: "One of you already has a meeting at that time." }, { status: 409 });
+    const { slotConflict } = await import("@/lib/portal-api");
+    const clash = await slotConflict({
+      conferenceId: meeting.conference_id, companyId: meeting.company_id, investorId: meeting.investor_id,
+      timeIso: t.toISOString(), excludeMeetingId: meeting.id,
+    });
+    if (clash) return NextResponse.json({ error: clash }, { status: 409 });
   }
 
   const { error } = await supabase.from("meetings").update(isReschedule ? {

@@ -285,7 +285,24 @@ export async function busySlotsByLead(
     if (!out.has(lead)) out.set(lead, new Set());
     out.get(lead)!.add(k);
   };
-  for (const m of (ms ?? []) as Record<string, string | null>[]) add(m[col] as string, m.scheduled_time);
+  // Companies with a higher per-slot limit (e.g. Zang = 3) are only busy when full.
+  let caps = new Map<string, number>();
+  if (side === "company") {
+    const { data: cs } = await svc.from("companies").select("id, slot_capacity")
+      .eq("conference_id", conference.id).gt("slot_capacity", 1);
+    caps = new Map(((cs ?? []) as { id: string; slot_capacity: number }[]).map(r => [r.id, r.slot_capacity]));
+  }
+  const counts = new Map<string, number>();
+  for (const m of (ms ?? []) as Record<string, string | null>[]) {
+    const lead = m[col] as string;
+    const cap = caps.get(lead) ?? 1;
+    if (cap <= 1) { add(lead, m.scheduled_time); continue; }
+    const k = m.scheduled_time ? toSlot(m.scheduled_time) : null;
+    if (!k) continue;
+    const c = (counts.get(`${lead}|${k}`) ?? 0) + 1;
+    counts.set(`${lead}|${k}`, c);
+    if (c >= cap) add(lead, m.scheduled_time);
+  }
   for (const b of (bs ?? []) as { lead_id: string; slot_time: string }[]) add(b.lead_id, b.slot_time);
   return out;
 }
