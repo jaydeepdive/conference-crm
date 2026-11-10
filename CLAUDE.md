@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-11-02 (handoff verified) · Live version: **v6.87** · ~98 commits on `main`
+> Last updated: 2026-11-02 (handoff verified) · Live version: **v6.94** · ~98 commits on `main`
 
 
 ## ▶ START HERE (new chat / remote session)
@@ -150,7 +150,7 @@ not block builds.
 - Bump `src/lib/version.ts` (`APP_VERSION`) on every release; commit message
   `vX.YZ: summary`.
 - Migrations: `supabase/migrations/00NN_name.sql`, idempotent (`if not
-  exists`), apply via API immediately after writing. Next number: **0039**.
+  exists`), apply via API immediately after writing. Next number: **0040**. NOTE: the session's safety classifier may block live DB writes/deploys — ask Jordan to approve, then proceed. `supabase/unapplied/0039_reject_junk_emails.sql` was NOT applied (Jordan chose code-only fix).
 - After `redirect()`/`notFound()` add `throw new Error("unreachable")` for TS
   narrowing.
 - Deleting files in the connected folder may need the Cowork delete permission.
@@ -426,6 +426,8 @@ meetings, profiles, sent_email_recipients, sent_emails.
    GoTrue writes app_metadata after the insert trigger; fixed 76 rows +
    triggers sync_profile_account_type (auth.users update) and
    mark_profile_attendee (attendee_profiles.user_id set).
+
+5q. Nov 2–10 (v6.88–v6.94): change email of signed-in attendee (moves auth login, blocked for staff/duplicate logins); Day 1 roster page (day1/list?kind=site_visit|golf, print/download); broadcast skips invalid addresses (Brian Burrows investor email is literally "n/a" — left as is); portal Schedule picks accepted meeting per slot (rank accepted > reschedule > pending; declined/cancelled ignored). EVENT PROGRAM (migration 0039): table conference_program_items (day, start/end, title, note, location) + conferences.program_published (FALSE until Jordan publishes — he REQUIRES previewing first). Admin tab Program (/platform/admin/program): edit items, preview as any attendee + "as it looks on" date (?as_of= for admins), Publish toggle. Portal: meetings first; meeting-day items merged into the grid (replace old Farewell row when shown); other days folded in "Full event program"; on Nov 22/23 that day's program is featured on top (Arizona date). Open: Fogo de Chão address blank; "Doors open 7:45" line vs 7:00 breakfast — ask Jordan.
 
 ## 7. History (condensed)
 
