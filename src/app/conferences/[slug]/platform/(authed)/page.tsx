@@ -15,6 +15,7 @@ import {
   formatTimeInTz,
 } from "@/lib/platform";
 import type { Company, Investor, Meeting } from "@/lib/types";
+import { loadProgram, fmtProgramRange, fmtProgramDay, groupByDay, type ProgramItem } from "@/lib/program";
 
 export const dynamic = "force-dynamic";
 
@@ -80,7 +81,17 @@ export default async function PlatformDashboardPage({
   const doorsUtc = conferenceWallClockToUtc(ctx.conference, ctx.conference.doors_open_time ?? ctx.conference.meeting_start_time ?? "08:00");
   const doorsLine = `Meeting day is ${new Intl.DateTimeFormat("en-US", { timeZone: ctx.conference.timezone, month: "long", day: "numeric" }).format(doorsUtc ?? new Date())}. Doors open at ${doorsUtc ? formatTimeInTz(doorsUtc.toISOString(), ctx.conference.timezone) : "7:45 AM"}.`;
   const dayHeading = formatPlatformDayHeading(ctx.conference);
-  const farewellUtc = ctx.conference.farewell_time
+  // Event program: attendees see it once published; admins previewing always do.
+  const program = await loadProgram(createServiceClient(), ctx.conference.id);
+  const showProgram = program.items.length > 0 && (program.published || ctx.isAdmin);
+  const programPreview = showProgram && !program.published;
+  const meetingDay = ctx.conference.meeting_date ?? "";
+  const otherDays = showProgram ? groupByDay(program.items.filter(i => i.day !== meetingDay)) : [];
+  const meetingDayItems = showProgram ? program.items.filter(i => i.day === meetingDay) : [];
+
+  // The program defines the meeting day's closing items, so the old
+  // "Farewell announcement" row is replaced once the program is shown.
+  const farewellUtc = ctx.conference.farewell_time && !showProgram
     ? conferenceWallClockToUtc(ctx.conference, ctx.conference.farewell_time)
     : null;
 
@@ -88,8 +99,9 @@ export default async function PlatformDashboardPage({
   interface Row {
     key: string;
     label: string;
-    kind: "slot" | "lunch" | "farewell";
+    kind: "slot" | "lunch" | "farewell" | "program";
     meeting?: Meeting;
+    item?: ProgramItem;
     sortKey: number;
   }
   const rows: Row[] = slots.filter(s => !s.isLunch).map(s => ({
@@ -114,6 +126,14 @@ export default async function PlatformDashboardPage({
       key: `farewell-${farewellUtc.toISOString()}`,
       label: formatTimeInTz(farewellUtc.toISOString(), ctx.conference.timezone),
       kind: "farewell", sortKey: farewellUtc.getTime(),
+    });
+  }
+  for (const it of meetingDayItems) {
+    const at = conferenceWallClockToUtc(ctx.conference, it.start_time.slice(0, 5));
+    if (!at) continue;
+    rows.push({
+      key: `program-${it.id}`, label: fmtProgramRange(it.start_time.slice(0, 5), it.end_time?.slice(0, 5) ?? null),
+      kind: "program", item: it, sortKey: at.getTime() - 1, // before a meeting slot at the same minute
     });
   }
   rows.sort((a, b) => a.sortKey - b.sortKey);
@@ -160,6 +180,26 @@ export default async function PlatformDashboardPage({
         </Link>
       )}
 
+      {programPreview && (
+        <div className="rounded-md border-2 border-dashed px-4 py-3 text-sm" style={{ borderColor: "#c9a24b", backgroundColor: "#fbf6ea", color: "#5c4614" }}>
+          <strong>Preview only.</strong> The event program below is not visible to attendees yet. Publish it from the admin console → Program.
+        </div>
+      )}
+
+      {otherDays.map(d => (
+        <section key={d.day} className="rounded-md border border-slate-200 bg-white">
+          <div className="border-b border-slate-200 px-4 py-3">
+            <h2 className="text-base font-semibold text-slate-900">Event program</h2>
+            <p className="text-xs text-slate-500">{fmtProgramDay(d.day)}</p>
+          </div>
+          <ul>
+            {d.items.map(it => (
+              <ProgramRow key={it.id} label={fmtProgramRange(it.start_time.slice(0, 5), it.end_time?.slice(0, 5) ?? null)} item={it} />
+            ))}
+          </ul>
+        </section>
+      ))}
+
       <section className="rounded-md border border-slate-200 bg-white">
         <div className="border-b border-slate-200 px-4 py-3">
           <h2 className="text-base font-semibold text-slate-900">Your schedule</h2>
@@ -188,8 +228,8 @@ function ScheduleRow({
   row, slug, ctx, otherById,
 }: {
   row: {
-    key: string; label: string; kind: "slot" | "lunch" | "farewell";
-    meeting?: Meeting; sortKey: number;
+    key: string; label: string; kind: "slot" | "lunch" | "farewell" | "program";
+    meeting?: Meeting; item?: ProgramItem; sortKey: number;
   };
   slug: string;
   ctx: Ctx;
@@ -202,6 +242,9 @@ function ScheduleRow({
         <div className="flex-1 text-sm italic text-slate-500">Lunch break</div>
       </li>
     );
+  }
+  if (row.kind === "program" && row.item) {
+    return <ProgramRow label={row.label} item={row.item} />;
   }
   if (row.kind === "farewell") {
     return (
@@ -257,6 +300,19 @@ function ScheduleRow({
         <div className="w-28 shrink-0 text-sm tabular-nums text-slate-500">{row.label}</div>
         <div className="flex-1 text-sm text-slate-500">Open — see who&rsquo;s free →</div>
       </Link>
+    </li>
+  );
+}
+
+function ProgramRow({ label, item }: { label: string; item: ProgramItem }) {
+  return (
+    <li className="flex items-start justify-between gap-3 border-t border-slate-100 px-4 py-3 first:border-t-0" style={{ backgroundColor: "#fbf8f1" }}>
+      <div className="w-28 shrink-0 text-sm tabular-nums text-slate-500">{label}</div>
+      <div className="flex-1">
+        <div className="text-sm font-medium text-slate-800">{item.title}</div>
+        {item.location && <div className="mt-0.5 text-xs text-slate-600">📍 {item.location}</div>}
+        {item.note && <div className="mt-0.5 text-xs text-slate-600">{item.note}</div>}
+      </div>
     </li>
   );
 }

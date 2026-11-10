@@ -13,6 +13,7 @@ export function AdminNav({ slug }: { slug: string }) {
     { href: `${base}/meetings`, label: "Meetings", exact: false },
     { href: `${base}/attendees`, label: "Attendees", exact: false },
     { href: `${base}/profiles`, label: "Company profiles", exact: false },
+    { href: `${base}/program`, label: "Program", exact: false },
     { href: `${base}/day1`, label: "Day 1", exact: false },
     { href: `${base}/emails`, label: "Emails", exact: false },
     { href: `${base}/accounts`, label: "Accounts", exact: false },
