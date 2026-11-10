@@ -21,6 +21,7 @@ export function ProgramClient({ slug, conferenceId, meetingDay, published, items
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [previewId, setPreviewId] = useState(previewOptions[0]?.id ?? "");
+  const [asOf, setAsOf] = useState("");
 
   const days = useMemo(() => {
     const set = new Set([...DAYS, ...items.map(i => i.day)]);
@@ -52,7 +53,7 @@ export function ProgramClient({ slug, conferenceId, meetingDay, published, items
     });
     setBusy(false);
     if (!res.ok) { setErr("Couldn't open the preview."); return; }
-    window.location.href = `/conferences/${slug}/platform`;
+    window.location.href = `/conferences/${slug}/platform${asOf ? `?as_of=${asOf}` : ""}`;
   }
 
   return (
@@ -76,6 +77,12 @@ export function ProgramClient({ slug, conferenceId, meetingDay, published, items
         <label className="flex-1"><span className={LABEL}>Preview exactly what this attendee sees</span>
           <select className={INPUT} value={previewId} onChange={e => setPreviewId(e.target.value)}>
             {previewOptions.map(o => <option key={o.id} value={o.id}>{o.side === "company" ? "Company" : "Investor"} · {o.label}</option>)}
+          </select>
+        </label>
+        <label className="sm:w-56"><span className={LABEL}>As it looks on</span>
+          <select className={INPUT} value={asOf} onChange={e => setAsOf(e.target.value)}>
+            <option value="">Today (before the event)</option>
+            {DAYS.map(x => <option key={x} value={x}>{fmtProgramDay(x)}</option>)}
           </select>
         </label>
         <button onClick={preview} disabled={busy || !previewId} className="bg-ink px-5 py-3 text-xs font-semibold uppercase tracking-widest2 text-white disabled:opacity-50">

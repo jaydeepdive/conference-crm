@@ -20,9 +20,10 @@ import { loadProgram, fmtProgramRange, fmtProgramDay, groupByDay, type ProgramIt
 export const dynamic = "force-dynamic";
 
 export default async function PlatformDashboardPage({
-  params,
-}: { params: Promise<{ slug: string }> }) {
+  params, searchParams,
+}: { params: Promise<{ slug: string }>; searchParams: Promise<{ as_of?: string }> }) {
   const { slug } = await params;
+  const { as_of } = await searchParams;
   const ctx = await requirePlatformContext(slug);
   const supabase = await createClient();
 
@@ -86,7 +87,17 @@ export default async function PlatformDashboardPage({
   const showProgram = program.items.length > 0 && (program.published || ctx.isAdmin);
   const programPreview = showProgram && !program.published;
   const meetingDay = ctx.conference.meeting_date ?? "";
-  const otherDays = showProgram ? groupByDay(program.items.filter(i => i.day !== meetingDay)) : [];
+  // "Today" in the event's timezone. Admins can preview another date (?as_of=YYYY-MM-DD).
+  const realToday = new Intl.DateTimeFormat("en-CA", { timeZone: ctx.conference.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const asOf = ctx.isAdmin && as_of && /^\d{4}-\d{2}-\d{2}$/.test(as_of) ? as_of : null;
+  const today = asOf ?? realToday;
+  const allOtherDays = showProgram ? groupByDay(program.items.filter(i => i.day !== meetingDay)) : [];
+  const eventStarted = allOtherDays.some(d => d.day <= today) || (!!meetingDay && meetingDay <= today);
+  // On a program day (other than meeting day), that day goes front and centre.
+  const featured = allOtherDays.find(d => d.day === today) ?? null;
+  // Folded "Full event program": days still to come (all of them before the event starts).
+  const otherDays = allOtherDays.filter(d => d.day !== today && (!eventStarted || d.day > today));
+  const firstDay = allOtherDays[0]?.day ?? meetingDay;
   const meetingDayItems = showProgram ? program.items.filter(i => i.day === meetingDay) : [];
 
   // The program defines the meeting day's closing items, so the old
@@ -159,7 +170,28 @@ export default async function PlatformDashboardPage({
         </div>
       </section>
 
-      {day1 && (
+      {asOf && (
+        <div className="rounded-md border-2 border-dashed px-4 py-2 text-xs" style={{ borderColor: "#c9a24b", backgroundColor: "#fbf6ea", color: "#5c4614" }}>
+          <strong>Previewing as {fmtProgramDay(asOf)}.</strong> This is how the page will look on that day.
+        </div>
+      )}
+
+      {featured && (
+        <section className="rounded-md border bg-white" style={{ borderColor: "#c9a24b", borderWidth: 2 }}>
+          <div className="border-b border-slate-200 px-4 py-3">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-800">Today</div>
+            <h2 className="text-base font-semibold text-slate-900">{fmtProgramDay(featured.day)}</h2>
+            {programPreview && <p className="mt-1 text-xs" style={{ color: "#8f6f2a" }}>Preview — not visible to attendees until published.</p>}
+          </div>
+          <ul>
+            {featured.items.map(it => (
+              <ProgramRow key={it.id} label={fmtProgramRange(it.start_time.slice(0, 5), it.end_time?.slice(0, 5) ?? null)} item={it} />
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {day1 && !(firstDay && today > firstDay) && (
         <section className="rounded-md border border-stone-300 bg-white p-4" style={{ borderLeft: "4px solid #c9a24b" }}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-800">Day 1 · Your activity</div>
           <div className="mt-1 font-serif text-xl font-semibold text-stone-900">{day1.title}</div>
