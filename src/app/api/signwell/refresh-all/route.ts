@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
   const admin = createServiceClient();
   let q = admin.from("companies")
-    .select("id, name, conference_id, agreement_document_id, agreement_status, agreement_sent_at, agreement_viewed_at, agreement_completed_at, agreement_declined_at")
+    .select("id, name, conference_id, agreement_document_id, agreement_status, agreement_sent_at, agreement_viewed_at, agreement_completed_at, agreement_declined_at, stage")
     .not("agreement_document_id", "is", null)
     .in("agreement_status", ["sent", "viewed"]);
   if (body.conference_id) q = q.eq("conference_id", body.conference_id);
@@ -139,7 +139,8 @@ export async function POST(request: Request) {
       if (nextStatus === "signed"   && !row.agreement_completed_at) patch.agreement_completed_at = now;
       if (nextStatus === "declined" && !row.agreement_declined_at)  patch.agreement_declined_at = now;
       // Fully-signed → move lead to Registered stage.
-      if (nextStatus === "signed") patch.stage = "registered";
+      // ...unless staff marked it Declined (e.g. company cancelled) — that sticks.
+      if (nextStatus === "signed" && (row as { stage?: string | null }).stage !== "declined") patch.stage = "registered";
 
       const { error: upErr } = await admin.from("companies").update(patch).eq("id", row.id);
       if (upErr) { result.error = upErr.message; results.push(result); continue; }

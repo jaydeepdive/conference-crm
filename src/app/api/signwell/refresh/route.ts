@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
   const admin = createServiceClient();
   const { data: company } = await admin.from("companies")
-    .select("id, name, conference_id, agreement_status, agreement_document_id, agreement_sent_at, agreement_viewed_at, agreement_completed_at, agreement_declined_at")
+    .select("id, name, conference_id, agreement_status, agreement_document_id, agreement_sent_at, agreement_viewed_at, agreement_completed_at, agreement_declined_at, stage")
     .eq("id", body.company_id).single();
   if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
@@ -107,7 +107,8 @@ export async function POST(request: Request) {
   if (nextStatus === "signed"   && !company.agreement_completed_at) patch.agreement_completed_at = now;
   if (nextStatus === "declined" && !company.agreement_declined_at)  patch.agreement_declined_at = now;
   // Fully-signed → move lead to Registered stage.
-  if (nextStatus === "signed") patch.stage = "registered";
+  // A company staff marked Declined (cancelled) stays Declined.
+  if (nextStatus === "signed" && (company as { stage?: string | null }).stage !== "declined") patch.stage = "registered";
 
   const { error: upErr } = await admin.from("companies").update(patch).eq("id", company.id);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });

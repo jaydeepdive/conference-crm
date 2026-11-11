@@ -81,13 +81,13 @@ export async function POST(request: Request) {
   let company: CompanyRow | null = null;
   if (companyId) {
     const { data } = await admin.from("companies")
-      .select("id,conference_id,name,agreement_status")
+      .select("id,conference_id,name,agreement_status,stage")
       .eq("id", companyId).maybeSingle();
     if (data) company = data as unknown as CompanyRow;
   }
   if (!company) {
     const { data } = await admin.from("companies")
-      .select("id,conference_id,name,agreement_status")
+      .select("id,conference_id,name,agreement_status,stage")
       .eq("agreement_document_id", documentId).maybeSingle();
     if (data) company = data as unknown as CompanyRow;
   }
@@ -122,7 +122,8 @@ export async function POST(request: Request) {
   // Once the agreement is fully signed, move the lead into the "registered"
   // stage — no reason to keep them in Pending Approval / Verbal Commit /
   // etc once they've put pen to paper. Only bump forward, never backward.
-  if (nextStatus === "signed") patch.stage = "registered";
+  // A company staff marked Declined (cancelled) stays Declined.
+  if (nextStatus === "signed" && (company as { stage?: string | null }).stage !== "declined") patch.stage = "registered";
 
   if (matchesEvent(eventType, "completed")) {
     try {

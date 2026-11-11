@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
   const admin = createServiceClient();
   const { data: company } = await admin.from("companies")
-    .select("id, name, conference_id, agreement_status")
+    .select("id, name, conference_id, agreement_status, stage")
     .eq("id", body.company_id).maybeSingle();
   if (!company) return NextResponse.json({ error: "Company not found" }, { status: 404 });
 
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   }
   // Fully-signed → move lead to Registered stage (also fires on the manual
   // override path so operator-corrected signed rows land in the right stage).
-  if (next === "signed") patch.stage = "registered";
+  if (next === "signed" && (company as { stage?: string | null }).stage !== "declined") patch.stage = "registered";
 
   const { error: upErr } = await admin.from("companies").update(patch).eq("id", company.id);
   if (upErr) return NextResponse.json({ error: upErr.message }, { status: 500 });
