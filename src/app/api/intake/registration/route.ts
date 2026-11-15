@@ -143,16 +143,26 @@ export async function POST(request: Request) {
   const table = body.type === "company" ? "companies" : "investors";
   const nameField = body.type === "company" ? "name" : "firm_name";
 
+  // Same EMAIL = same person → update their record.
+  // Same ORGANIZATION but a different person (different/missing email) must
+  // NEVER overwrite the first person (that lost a sign-up at IBN, Nov 2026):
+  //   company  → add them as an extra contact on that company
+  //   investor → give them their own investor record
   let existing: { id: string } | null = null;
+  let sameOrg: { id: string } | null = null;
   if (body.email) {
     const { data } = await supabase.from(table).select("id")
-      .eq("conference_id", conference.id).ilike("email", body.email).maybeSingle();
-    if (data) existing = data;
+      .eq("conference_id", conference.id).ilike("email", body.email).limit(1);
+    if (data?.[0]) existing = data[0];
   }
   if (!existing && orgName) {
-    const { data } = await supabase.from(table).select("id")
-      .eq("conference_id", conference.id).ilike(nameField, orgName).maybeSingle();
-    if (data) existing = data;
+    const { data } = await supabase.from(table).select("id, email")
+      .eq("conference_id", conference.id).ilike(nameField, orgName).limit(1);
+    const row = data?.[0] as { id: string; email: string | null } | undefined;
+    if (row) {
+      if (!(row.email ?? "").trim()) existing = { id: row.id };   // record had no person yet — fill it in
+      else sameOrg = { id: row.id };
+    }
   }
 
   // ---- Build the payload for insert/update ----
@@ -197,7 +207,17 @@ export async function POST(request: Request) {
   let created: boolean;
   const degradations: string[] = [];  // logged for observability
 
-  if (existing) {
+  if (sameOrg && body.type === "company") {
+    // Extra person at a company we already have: add as a contact, keep the record as is.
+    await addCompanyContact(supabase, sameOrg.id, { name: contactName, email: body.email, phone: body.phone, title: body.title });
+    if (notes) {
+      const { data: cur } = await supabase.from("companies").select("notes").eq("id", sameOrg.id).maybeSingle();
+      const merged = [cur?.notes, `— Another sign-up (${contactName || body.email || "no name"}):`, notes].filter(Boolean).join("\n");
+      await supabase.from("companies").update({ notes: merged }).eq("id", sameOrg.id);
+    }
+    leadId = sameOrg.id;
+    created = false;
+  } else if (existing) {
     const updateFields = { ...fields };
     delete updateFields.stage;
     delete updateFields.confirmed;
@@ -220,9 +240,37 @@ export async function POST(request: Request) {
   await supabase.from("activity_log").insert({
     conference_id: conference.id,
     lead_type: body.type, lead_id: leadId, lead_name: orgName,
-    action: created ? "Registered via website" : "Updated via website",
-    notes: body.source ? `Source: ${body.source}` : null,
+    action: created ? "Registered via website" : sameOrg ? "New contact via website" : "Updated via website",
+    notes: [sameOrg && body.type === "company" ? `Added ${contactName || "(no name)"}${body.email ? ` <${body.email}>` : ""} as a contact` : null,
+            sameOrg && body.type === "investor" ? `Separate record — ${orgName} already had another person` : null,
+            body.source ? `Source: ${body.source}` : null].filter(Boolean).join(" · ") || null,
   });
+
+  // ---- Guests listed on the same form become real people too ----
+  for (const g of (body.guests ?? [])) {
+    const gEmail = (g.email ?? "").trim().toLowerCase();
+    const gName = (g.name ?? "").trim();
+    if (!gEmail && !gName) continue;
+    if (body.type === "company") {
+      await addCompanyContact(supabase, leadId, { name: gName, email: gEmail || undefined });
+      continue;
+    }
+    if (!gEmail) continue; // investors are one person per record; need an email to be useful
+    const { data: dup } = await supabase.from("investors").select("id")
+      .eq("conference_id", conference.id).ilike("email", gEmail).limit(1);
+    if (dup?.[0]) continue;
+    const r = await tolerantUpsert(supabase, "investors", {
+      firm_name: orgName || gName || gEmail, contact_name: gName || null, email: gEmail,
+      stage: "pending_approval", confirmed: "tentative", source: body.source ?? "web registration",
+      notes: `Guest of ${contactName || body.email || "another registrant"}`, conference_id: conference.id,
+    }, null, degradations);
+    if (r.ok) {
+      await supabase.from("activity_log").insert({
+        conference_id: conference.id, lead_type: "investor", lead_id: r.id, lead_name: orgName || gName,
+        action: "Registered via website", notes: `Guest of ${contactName || body.email || "another registrant"}`,
+      });
+    }
+  }
 
   // ---- Fire TDD AdsPlatform lookup in background (non-blocking) ----
   if (orgName) {
@@ -248,6 +296,26 @@ export async function POST(request: Request) {
     conference_id: conferenceSlug,
     url: `https://crm.thedeepdive.ca/conferences/${conferenceSlug}/${body.type === "company" ? "companies" : "investors"}/${leadId}`,
   }, { status: created ? 201 : 200 });
+}
+
+/** Add a person to a company's Contacts unless that email is already there.
+ *  (DB triggers turn contacts at REGISTERED companies into portal attendees —
+ *  no email is ever sent.) */
+async function addCompanyContact(
+  supabase: SupabaseClient, companyId: string,
+  p: { name?: string; email?: string | null; phone?: string | null; title?: string | null },
+): Promise<void> {
+  const email = (p.email ?? "").trim().toLowerCase() || null;
+  if (email) {
+    const { data: have } = await supabase.from("company_contacts").select("id")
+      .eq("company_id", companyId).ilike("email", email).limit(1);
+    if (have?.[0]) return;
+  }
+  const { count } = await supabase.from("company_contacts").select("id", { count: "exact", head: true }).eq("company_id", companyId);
+  await supabase.from("company_contacts").insert({
+    company_id: companyId, name: (p.name ?? "").trim() || email || "(no name)",
+    email, phone: p.phone ?? null, title: p.title ?? null, is_primary: (count ?? 0) === 0,
+  });
 }
 
 function bearerToken(auth: string | null): string | null {
