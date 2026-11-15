@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-11-02 (handoff verified) · Live version: **v6.97** · ~98 commits on `main`
+> Last updated: 2026-11-02 (handoff verified) · Live version: **v6.98** · ~98 commits on `main`
 
 
 ## ▶ START HERE (new chat / remote session)
@@ -434,6 +434,8 @@ meetings, profiles, sent_email_recipients, sent_emails.
 5s. v6.96 (migration 0041): "Declined" is sticky — trigger auto_register_on_signed and all SignWell routes (webhook/refresh/refresh-all/status) never move a declined company back to registered. CopAur Minerals (cancelled after signing) set to declined Nov 10, its 7 pending requests cancelled, unused portal login removed (CRM contact kept). 2 draft invoices for CopAur still exist.
 
 5t. v6.97 (migration 0042): Day 1 site visit/golf is PER PERSON (day1 API no longer expands to colleagues; inherit_company_day1 trigger dropped). Supersedes the company-wide Day 1 part of 5l. Amex Gold Mining: Aaron Stone golf, others none.
+
+5u. v6.98: registration intake — same EMAIL = same person (update). Same ORG name but different/missing email no longer overwrites: company → extra company_contact (addCompanyContact), investor → new investor record. guests[] with email become real contacts/investors. (Bug lost a person at IBN on Nov 11; Seamus Byrne re-added by hand as "Seamus Byrne - IBN".)
 
 ## 7. History (condensed)
 
