@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-11-02 (handoff verified) · Live version: **v6.98** · ~98 commits on `main`
+> Last updated: 2026-11-02 (handoff verified) · Live version: **v6.99** · ~98 commits on `main`
 
 
 ## ▶ START HERE (new chat / remote session)
@@ -150,7 +150,7 @@ not block builds.
 - Bump `src/lib/version.ts` (`APP_VERSION`) on every release; commit message
   `vX.YZ: summary`.
 - Migrations: `supabase/migrations/00NN_name.sql`, idempotent (`if not
-  exists`), apply via API immediately after writing. Next number: **0043**. NOTE: the session's safety classifier may block live DB writes/deploys — ask Jordan to approve, then proceed. `supabase/unapplied/0039_reject_junk_emails.sql` was NOT applied (Jordan chose code-only fix).
+  exists`), apply via API immediately after writing. Next number: **0044**. NOTE: the session's safety classifier may block live DB writes/deploys — ask Jordan to approve, then proceed. `supabase/unapplied/0039_reject_junk_emails.sql` was NOT applied (Jordan chose code-only fix).
 - After `redirect()`/`notFound()` add `throw new Error("unreachable")` for TS
   narrowing.
 - Deleting files in the connected folder may need the Cowork delete permission.
@@ -436,6 +436,8 @@ meetings, profiles, sent_email_recipients, sent_emails.
 5t. v6.97 (migration 0042): Day 1 site visit/golf is PER PERSON (day1 API no longer expands to colleagues; inherit_company_day1 trigger dropped). Supersedes the company-wide Day 1 part of 5l. Amex Gold Mining: Aaron Stone golf, others none.
 
 5u. v6.98: registration intake — same EMAIL = same person (update). Same ORG name but different/missing email no longer overwrites: company → extra company_contact (addCompanyContact), investor → new investor record. guests[] with email become real contacts/investors. (Bug lost a person at IBN on Nov 11; Seamus Byrne re-added by hand as "Seamus Byrne - IBN".)
+
+5v. v6.99 (migration 0043): attendee_blocked_slots.locked (admin-set; attendees can't remove, DELETE route refuses non-super-admin) + reason shown on portal Schedule (🎙 row), Settings (fixed pill) and admin grid. slotConflict now also refuses blocked times on either side (propose/accept/counter/admin create). 16 "The Deep Dive Interview · <15-min time>" locked blocks on Nov 24 (2 per slot) — no interview slot for Minaurum, Peruvian Metals, Rio Silver (fully booked); excluded by Jordan: Amex Gold, Blue Jay Gold, First Phosphate, Power Metallic, Rackla. NOTE: scripts/supabase-sql.sh truncates output at 4000 chars.
 
 ## 7. History (condensed)
 
