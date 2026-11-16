@@ -11,6 +11,7 @@ export interface SlotToggle {
   iso: string;
   label: string;
   blocked: boolean;
+  lockedLabel?: string | null;   // reserved by organizers — can't be toggled
 }
 
 export function BlockedSlots({ slug, slots }: { slug: string; slots: SlotToggle[] }) {
@@ -52,6 +53,12 @@ export function BlockedSlots({ slug, slots }: { slug: string; slots: SlotToggle[
         {slots.map(s => (
           <li key={s.iso} className="flex items-center justify-between gap-3 px-4 py-3" style={{ minHeight: 48 }}>
             <div className="text-sm tabular-nums text-slate-800">{s.label}</div>
+            {s.lockedLabel ? (
+              <span className="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium"
+                style={{ backgroundColor: "#f3e7c4", color: "#5c4614", minHeight: 44 }}>
+                {s.lockedLabel}
+              </span>
+            ) : (
             <button
               type="button"
               disabled={busyIso === s.iso}
@@ -66,6 +73,7 @@ export function BlockedSlots({ slug, slots }: { slug: string; slots: SlotToggle[
             >
               {busyIso === s.iso ? "…" : s.blocked ? "Blocked" : "Available"}
             </button>
+            )}
           </li>
         ))}
         {slots.length === 0 && (

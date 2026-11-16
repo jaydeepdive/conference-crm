@@ -241,6 +241,7 @@ export interface AttendeeBlockedSlot {
   lead_id: string;
   slot_time: string;   // ISO
   reason: string | null;
+  locked?: boolean;    // set by an admin (e.g. The Deep Dive Interview) — attendee can't remove
   created_by: string | null;
   created_at: string;
 }

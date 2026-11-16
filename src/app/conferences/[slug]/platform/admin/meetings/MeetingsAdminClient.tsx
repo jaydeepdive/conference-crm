@@ -147,7 +147,7 @@ function ErrorNote({ msg }: { msg: string | null }) {
 
 export function MeetingsAdminClient({
   slug, header, rows, companies, investors, slotOptions,
-  busyByCompany, busyByInvestor, blockedByCompany, blockedByInvestor, blocklist,
+  busyByCompany, busyByInvestor, blockedByCompany, blockedByInvestor, blockReasons = {}, blocklist,
 }: {
   slug: string;
   header: ReactNode;
@@ -159,6 +159,7 @@ export function MeetingsAdminClient({
   busyByInvestor: SlotMap;
   blockedByCompany: SlotMap;
   blockedByInvestor: SlotMap;
+  blockReasons?: Record<string, string>;
   blocklist: Record<string, BlocklistInfo>;
 }) {
   const router = useRouter();
@@ -369,8 +370,9 @@ export function MeetingsAdminClient({
                         if (blocked.has(s.iso)) {
                           return (
                             <td key={s.iso} className="border-b border-line p-1">
-                              <div className="flex h-12 items-center justify-center text-[11px] uppercase tracking-wider text-muted" style={HATCH}>
-                                Blocked
+                              <div className="flex h-12 items-center justify-center px-1 text-center text-[11px] uppercase tracking-wider text-muted" style={HATCH}
+                                title={blockReasons[`${ent.id}|${s.iso}`] ?? "Blocked"}>
+                                <span className="line-clamp-2">{blockReasons[`${ent.id}|${s.iso}`]?.replace(" · ", " ") ?? "Blocked"}</span>
                               </div>
                             </td>
                           );
@@ -437,7 +439,7 @@ export function MeetingsAdminClient({
                           </div>
                         ) : blocked ? (
                           <div className="flex min-h-[44px] w-full items-center px-3 text-xs uppercase tracking-wider text-muted" style={HATCH}>
-                            Blocked
+                            {blockReasons[`${mobileId}|${s.iso}`] ?? "Blocked"}
                           </div>
                         ) : (
                           <button type="button"

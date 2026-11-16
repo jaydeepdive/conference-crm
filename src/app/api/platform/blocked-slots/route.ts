@@ -133,6 +133,20 @@ export async function DELETE(request: Request) {
   if ("error" in r) return r.error;
   const { supabase, isSuperAdmin, attendee } = r;
 
+  if (!isSuperAdmin) {
+    // Admin-locked blocks (e.g. The Deep Dive Interview) can't be removed by attendees.
+    let lq = createServiceClient().from("attendee_blocked_slots").select("id").eq("locked", true);
+    if (id) lq = lq.eq("id", id);
+    else if (slotTime && attendee) lq = lq.eq("conference_id", attendee.conference_id)
+      .eq("lead_type", leadType ?? attendee.lead_type).eq("lead_id", leadId ?? attendee.lead_id)
+      .eq("slot_time", new Date(slotTime).toISOString());
+    if (id || (slotTime && attendee)) {
+      const { data: lockedRow } = await lq.limit(1);
+      if (lockedRow && lockedRow.length > 0)
+        return NextResponse.json({ error: "This time is reserved by the organizers and can't be changed here." }, { status: 403 });
+    }
+  }
+
   if (id) {
     // RLS alone can authorize this when the caller represents the lead.
     const { error } = await supabase.from("attendee_blocked_slots").delete().eq("id", id);

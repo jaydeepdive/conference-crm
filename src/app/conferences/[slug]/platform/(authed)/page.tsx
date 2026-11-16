@@ -52,6 +52,12 @@ export default async function PlatformDashboardPage({
   const rank = (m: Meeting) =>
     m.status === "accepted" ? 3 : m.status === "countered" && m.reschedule_from ? 2
       : m.status === "proposed" || m.status === "countered" ? 1 : 0;
+  // This company/investor's blocked times (e.g. The Deep Dive Interview).
+  const { data: myBlocks } = await createServiceClient().from("attendee_blocked_slots").select("slot_time, reason")
+    .eq("conference_id", ctx.conference.id).eq("lead_type", ctx.side).eq("lead_id", ctx.attendee.lead_id);
+  const blockLabel = new Map<string, string>(((myBlocks ?? []) as { slot_time: string; reason: string | null }[])
+    .map(b => [new Date(b.slot_time).toISOString(), b.reason || "Blocked — not taking meetings"]));
+
   // Most companies hold one meeting per slot; exceptions (Zang = 3) can hold more.
   const myCap = ctx.side === "company" ? await companySlotCapacity(ctx.attendee.lead_id) : 1;
   const allBySlot = new Map<string, Meeting[]>();
@@ -121,9 +127,10 @@ export default async function PlatformDashboardPage({
     id?: string;
     key: string;
     label: string;
-    kind: "slot" | "lunch" | "farewell" | "program";
+    kind: "slot" | "lunch" | "farewell" | "program" | "blocked";
     meeting?: Meeting;
     item?: ProgramItem;
+    note?: string;
     sortKey: number;
   }
   const rows: Row[] = [];
@@ -131,7 +138,11 @@ export default async function PlatformDashboardPage({
     const key = s.start.toISOString();
     const label = formatSlotRange(s.start, s.end, ctx.conference.timezone);
     const ms = bySlot.get(key) ?? [];
-    if (ms.length === 0) { rows.push({ key, label, kind: "slot", sortKey: s.start.getTime() }); continue; }
+    if (ms.length === 0) {
+      const bl = blockLabel.get(key);
+      rows.push(bl ? { key, label, kind: "blocked", note: bl, sortKey: s.start.getTime() } : { key, label, kind: "slot", sortKey: s.start.getTime() });
+      continue;
+    }
     ms.forEach((m, i) => rows.push({ id: `${key}#${i}`, key, label, kind: "slot", meeting: m, sortKey: s.start.getTime() + i / 100 }));
     // Room for more (only companies with a higher per-slot limit).
     const booked = ms.filter(m => rank(m) >= 2).length;
@@ -286,8 +297,8 @@ function ScheduleRow({
   row, slug, ctx, otherById,
 }: {
   row: {
-    key: string; label: string; kind: "slot" | "lunch" | "farewell" | "program";
-    meeting?: Meeting; item?: ProgramItem; sortKey: number;
+    key: string; label: string; kind: "slot" | "lunch" | "farewell" | "program" | "blocked";
+    meeting?: Meeting; item?: ProgramItem; note?: string; sortKey: number;
   };
   slug: string;
   ctx: Ctx;
@@ -298,6 +309,18 @@ function ScheduleRow({
       <li className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 first:border-t-0">
         <div className="w-28 shrink-0 text-sm tabular-nums text-slate-500">{row.label}</div>
         <div className="flex-1 text-sm italic text-slate-500">Lunch break</div>
+      </li>
+    );
+  }
+  if (row.kind === "blocked") {
+    const interview = /deep dive/i.test(row.note ?? "");
+    return (
+      <li className="flex items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 first:border-t-0"
+        style={interview ? { backgroundColor: "#fbf6ea" } : undefined}>
+        <div className="w-28 shrink-0 text-sm tabular-nums text-slate-500">{row.label}</div>
+        <div className={`flex-1 text-sm ${interview ? "font-medium" : "italic text-slate-500"}`} style={interview ? { color: "#5c4614" } : undefined}>
+          {interview ? "🎙 " : ""}{row.note}
+        </div>
       </li>
     );
   }

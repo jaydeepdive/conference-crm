@@ -92,6 +92,12 @@ export async function slotConflict(opts: {
   if (opts.excludeMeetingId) q = q.neq("id", opts.excludeMeetingId);
   const { data } = await q;
   const rows = data ?? [];
+  const { data: blocks } = await svc.from("attendee_blocked_slots").select("lead_type, reason")
+    .eq("conference_id", opts.conferenceId).eq("slot_time", new Date(opts.timeIso).toISOString())
+    .or(`and(lead_type.eq.company,lead_id.eq.${opts.companyId}),and(lead_type.eq.investor,lead_id.eq.${opts.investorId})`)
+    .limit(1);
+  const blk = (blocks ?? [])[0] as { lead_type: string; reason: string | null } | undefined;
+  if (blk) return `That time is blocked on the ${blk.lead_type === "company" ? "company" : "investor"}'s schedule${blk.reason ? ` (${blk.reason})` : ""}.`;
   if (rows.some(r => r.investor_id === opts.investorId)) return "The investor already has a meeting at that time.";
   const companyCount = rows.filter(r => r.company_id === opts.companyId).length;
   if (companyCount === 0) return null;

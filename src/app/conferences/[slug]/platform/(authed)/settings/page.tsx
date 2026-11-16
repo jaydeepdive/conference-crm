@@ -48,12 +48,17 @@ export default async function PlatformSettingsPage({
   const blockedSet = new Set<string>(
     ((blockedRows ?? []) as AttendeeBlockedSlot[]).map(b => new Date(b.slot_time).toISOString()),
   );
+  const lockedBy = new Map<string, string>(
+    ((blockedRows ?? []) as AttendeeBlockedSlot[]).filter(b => b.locked)
+      .map(b => [new Date(b.slot_time).toISOString(), b.reason ?? "Reserved by the organizers"]),
+  );
 
   const slots = slotsForPlatform(ctx.conference).filter(s => !s.isLunch);
   const slotToggles: SlotToggle[] = slots.map(s => ({
     iso: s.start.toISOString(),
     label: formatSlotRange(s.start, s.end, ctx.conference.timezone),
     blocked: blockedSet.has(s.start.toISOString()),
+    lockedLabel: lockedBy.get(s.start.toISOString()) ?? null,
   }));
 
   // Blocklist rows (from = me).

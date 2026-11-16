@@ -123,9 +123,11 @@ export default async function MeetingsAdminPage({
   // Slots each side has blocked themselves.
   const blockedByCompany: Record<string, string[]> = {};
   const blockedByInvestor: Record<string, string[]> = {};
+  const blockReasons: Record<string, string> = {};
   for (const bs of (blockedSlotsRaw ?? []) as AttendeeBlockedSlot[]) {
     const slotIso = slotIsoFor(bs.slot_time);
     if (!slotIso) continue;
+    if (bs.reason) blockReasons[`${bs.lead_id}|${slotIso}`] = bs.reason;
     if (bs.lead_type === "company") (blockedByCompany[bs.lead_id] ??= []).push(slotIso);
     else (blockedByInvestor[bs.lead_id] ??= []).push(slotIso);
   }
@@ -176,6 +178,7 @@ export default async function MeetingsAdminPage({
         busyByInvestor={busyByInvestor}
         blockedByCompany={blockedByCompany}
         blockedByInvestor={blockedByInvestor}
+        blockReasons={blockReasons}
         blocklist={blocklistMap}
       />
   );
