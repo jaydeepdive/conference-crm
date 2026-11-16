@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-11-02 (handoff verified) · Live version: **v6.99** · ~98 commits on `main`
+> Last updated: 2026-11-02 (handoff verified) · Live version: **v7.00** · ~98 commits on `main`
 
 
 ## ▶ START HERE (new chat / remote session)
@@ -437,7 +437,7 @@ meetings, profiles, sent_email_recipients, sent_emails.
 
 5u. v6.98: registration intake — same EMAIL = same person (update). Same ORG name but different/missing email no longer overwrites: company → extra company_contact (addCompanyContact), investor → new investor record. guests[] with email become real contacts/investors. (Bug lost a person at IBN on Nov 11; Seamus Byrne re-added by hand as "Seamus Byrne - IBN".)
 
-5v. v6.99 (migration 0043): attendee_blocked_slots.locked (admin-set; attendees can't remove, DELETE route refuses non-super-admin) + reason shown on portal Schedule (🎙 row), Settings (fixed pill) and admin grid. slotConflict now also refuses blocked times on either side (propose/accept/counter/admin create). 16 "The Deep Dive Interview · <15-min time>" locked blocks on Nov 24 (2 per slot) — no interview slot for Minaurum, Peruvian Metals, Rio Silver (fully booked); excluded by Jordan: Amex Gold, Blue Jay Gold, First Phosphate, Power Metallic, Rackla. NOTE: scripts/supabase-sql.sh truncates output at 4000 chars.
+5v. v6.99 (migration 0043): attendee_blocked_slots.locked (admin-set; attendees can't remove, DELETE route refuses non-super-admin) + reason shown on portal Schedule (🎙 row), Settings (fixed pill) and admin grid. slotConflict now also refuses blocked times on either side (propose/accept/counter/admin create). 16 "The Deep Dive Interview · <15-min time>" locked blocks on Nov 24 (2 per slot) — no interview slot for Minaurum, Peruvian Metals, Rio Silver (fully booked); excluded by Jordan: Amex Gold, Blue Jay Gold, First Phosphate, Power Metallic, Rackla. Nov 16: Jordan had 3 Piggo's Trading Desk meetings cancelled (no emails) to add interviews: Rio Silver 10:00, Peruvian Metals 11:00, Minaurum 1:00 PM → 19 interviews. Admin console tab Interviews (/platform/admin/interviews) lists them (v7.00). NOTE: scripts/supabase-sql.sh truncates output at 4000 chars.
 
 ## 7. History (condensed)
 
