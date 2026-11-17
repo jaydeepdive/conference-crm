@@ -173,5 +173,7 @@ export async function POST(request: Request) {
     });
   }
 
+  const { closeDeadRequests } = await import("@/lib/portal-api");
+  await closeDeadRequests(conferenceId);
   return NextResponse.json({ ok: true, created, skipped });
 }

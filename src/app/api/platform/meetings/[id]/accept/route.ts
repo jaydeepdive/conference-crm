@@ -4,7 +4,7 @@
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { loadMeetingCaller, slotConflict, slotErrorMessage } from "@/lib/portal-api";
+import { loadMeetingCaller, slotConflict, slotErrorMessage, closeDeadRequests } from "@/lib/portal-api";
 
 export const runtime = "nodejs";
 
@@ -37,5 +37,6 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     meeting_id: meeting.id, actor_profile_id: attendee.id, actor_side: mySide,
     kind: "accept", proposed_time: meeting.proposed_time,
   });
+  await closeDeadRequests(meeting.conference_id);
   return NextResponse.json({ ok: true });
 }

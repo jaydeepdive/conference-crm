@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { slotConflict, slotErrorMessage } from "@/lib/portal-api";
+import { slotConflict, slotErrorMessage, closeDeadRequests } from "@/lib/portal-api";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { Meeting } from "@/lib/types";
@@ -120,5 +120,6 @@ export async function POST(request: Request) {
     body: `Created directly by admin (${profile.full_name ?? profile.email})`,
   });
 
+  await closeDeadRequests(conferenceId);
   return NextResponse.json({ ok: true, meeting_id: meetingId });
 }

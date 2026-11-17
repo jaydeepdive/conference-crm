@@ -118,6 +118,8 @@ export async function POST(request: Request) {
     .upsert(payload, { onConflict: "conference_id,lead_type,lead_id,slot_time" })
     .select("id").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const { closeDeadRequests } = await import("@/lib/portal-api");
+  await closeDeadRequests(conferenceId);
   return NextResponse.json({ ok: true, id: data.id });
 }
 

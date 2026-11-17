@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { slotConflict, slotErrorMessage } from "@/lib/portal-api";
+import { slotConflict, slotErrorMessage, closeDeadRequests } from "@/lib/portal-api";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
@@ -75,5 +75,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     body: `Admin override by ${profile.full_name ?? profile.email}: ${notes.join(", ")}`,
   });
 
+  await closeDeadRequests(existing.conference_id);
   return NextResponse.json({ ok: true, patch });
 }

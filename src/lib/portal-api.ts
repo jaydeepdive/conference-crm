@@ -108,6 +108,12 @@ export async function slotConflict(opts: {
     : "The company already has a meeting at that time.";
 }
 
+/** Close pending requests whose time was just filled (other meeting accepted,
+ *  slot blocked). Best effort; never throws. No emails. */
+export async function closeDeadRequests(conferenceId: string): Promise<void> {
+  try { await createServiceClient().rpc("close_dead_requests", { p_conference: conferenceId }); } catch { /* ignore */ }
+}
+
 /** Meetings a company may hold in one time slot (1 for everyone except
  *  companies given an exception, e.g. Zang International = 3). */
 export async function companySlotCapacity(companyId: string): Promise<number> {
