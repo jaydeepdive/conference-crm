@@ -92,8 +92,12 @@ export async function slotConflict(opts: {
   if (opts.excludeMeetingId) q = q.neq("id", opts.excludeMeetingId);
   const { data } = await q;
   const rows = data ?? [];
+  // Only ADMIN-LOCKED blocks (e.g. The Deep Dive Interview) stop a booking here.
+  // Self-blocks are enforced when a request is made (propose/counter), not on
+  // accept — an investor who blocked their own time can still have their own
+  // earlier request accepted.
   const { data: blocks } = await svc.from("attendee_blocked_slots").select("lead_type, reason")
-    .eq("conference_id", opts.conferenceId).eq("slot_time", new Date(opts.timeIso).toISOString())
+    .eq("conference_id", opts.conferenceId).eq("slot_time", new Date(opts.timeIso).toISOString()).eq("locked", true)
     .or(`and(lead_type.eq.company,lead_id.eq.${opts.companyId}),and(lead_type.eq.investor,lead_id.eq.${opts.investorId})`)
     .limit(1);
   const blk = (blocks ?? [])[0] as { lead_type: string; reason: string | null } | undefined;
