@@ -83,13 +83,27 @@ export default async function DirectoryDetailPage({
   ]);
   const busyIsoSet = new Set<string>();
   const slots = slotsForPlatform(ctx.conference);
-  for (const b of [...(otherBusy ?? []), ...(myBusy ?? [])] as Pick<Meeting, "scheduled_time">[]) {
-    if (!b.scheduled_time) continue;
-    const t = new Date(b.scheduled_time).getTime();
-    for (const s of slots) {
-      if (t >= s.start.getTime() && t < s.end.getTime()) { busyIsoSet.add(s.start.toISOString()); break; }
+  // Companies with a higher per-slot limit (Zang = 3) are only busy once full.
+  const companyId = otherSide === "company" ? id : ctx.attendee.lead_id;
+  const { data: capRow } = await svcBusy.from("companies").select("slot_capacity").eq("id", companyId).maybeSingle();
+  const companyCap = Number((capRow as { slot_capacity?: number } | null)?.slot_capacity ?? 1) || 1;
+  const markBusy = (rows: Pick<Meeting, "scheduled_time">[], cap: number) => {
+    const n = new Map<string, number>();
+    for (const b of rows) {
+      if (!b.scheduled_time) continue;
+      const t = new Date(b.scheduled_time).getTime();
+      for (const s of slots) {
+        if (t >= s.start.getTime() && t < s.end.getTime()) {
+          const k = s.start.toISOString();
+          n.set(k, (n.get(k) ?? 0) + 1);
+          if ((n.get(k) ?? 0) >= cap) busyIsoSet.add(k);
+          break;
+        }
+      }
     }
-  }
+  };
+  markBusy((otherBusy ?? []) as Pick<Meeting, "scheduled_time">[], otherSide === "company" ? companyCap : 1);
+  markBusy((myBusy ?? []) as Pick<Meeting, "scheduled_time">[], ctx.side === "company" ? companyCap : 1);
   for (const bs of (otherBlockedRows ?? []) as Pick<AttendeeBlockedSlot, "slot_time">[]) {
     const t = new Date(bs.slot_time).getTime();
     for (const s of slots) {
