@@ -342,7 +342,7 @@ function ScheduleRow({
     const name = other && "firm_name" in other ? other.firm_name : (other?.name ?? "Meeting");
     let label: string;
     let tone: string;
-    if (m.status === "accepted") { label = name; tone = "text-slate-900 font-medium"; }
+    if (m.status === "accepted") { label = m.location ? `${name} · ${m.location}` : name; tone = "text-slate-900 font-medium"; }
     else if (m.reschedule_from) {
       label = `${name} — new time requested`;
       tone = "text-amber-800";

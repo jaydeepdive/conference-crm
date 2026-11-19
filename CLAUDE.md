@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-11-02 (handoff verified) · Live version: **v7.03** · ~98 commits on `main`
+> Last updated: 2026-11-02 (handoff verified) · Live version: **v7.04** · ~98 commits on `main`
 
 
 ## ▶ START HERE (new chat / remote session)
@@ -150,7 +150,7 @@ not block builds.
 - Bump `src/lib/version.ts` (`APP_VERSION`) on every release; commit message
   `vX.YZ: summary`.
 - Migrations: `supabase/migrations/00NN_name.sql`, idempotent (`if not
-  exists`), apply via API immediately after writing. Next number: **0046**. NOTE: the session's safety classifier may block live DB writes/deploys — ask Jordan to approve, then proceed. `supabase/unapplied/0039_reject_junk_emails.sql` was NOT applied (Jordan chose code-only fix).
+  exists`), apply via API immediately after writing. Next number: **0047**. NOTE: the session's safety classifier may block live DB writes/deploys — ask Jordan to approve, then proceed. `supabase/unapplied/0039_reject_junk_emails.sql` was NOT applied (Jordan chose code-only fix).
 - After `redirect()`/`notFound()` add `throw new Error("unreachable")` for TS
   narrowing.
 - Deleting files in the connected folder may need the Cowork delete permission.
@@ -442,6 +442,8 @@ meetings, profiles, sent_email_recipients, sent_emails.
 5w. v7.01: directory/[kind]/[id] "Request a meeting" busy check is capacity-aware (Zang). v7.02 (migration 0044): close_dead_requests(conf) RPC cancels pending requests whose time is filled (investor booked, company at capacity, or either side blocked) + meeting_events 'cancel' note; called after accept, admin create/edit, auto-match commit, block POST (closeDeadRequests in portal-api.ts). Nov 17 run closed 99 of 137 pending. Monday program replaced Nov 17 (Kickoff removed, Amit Hazan added, breakfast 7:30–8:55).
 
 5x. v7.03 (migration 0045): close_dead_requests and slotConflict only count booked meetings + ADMIN-LOCKED blocks — attendees' own self-blocks never close or block acceptance of existing requests (self-blocks still stop NEW propose/counter). 0045 reopened 7 requests wrongly closed by 0044 (6 were Shawn Balaghi's; he self-blocked 12 of 14 slots Nov 16).
+
+5y. v7.04 (migration 0046): companies.meeting_table ("Table 1" Alex Metals … "Table 24" Zang, alphabetical); trigger meeting_default_table fills meetings.location from it when blank (admin can override per meeting). Portal Schedule shows "Name · Table N" on confirmed meetings.
 
 ## 7. History (condensed)
 
