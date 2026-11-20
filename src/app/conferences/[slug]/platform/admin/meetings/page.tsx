@@ -7,6 +7,8 @@
  * /api/platform/meetings/[id]/admin-edit.
  */
 import { requireConferenceRole } from "@/lib/auth";
+import { createServiceClient } from "@/lib/supabase/service";
+import { loadExtraSlots, extraSlotLabel } from "@/lib/extraSlots";
 import { createClient } from "@/lib/supabase/server";
 import { slotsForPlatform, formatSlotRange } from "@/lib/platform";
 import type {
@@ -153,10 +155,18 @@ export default async function MeetingsAdminPage({
       status: m.status,
       slot_label: slotLabel ? (useProposed ? `${slotLabel} (proposed)` : slotLabel) : null,
       current_slot_iso: slotIsoFor(m.scheduled_time),
+      time_iso: (m.scheduled_time ?? m.proposed_time) ? new Date((m.scheduled_time ?? m.proposed_time) as string).toISOString() : null,
       location: m.location,
       notes: m.notes,
     };
   });
+
+  // Extra bookable times outside the Tuesday grid (e.g. remote Monday meetings).
+  const extras = await loadExtraSlots(createServiceClient(), ctx.conference.id);
+  const extraIsos = Array.from(new Set(extras.map(x => new Date(x.slot_time).toISOString()))).sort();
+  const extraCols = extraIsos.map(iso => ({ iso, label: extraSlotLabel(iso, extras.find(x => new Date(x.slot_time).toISOString() === iso)?.duration_minutes ?? 25, tz) }));
+  const extraByCompany: Record<string, string[]> = {};
+  for (const x of extras) (extraByCompany[x.company_id] ??= []).push(new Date(x.slot_time).toISOString());
 
   const day = ctx.conference.meeting_date ?? ctx.conference.date_start;
   let dayLabel = "";
@@ -179,6 +189,8 @@ export default async function MeetingsAdminPage({
         blockedByCompany={blockedByCompany}
         blockedByInvestor={blockedByInvestor}
         blockReasons={blockReasons}
+        extraCols={extraCols}
+        extraByCompany={extraByCompany}
         blocklist={blocklistMap}
       />
   );

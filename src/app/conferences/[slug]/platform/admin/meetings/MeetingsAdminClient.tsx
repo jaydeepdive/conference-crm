@@ -19,6 +19,7 @@ export interface MeetingRow {
   status: MeetingStatus;
   slot_label: string | null;
   current_slot_iso: string | null;
+  time_iso?: string | null;   // scheduled time, or proposed time if not booked
   location: string | null;
   notes: string | null;
 }
@@ -148,6 +149,7 @@ function ErrorNote({ msg }: { msg: string | null }) {
 export function MeetingsAdminClient({
   slug, header, rows, companies, investors, slotOptions,
   busyByCompany, busyByInvestor, blockedByCompany, blockedByInvestor, blockReasons = {}, blocklist,
+  extraCols = [], extraByCompany = {},
 }: {
   slug: string;
   header: ReactNode;
@@ -161,6 +163,8 @@ export function MeetingsAdminClient({
   blockedByInvestor: SlotMap;
   blockReasons?: Record<string, string>;
   blocklist: Record<string, BlocklistInfo>;
+  extraCols?: { iso: string; label: string }[];
+  extraByCompany?: Record<string, string[]>;
 }) {
   const router = useRouter();
   const [view, setView] = useState<View>("grid");
@@ -458,7 +462,14 @@ export function MeetingsAdminClient({
             )}
           </div>
         </div>
-      ) : (
+      ) : null}
+
+      {view === "grid" && extraCols.length > 0 && (
+        <ExtraGrid axis={axis} cols={extraCols} extraByCompany={extraByCompany} rows={rows}
+          companies={companies} investors={investors} onEdit={setEditing} />
+      )}
+
+      {view === "list" && (
         <ListView
           slug={slug}
           rows={rows}
@@ -884,5 +895,85 @@ function CreateSheet({
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className={`${INPUT} mt-1`} />
       </label>
     </Sheet>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Extra times outside the Tuesday grid (e.g. remote Monday meetings)
+
+function ExtraGrid({ axis, cols, extraByCompany, rows, companies, investors, onEdit }: {
+  axis: Axis;
+  cols: { iso: string; label: string }[];
+  extraByCompany: Record<string, string[]>;
+  rows: MeetingRow[];
+  companies: LeadLite[];
+  investors: LeadLite[];
+  onEdit: (r: MeetingRow) => void;
+}) {
+  const colSet = new Set(cols.map(c => c.iso));
+  const live = rows.filter(r => r.time_iso && colSet.has(r.time_iso) && r.status !== "declined" && r.status !== "cancelled");
+  const entities: LeadLite[] = axis === "company"
+    ? companies.filter(c => (extraByCompany[c.id] ?? []).length > 0)
+    : investors.filter(i => live.some(r => r.investor_id === i.id));
+  const at = (entId: string, iso: string) => live.filter(r => (axis === "company" ? r.company_id : r.investor_id) === entId && r.time_iso === iso);
+  const cell = (r: MeetingRow) => {
+    const other = axis === "company" ? r.investor_name : r.company_name;
+    const pending = r.status !== "accepted";
+    return (
+      <button key={r.id} type="button" onClick={() => onEdit(r)} title={`${other}${pending ? " (pending)" : ""} — click to edit`}
+        className={`flex min-h-[44px] w-full flex-col justify-center border-l-2 px-2 text-left ${pending ? "border-amber-400 bg-amber-50" : "border-brand-accent bg-brand-accent/10 hover:bg-brand-accent/20"}`}>
+        <span className="block w-full truncate text-xs font-semibold text-ink">{other}</span>
+        <span className="block w-full truncate text-[11px] text-muted">{pending ? "Pending request" : (r.location ?? "")}</span>
+      </button>
+    );
+  };
+  return (
+    <div className="space-y-2">
+      <div>
+        <div className="font-display text-xl text-ink">Other days · remote meetings</div>
+        <div className="text-xs text-muted">Extra bookable times outside the Tuesday grid. Grey = not offered by that company.</div>
+      </div>
+      {entities.length === 0 ? (
+        <div className="border border-line bg-white px-4 py-6 text-sm text-muted">
+          {axis === "company" ? "No companies have extra times." : "No investors have booked these times yet."}
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-line bg-white">
+          <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
+            <thead>
+              <tr>
+                <th className="sticky left-0 z-10 border-b border-r border-line bg-utility px-3 py-2 text-left text-[11px] uppercase tracking-widest2 text-muted">
+                  {axis === "company" ? "Company" : "Investor"}
+                </th>
+                {cols.map(c => (
+                  <th key={c.iso} className="min-w-[150px] border-b border-line bg-utility px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted">{c.label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {entities.map(ent => (
+                <tr key={ent.id}>
+                  <th scope="row" className="sticky left-0 z-10 max-w-[240px] border-b border-r border-line bg-white px-3 py-2 text-left font-semibold text-ink">
+                    <span className="block truncate" title={ent.name}>{ent.name}</span>
+                  </th>
+                  {cols.map(c => {
+                    const ms = at(ent.id, c.iso);
+                    const offered = axis === "company" ? (extraByCompany[ent.id] ?? []).includes(c.iso) : true;
+                    return (
+                      <td key={c.iso} className="border-b border-line p-1 align-top">
+                        {ms.length > 0 ? <div className="space-y-0.5">{ms.map(cell)}</div>
+                          : !offered ? <div className="h-11 bg-utility" />
+                          : axis === "company" ? <div className="flex h-11 items-center justify-center border border-dashed border-ink/20 text-[11px] uppercase tracking-wider text-muted">Open</div>
+                          : <div className="h-11" />}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
