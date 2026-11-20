@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-interface SlotOpt { iso: string; label: string; busy: boolean }
+interface SlotOpt { iso: string; label: string; busy: boolean; group?: string; note?: string }
 
 export function RequestMeetingForm({
   slug, otherLeadType, otherLeadId, otherName, slots, initialSlot = null,
@@ -58,8 +58,11 @@ export function RequestMeetingForm({
         <div className="px-4 py-5 text-sm text-slate-500">No slots configured yet.</div>
       ) : (
         <ul>
-          {slots.map(s => (
+          {slots.map((s, i) => (
             <li key={s.iso} className="border-t border-slate-100 first:border-t-0">
+              {s.group && s.group !== slots[i - 1]?.group && (
+                <div className="bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600">{s.group}</div>
+              )}
               <button type="button" disabled={s.busy}
                 onClick={() => { setPending(s); setNotes(""); setError(null); }}
                 className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left disabled:cursor-not-allowed active:bg-slate-50"
@@ -67,7 +70,7 @@ export function RequestMeetingForm({
                 <div className="w-28 shrink-0 text-sm tabular-nums text-slate-500">{s.label}</div>
                 {s.busy
                   ? <div className="flex-1 text-sm text-slate-400">Not available</div>
-                  : <div className="flex-1 text-sm text-slate-900">Open — tap to request</div>}
+                  : <div className="flex-1 text-sm text-slate-900">Open — tap to request{s.note ? <span className="block text-xs text-slate-500">{s.note}</span> : null}</div>}
                 {!s.busy && <div className="text-slate-300">›</div>}
               </button>
             </li>

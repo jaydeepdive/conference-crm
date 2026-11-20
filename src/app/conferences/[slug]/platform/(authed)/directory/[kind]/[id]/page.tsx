@@ -23,6 +23,7 @@ import type {
   AttendeeBlockedSlot, Company, Investor, Meeting, MeetingBlocklistEntry,
 } from "@/lib/types";
 import { RequestMeetingForm } from "./RequestMeetingForm";
+import { loadExtraSlots, extraSlotLabel, extraDayHeading } from "@/lib/extraSlots";
 
 export const dynamic = "force-dynamic";
 
@@ -111,11 +112,36 @@ export default async function DirectoryDetailPage({
     }
   }
 
-  const slotOptions = slots.filter(s => !s.isLunch).map(s => ({
+  const baseOptions: { iso: string; label: string; busy: boolean; group?: string; note?: string }[] = slots.filter(s => !s.isLunch).map(s => ({
     iso: s.start.toISOString(),
     label: formatSlotRange(s.start, s.end, ctx.conference.timezone),
     busy: busyIsoSet.has(s.start.toISOString()),
   }));
+  // Extra times for this company outside the Tuesday grid (e.g. remote Monday meetings).
+  const extras = await loadExtraSlots(svcBusy, ctx.conference.id, companyId);
+  let slotOptions = baseOptions;
+  if (extras.length > 0) {
+    const tz = ctx.conference.timezone;
+    const exact = (rows: Pick<Meeting, "scheduled_time">[]) => {
+      const n = new Map<string, number>();
+      for (const r of rows) if (r.scheduled_time) { const k = new Date(r.scheduled_time).toISOString(); n.set(k, (n.get(k) ?? 0) + 1); }
+      return n;
+    };
+    const otherAt = exact((otherBusy ?? []) as Pick<Meeting, "scheduled_time">[]);
+    const mineAt = exact((myBusy ?? []) as Pick<Meeting, "scheduled_time">[]);
+    const companyAt = otherSide === "company" ? otherAt : mineAt;
+    const investorAt = otherSide === "company" ? mineAt : otherAt;
+    const tueGroup = ctx.conference.meeting_date ? extraDayHeading(slots[0]?.start.toISOString() ?? new Date().toISOString(), tz) : "1-on-1 day";
+    const extraOptions = extras.map(x => {
+      const k = new Date(x.slot_time).toISOString();
+      return {
+        iso: k, label: extraSlotLabel(k, x.duration_minutes, tz),
+        busy: (companyAt.get(k) ?? 0) >= companyCap || (investorAt.get(k) ?? 0) > 0,
+        group: `${extraDayHeading(k, tz)} · ${x.location}`, note: x.location,
+      };
+    });
+    slotOptions = [...baseOptions.map(o => ({ ...o, group: tueGroup })), ...extraOptions];
+  }
 
   return (
     <div className="space-y-5">

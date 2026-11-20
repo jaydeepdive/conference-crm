@@ -44,7 +44,7 @@ export default async function InboxPage({ params }: { params: Promise<{ slug: st
       }
     }
     return new Intl.DateTimeFormat("en-US", {
-      timeZone: ctx.conference.timezone, hour: "numeric", minute: "2-digit", hour12: true,
+      timeZone: ctx.conference.timezone, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", hour12: true,
     }).format(new Date(iso));
   }
 

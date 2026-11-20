@@ -16,6 +16,7 @@ import {
 } from "@/lib/platform";
 import type { Company, Investor, Meeting } from "@/lib/types";
 import { companySlotCapacity } from "@/lib/portal-api";
+import { extraSlotLabel } from "@/lib/extraSlots";
 import { loadProgram, fmtProgramRange, fmtProgramDay, groupByDay, type ProgramItem } from "@/lib/program";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,14 @@ export default async function PlatformDashboardPage({
       }
     }
   }
+  // Meetings outside the Tuesday grid (e.g. remote Monday meetings).
+  const offGrid = list.filter(m => {
+    if (rank(m) === 0) return false;
+    const t = m.scheduled_time ?? m.proposed_time;
+    if (!t) return false;
+    const ts = new Date(t).getTime();
+    return !slots.some(s => ts >= s.start.getTime() && ts < s.end.getTime());
+  }).sort((a, b) => new Date(a.scheduled_time ?? a.proposed_time!).getTime() - new Date(b.scheduled_time ?? b.proposed_time!).getTime());
   const bySlot = new Map<string, Meeting[]>();
   for (const [key, ms] of allBySlot) {
     ms.sort((a, b) => rank(b) - rank(a));
@@ -236,6 +245,36 @@ export default async function PlatformDashboardPage({
           </div>
           <div className="text-xs text-amber-700">Tap to review in your inbox →</div>
         </Link>
+      )}
+
+      {offGrid.length > 0 && (
+        <section className="rounded-md border border-slate-200 bg-white">
+          <div className="border-b border-slate-200 px-4 py-3">
+            <h2 className="text-base font-semibold text-slate-900">Other meetings</h2>
+            <p className="text-xs text-slate-500">Outside the Tuesday 1-on-1 schedule</p>
+          </div>
+          <ul>
+            {offGrid.map(m => {
+              const t = (m.scheduled_time ?? m.proposed_time)!;
+              const otherId = ctx.side === "company" ? m.investor_id : m.company_id;
+              const o = otherById.get(otherId);
+              const nm = o && "firm_name" in o ? o.firm_name : (o?.name ?? "Meeting");
+              const pending = m.status !== "accepted";
+              return (
+                <li key={m.id} className="border-t border-slate-100 first:border-t-0">
+                  <Link href={`/conferences/${slug}/platform/meetings/${m.id}`} className="flex items-center justify-between gap-3 px-4 py-3 active:bg-slate-50" style={{ minHeight: 48 }}>
+                    <div className="w-28 shrink-0 text-sm tabular-nums text-slate-500">{extraSlotLabel(t, 25, ctx.conference.timezone)}</div>
+                    <div className={`flex-1 text-sm ${pending ? "text-amber-800" : "font-medium text-slate-900"}`}>
+                      {nm}{pending ? " — pending" : ""}
+                      {m.location && <span className="block text-xs font-normal text-slate-500">{m.location}</span>}
+                    </div>
+                    <div className="text-slate-300">›</div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       <section className="rounded-md border border-slate-200 bg-white">
