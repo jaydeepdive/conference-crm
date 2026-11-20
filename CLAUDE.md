@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-11-02 (handoff verified) · Live version: **v7.04** · ~98 commits on `main`
+> Last updated: 2026-11-02 (handoff verified) · Live version: **v7.05** · ~98 commits on `main`
 
 
 ## ▶ START HERE (new chat / remote session)
@@ -150,7 +150,7 @@ not block builds.
 - Bump `src/lib/version.ts` (`APP_VERSION`) on every release; commit message
   `vX.YZ: summary`.
 - Migrations: `supabase/migrations/00NN_name.sql`, idempotent (`if not
-  exists`), apply via API immediately after writing. Next number: **0047**. NOTE: the session's safety classifier may block live DB writes/deploys — ask Jordan to approve, then proceed. `supabase/unapplied/0039_reject_junk_emails.sql` was NOT applied (Jordan chose code-only fix).
+  exists`), apply via API immediately after writing. Next number: **0048**. NOTE: the session's safety classifier may block live DB writes/deploys — ask Jordan to approve, then proceed. `supabase/unapplied/0039_reject_junk_emails.sql` was NOT applied (Jordan chose code-only fix).
 - After `redirect()`/`notFound()` add `throw new Error("unreachable")` for TS
   narrowing.
 - Deleting files in the connected folder may need the Cowork delete permission.
@@ -444,6 +444,8 @@ meetings, profiles, sent_email_recipients, sent_emails.
 5x. v7.03 (migration 0045): close_dead_requests and slotConflict only count booked meetings + ADMIN-LOCKED blocks — attendees' own self-blocks never close or block acceptance of existing requests (self-blocks still stop NEW propose/counter). 0045 reopened 7 requests wrongly closed by 0044 (6 were Shawn Balaghi's; he self-blocked 12 of 14 slots Nov 16).
 
 5y. v7.04 (migration 0046): companies.meeting_table ("Table 1" Alex Metals … "Table 24" Zang, alphabetical); trigger meeting_default_table fills meetings.location from it when blank (admin can override per meeting). Portal Schedule shows "Name · Table N" on confirmed meetings.
+
+5z. v7.05 (migration 0047): company_extra_slots (bookable times outside the Tuesday grid; location default "Remote — video call"). Rackla Metals Mon Nov 23 9:00/9:30/10:00 and Power Metallic 1:00/2:00/3:00 (Phoenix), 25 min, remote (they attend remotely; Tuesday meetings left alone). Shown in company profile "Request a meeting" under a Monday heading (src/lib/extraSlots.ts); booked ones appear in portal Schedule "Other meetings"; meeting_default_table uses the extra slot's location. Admin grid is Tuesday-only (list view shows them).
 
 ## 7. History (condensed)
 
