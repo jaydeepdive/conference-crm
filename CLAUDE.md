@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-11-02 (handoff verified) · Live version: **v7.05** · ~98 commits on `main`
+> Last updated: 2026-11-02 (handoff verified) · Live version: **v7.07** · ~98 commits on `main`
 
 
 ## ▶ START HERE (new chat / remote session)
@@ -446,6 +446,8 @@ meetings, profiles, sent_email_recipients, sent_emails.
 5y. v7.04 (migration 0046): companies.meeting_table ("Table 1" Alex Metals … "Table 24" Zang, alphabetical); trigger meeting_default_table fills meetings.location from it when blank (admin can override per meeting). Portal Schedule shows "Name · Table N" on confirmed meetings.
 
 5z. v7.05 (migration 0047): company_extra_slots (bookable times outside the Tuesday grid; location default "Remote — video call"). Rackla Metals Mon Nov 23 9:00/9:30/10:00 and Power Metallic 1:00/2:00/3:00 (Phoenix), 25 min, remote (they attend remotely; Tuesday meetings left alone). Shown in company profile "Request a meeting" under a Monday heading (src/lib/extraSlots.ts); booked ones appear in portal Schedule "Other meetings"; meeting_default_table uses the extra slot's location. Admin grid is Tuesday-only (list view shows them).
+
+6a. v7.06: admin meetings grid has an "Other days · remote meetings" section (ExtraGrid) for company_extra_slots. v7.07: admin tab Schedules (/platform/admin/schedules) → print page /schedules/print?side=company|investor&id=a,b|all=1 (src/lib/printSchedule.ts): US Letter, black/gold letterhead with logo-transparent.png, one schedule per page, Tuesday grid + table + interview + lunch + program items (if published) + Other meetings + Day 1 line. Nov 21: name tags PDF (DK-2113 62x100mm) made outside the CRM.
 
 ## 7. History (condensed)
 
