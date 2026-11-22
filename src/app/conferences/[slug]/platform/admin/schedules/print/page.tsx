@@ -5,6 +5,7 @@
 import { notFound } from "next/navigation";
 import { loadPrintSchedules, type Side, type PrintRow } from "@/lib/printSchedule";
 import { PrintToolbar } from "./PrintToolbar";
+import { FitToPage } from "./FitToPage";
 
 export const dynamic = "force-dynamic";
 
@@ -33,25 +34,26 @@ export default async function PrintSchedulesPage({ params, searchParams }: {
           html, body { background: #fff !important; }
           .ab-admin > header, .no-print { display: none !important; }
           .ab-admin > main { padding: 0 !important; max-width: none !important; }
-          .sheet { box-shadow: none !important; margin: 0 !important; border: 0 !important; width: auto !important; min-height: auto !important; padding: 0 !important; }
+          .sheet { box-shadow: none !important; margin: 0 !important; border: 0 !important; width: 7.7in !important; min-height: 0 !important; height: 10.2in !important; overflow: hidden !important; padding: 0 !important; }
           .sheet + .sheet { break-before: page; page-break-before: always; }
         }
         .print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         .sheet { width: 8.5in; min-height: 11in; margin: 0 auto 24px; background: #fff; padding: 0.4in; box-shadow: 0 2px 14px rgba(0,0,0,.12); color: ${INK}; }
-        .sched td, .sched th { padding: 5px 8px; vertical-align: top; }
+        .sched td, .sched th { padding: 3px 7px; vertical-align: top; line-height: 1.25; }
         .sched tr { break-inside: avoid; }
       `}</style>
 
+      <FitToPage />
       <PrintToolbar count={schedules.length} backHref={`/conferences/${slug}/platform/admin/schedules?side=${side}`} />
 
       {schedules.length === 0 && <div className="no-print py-10 text-center text-sm text-muted">Nothing to print.</div>}
 
       {schedules.map(s => (
-        <section key={s.leadId} className="sheet font-sans">
+        <section key={s.leadId} className="sheet font-sans"><div className="sheet-inner">
           {/* Letterhead */}
-          <div className="flex items-center justify-between gap-4 px-5 py-3" style={{ backgroundColor: "#0a0a0a", borderBottom: `3px solid ${GOLD}` }}>
+          <div className="flex items-center justify-between gap-4 px-4 py-2" style={{ backgroundColor: "#0a0a0a", borderBottom: `3px solid ${GOLD}` }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/logo-transparent.png" alt="Above & Beyond Summit" style={{ height: 64, width: "auto" }} />
+            <img src="/brand/logo-transparent.png" alt="Above & Beyond Summit" style={{ height: 50, width: "auto" }} />
             <div className="text-right" style={{ color: "#f5f0e6" }}>
               <div className="font-serif text-[20px] leading-tight" style={{ color: "#e8cf8f" }}>{eventName}</div>
               <div className="mt-0.5 text-[11px] uppercase tracking-[0.2em]">November 22–24, 2026</div>
@@ -60,10 +62,10 @@ export default async function PrintSchedulesPage({ params, searchParams }: {
           </div>
 
           {/* Who */}
-          <div className="mt-5 flex items-end justify-between gap-4 border-b pb-3" style={{ borderColor: "#e4dccb" }}>
+          <div className="mt-3 flex items-end justify-between gap-4 border-b pb-2" style={{ borderColor: "#e4dccb" }}>
             <div className="min-w-0">
               <div className="text-[10px] font-medium uppercase tracking-[0.24em]" style={{ color: GOLD }}>1-on-1 Meeting Schedule</div>
-              <h1 className="font-serif text-[32px] font-semibold leading-tight">{s.name}</h1>
+              <h1 className="font-serif text-[27px] font-semibold leading-tight">{s.name}</h1>
               <div className="text-[12px] text-[#5d574c]">{s.subtitle}</div>
               {s.people.length > 0 && s.side === "company" && (
                 <div className="mt-0.5 text-[12px] text-[#5d574c]">Attending: {s.people.join(", ")}</div>
@@ -77,7 +79,7 @@ export default async function PrintSchedulesPage({ params, searchParams }: {
           </div>
 
           {s.day1 && (
-            <div className="mt-3 rounded-sm px-3 py-2 text-[12px]" style={{ backgroundColor: "#f7f1e3", borderLeft: `3px solid ${GOLD}` }}>
+            <div className="mt-2 rounded-sm px-3 py-1.5 text-[11.5px]" style={{ backgroundColor: "#f7f1e3", borderLeft: `3px solid ${GOLD}` }}>
               <span className="font-medium">Sunday, November 22:</span> {s.day1}
             </div>
           )}
@@ -86,16 +88,16 @@ export default async function PrintSchedulesPage({ params, searchParams }: {
 
           {s.other.length > 0 && (
             <>
-              <div className="mt-4 text-[10px] font-medium uppercase tracking-[0.24em]" style={{ color: GOLD }}>Other meetings</div>
+              <div className="mt-3 text-[10px] font-medium uppercase tracking-[0.24em]" style={{ color: GOLD }}>Other meetings</div>
               <ScheduleTable rows={s.other} side={s.side} />
             </>
           )}
 
-          <div className="mt-4 flex items-end justify-between gap-4 border-t pt-2 text-[10px] text-[#8a8274]" style={{ borderColor: "#e4dccb" }}>
+          <div className="mt-3 flex items-end justify-between gap-4 border-t pt-1.5 text-[9.5px] text-[#8a8274]" style={{ borderColor: "#e4dccb" }}>
             <div>Schedule changes? Visit the registration desk or crm.abovebeyondsummit.com</div>
             <div>Printed {printed}</div>
           </div>
-        </section>
+        </div></section>
       ))}
     </div>
   );
@@ -103,7 +105,7 @@ export default async function PrintSchedulesPage({ params, searchParams }: {
 
 function ScheduleTable({ rows, side }: { rows: PrintRow[]; side: Side }) {
   return (
-    <table className="sched mt-3 w-full border-collapse text-[12.5px]">
+    <table className="sched mt-2 w-full border-collapse text-[11.5px]">
       <thead>
         <tr className="text-left text-[9.5px] uppercase tracking-[0.18em]" style={{ color: "#8a8274", borderBottom: "1px solid #e4dccb" }}>
           <th className="w-[150px] font-medium">Time</th>
@@ -119,10 +121,10 @@ function ScheduleTable({ rows, side }: { rows: PrintRow[]; side: Side }) {
             <tr key={i} style={{ borderBottom: "1px solid #efe9dc", backgroundColor: band }}>
               <td className="whitespace-nowrap tabular-nums" style={{ color: "#5d574c" }}>{r.time}</td>
               <td>
-                <div className={r.kind === "meeting" ? "font-semibold" : muted ? "italic" : "font-medium"} style={{ color: muted ? "#9a9286" : "#1c1a17" }}>
+                <span className={r.kind === "meeting" ? "font-semibold" : muted ? "italic" : "font-medium"} style={{ color: muted ? "#9a9286" : "#1c1a17" }}>
                   {r.kind === "blocked" && r.title.includes("Deep Dive") ? "🎙 " : ""}{r.title}
-                </div>
-                {r.sub && <div className="text-[11px]" style={{ color: "#6f685c" }}>{r.sub}</div>}
+                </span>
+                {r.sub && <span className="text-[10.5px]" style={{ color: "#6f685c" }}>{"  ·  "}{r.sub}</span>}
               </td>
               <td className="text-right font-medium" style={{ color: r.kind === "meeting" ? "#1c1a17" : "#8a8274" }}>{r.where ?? ""}</td>
             </tr>
