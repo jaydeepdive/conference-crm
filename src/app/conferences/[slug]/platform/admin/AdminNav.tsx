@@ -16,6 +16,7 @@ export function AdminNav({ slug }: { slug: string }) {
     { href: `${base}/program`, label: "Program", exact: false },
     { href: `${base}/interviews`, label: "Interviews", exact: false },
     { href: `${base}/schedules`, label: "Schedules", exact: false },
+    { href: `${base}/nametags`, label: "Name tags", exact: false },
     { href: `${base}/day1`, label: "Day 1", exact: false },
     { href: `${base}/emails`, label: "Emails", exact: false },
     { href: `${base}/accounts`, label: "Accounts", exact: false },
