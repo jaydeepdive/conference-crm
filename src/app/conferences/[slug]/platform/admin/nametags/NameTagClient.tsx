@@ -47,17 +47,22 @@ export function NameTagClient({ presets }: { presets: TagPreset[] }) {
   );
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="nt-grid grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto]">
       <style>{`
         @media print {
           @page { size: 100mm 62mm; margin: 0; }
-          body * { visibility: hidden !important; }
-          #nametag, #nametag * { visibility: visible !important; }
-          #nametag { position: fixed !important; left: 0; top: 0; border: 0 !important; box-shadow: none !important; }
+          html, body { margin: 0 !important; padding: 0 !important; background: #fff !important;
+                       width: 100mm !important; height: 62mm !important; overflow: hidden !important; }
+          .ab-admin { min-height: 0 !important; display: block !important; }
+          .ab-admin > header, .nt-hide { display: none !important; }
+          .ab-admin > main { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+          .nt-grid, .nt-preview, .nt-page { display: block !important; margin: 0 !important; padding: 0 !important; gap: 0 !important; }
+          #nametag { margin: 0 !important; height: 61.5mm !important; border: 0 !important; box-shadow: none !important; overflow: hidden !important;
+                     page-break-after: avoid; page-break-inside: avoid; break-inside: avoid; }
         }
       `}</style>
 
-      <div className="space-y-4">
+      <div className="nt-hide space-y-4">
         <div className="relative">
           <label className={LABEL}>Find a registered attendee (optional)</label>
           <input className={INPUT} value={q} onChange={e => setQ(e.target.value)} placeholder="Type a name or company…" />
@@ -99,8 +104,8 @@ export function NameTagClient({ presets }: { presets: TagPreset[] }) {
         </p>
       </div>
 
-      <div>
-        <span className={LABEL}>Preview (actual size)</span>
+      <div className="nt-preview">
+        <span className={`nt-hide ${LABEL}`}>Preview (actual size)</span>
         <div ref={tagRef} id="nametag" className="mt-1 flex flex-col items-center justify-center bg-white text-center shadow"
           style={{ width: "100mm", height: "62mm", padding: "5mm", border: "1px dashed #c9c2b2", fontFamily: "Arial, Helvetica, sans-serif", color: "#000", boxSizing: "border-box" }}>
           <div style={{ fontWeight: 700, fontSize: nameSize, lineHeight: 1.1 }}>{name || <span style={{ color: "#bbb" }}>Full Name</span>}</div>

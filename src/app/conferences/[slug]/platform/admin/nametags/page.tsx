@@ -39,8 +39,8 @@ export default async function NameTagsPage({ params }: { params: Promise<{ slug:
   }
   presets.sort((a, b) => a.name.localeCompare(b.name));
   return (
-    <div className="space-y-5">
-      <div>
+    <div className="nt-page space-y-5">
+      <div className="nt-hide">
         <div className="text-[11px] uppercase tracking-[0.22em] text-brand-accent">Print</div>
         <h1 className="mt-1 font-display text-3xl font-medium sm:text-4xl">Name tags</h1>
         <p className="mt-1 max-w-3xl text-sm text-muted">
