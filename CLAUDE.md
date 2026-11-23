@@ -150,7 +150,7 @@ not block builds.
 - Bump `src/lib/version.ts` (`APP_VERSION`) on every release; commit message
   `vX.YZ: summary`.
 - Migrations: `supabase/migrations/00NN_name.sql`, idempotent (`if not
-  exists`), apply via API immediately after writing. Next number: **0048**. NOTE: the session's safety classifier may block live DB writes/deploys — ask Jordan to approve, then proceed. `supabase/unapplied/0039_reject_junk_emails.sql` was NOT applied (Jordan chose code-only fix).
+  exists`), apply via API immediately after writing. Next number: **0049**. NOTE: the session's safety classifier may block live DB writes/deploys — ask Jordan to approve, then proceed. `supabase/unapplied/0039_reject_junk_emails.sql` was NOT applied (Jordan chose code-only fix).
 - After `redirect()`/`notFound()` add `throw new Error("unreachable")` for TS
   narrowing.
 - Deleting files in the connected folder may need the Cowork delete permission.
@@ -450,6 +450,8 @@ meetings, profiles, sent_email_recipients, sent_emails.
 6a. v7.06: admin meetings grid has an "Other days · remote meetings" section (ExtraGrid) for company_extra_slots. v7.07: admin tab Schedules (/platform/admin/schedules) → print page /schedules/print?side=company|investor&id=a,b|all=1 (src/lib/printSchedule.ts): US Letter, black/gold letterhead with logo-transparent.png, one schedule per page, Tuesday grid + table + interview + lunch + program items (if published) + Other meetings + Day 1 line. Nov 21: name tags PDF (DK-2113 62x100mm) made outside the CRM.
 
 6b. v7.08: admin tab Name tags (/platform/admin/nametags): single tag maker — Company / Investor / Guest-Staff-Speaker templates, attendee lookup, live 100×62 mm preview, @page 100mm×62mm print for Brother QL-820NWBc DK-2113.
+
+6c. Nov 23 (migration 0048): meeting_default_table rewritten — remote location when scheduled/proposed time is a company extra slot, else company table; 14 Tuesday meetings had NULL location (fixed by touching rows). Rob Saltsman: 3 pending accepted + Ravena 2:30 booked by admin.
 
 ## 7. History (condensed)
 
