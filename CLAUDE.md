@@ -5,7 +5,7 @@
 > they are in `LOCAL_SECRETS.md` in this same folder (git-ignored, on Jordan's
 > Mac only). If that file is missing, ask Jordan to paste the tokens.
 >
-> Last updated: 2026-11-02 (handoff verified) · Live version: **v7.08** · ~98 commits on `main`
+> Last updated: 2026-11-02 (handoff verified) · Live version: **v7.11** · ~98 commits on `main`
 
 
 ## ▶ START HERE (new chat / remote session)
@@ -150,7 +150,7 @@ not block builds.
 - Bump `src/lib/version.ts` (`APP_VERSION`) on every release; commit message
   `vX.YZ: summary`.
 - Migrations: `supabase/migrations/00NN_name.sql`, idempotent (`if not
-  exists`), apply via API immediately after writing. Next number: **0049**. NOTE: the session's safety classifier may block live DB writes/deploys — ask Jordan to approve, then proceed. `supabase/unapplied/0039_reject_junk_emails.sql` was NOT applied (Jordan chose code-only fix).
+  exists`), apply via API immediately after writing. Next number: **0050**. NOTE: the session's safety classifier may block live DB writes/deploys — ask Jordan to approve, then proceed. `supabase/unapplied/0039_reject_junk_emails.sql` was NOT applied (Jordan chose code-only fix).
 - After `redirect()`/`notFound()` add `throw new Error("unreachable")` for TS
   narrowing.
 - Deleting files in the connected folder may need the Cowork delete permission.
@@ -452,6 +452,8 @@ meetings, profiles, sent_email_recipients, sent_emails.
 6b. v7.08: admin tab Name tags (/platform/admin/nametags): single tag maker — Company / Investor / Guest-Staff-Speaker templates, attendee lookup, live 100×62 mm preview, @page 100mm×62mm print for Brother QL-820NWBc DK-2113.
 
 6c. Nov 23 (migration 0048): meeting_default_table rewritten — remote location when scheduled/proposed time is a company extra slot, else company table; 14 Tuesday meetings had NULL location (fixed by touching rows). Rob Saltsman: 3 pending accepted + Ravena 2:30 booked by admin.
+
+6d. v7.11 (migration 0049): admin tab Thank-you emails (/platform/admin/thankyou, src/lib/thankyou.ts, API /api/platform/admin/thankyou): personalized post-event emails — companies (each attending person) get investors met (email); investors get companies met (contact · email · phone). Preview, Send test, Send all per side; thankyou_sends prevents duplicates. Only sends when Jordan presses Send.
 
 ## 7. History (condensed)
 
