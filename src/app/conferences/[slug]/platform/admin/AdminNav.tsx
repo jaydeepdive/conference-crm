@@ -19,6 +19,7 @@ export function AdminNav({ slug }: { slug: string }) {
     { href: `${base}/nametags`, label: "Name tags", exact: false },
     { href: `${base}/day1`, label: "Day 1", exact: false },
     { href: `${base}/emails`, label: "Emails", exact: false },
+    { href: `${base}/thankyou`, label: "Thank-you emails", exact: false },
     { href: `${base}/accounts`, label: "Accounts", exact: false },
   ];
   return (
