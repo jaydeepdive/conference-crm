@@ -6,6 +6,16 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brandedEmail, isPlausibleEmail } from "@/lib/resend";
 
+/** Standardize North American numbers to 604-216-6227; leave anything else as entered. */
+function fmtPhone(raw: string): string {
+  const t = (raw ?? "").trim();
+  if (!t) return "";
+  let d = t.replace(/\D/g, "");
+  if (d.length === 11 && d.startsWith("1")) d = d.slice(1);
+  if (d.length === 10) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  return t;
+}
+
 export type TySide = "company" | "investor";
 export interface TyItem { title: string; detail: string }
 export interface TyRecipient {
@@ -53,7 +63,7 @@ export async function buildThankYous(svc: SupabaseClient, conferenceId: string):
     const email = (c.email ?? "").trim() || ((cc.find(x => x.is_primary)?.email as string | undefined) ?? "");
     const match = cc.find(x => (x.email ?? "").toLowerCase() === email.toLowerCase());
     const phone = (c.phone ?? "").trim() || ((match?.phone as string | undefined) ?? "") || ((cc.find(x => x.phone)?.phone as string | undefined) ?? "");
-    return { name: tidyName(name), email, phone };
+    return { name: tidyName(name), email, phone: fmtPhone(phone) };
   };
 
   const out: TyRecipient[] = [];
